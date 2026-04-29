@@ -13,7 +13,6 @@ import com.timetable.timetable.domain.schedule.repository.CourseRepository;
 import com.timetable.timetable.domain.schedule.repository.SubjectRepository;
 import com.timetable.timetable.domain.user.entity.UserRole;
 import com.timetable.timetable.domain.user.repository.UserRepository;
-import com.timetable.timetable.domain.user.service.UserService;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;

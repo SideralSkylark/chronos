@@ -8,7 +8,11 @@ import com.timetable.timetable.domain.schedule.dto.CreateCourseRequest;
 import com.timetable.timetable.domain.schedule.dto.UpdateCourseRequest;
 import com.timetable.timetable.domain.schedule.entity.Course;
 import com.timetable.timetable.domain.schedule.exception.CourseNotFoundException;
+import com.timetable.timetable.domain.schedule.repository.CohortRepository;
+import com.timetable.timetable.domain.schedule.repository.CohortSubjectRepository;
 import com.timetable.timetable.domain.schedule.repository.CourseRepository;
+import com.timetable.timetable.domain.schedule.repository.ScheduledClassRepository;
+import com.timetable.timetable.domain.schedule.repository.SubjectRepository;
 import com.timetable.timetable.domain.user.entity.ApplicationUser;
 import com.timetable.timetable.domain.user.entity.UserRole;
 import com.timetable.timetable.domain.user.service.UserService;
@@ -26,6 +30,10 @@ public class CourseService {
     private final CourseRepository courseRepository;
     private final UserService userService;
     private final BusinessSimulationInitializer businessSimulationInitializer;
+    private final ScheduledClassRepository scheduledClassRepository;
+    private final CohortSubjectRepository cohortSubjectRepository;
+    private final SubjectRepository subjectRepository;
+    private final CohortRepository cohortRepository;
 
     public Course createCourse(CreateCourseRequest createRequest) {
         log.debug("Creating course");
@@ -114,14 +122,30 @@ public class CourseService {
         return updated;
     }
 
+    @Transactional
     public void deleteCourse(Long id) {
         log.debug("Deleting course {}", id);
         if (!courseRepository.existsById(id)) {
             throw new IllegalArgumentException(
                     "No course with id: %d".formatted(id));
         }
+
+        // 1. Delete scheduled classes associated with this course
+        scheduledClassRepository.deleteByCourseId(id);
+
+        // 2. Delete cohort-subject associations
+        cohortSubjectRepository.deleteByCourseId(id);
+
+        // 3. Delete subjects
+        subjectRepository.deleteByCourseId(id);
+
+        // 4. Delete cohorts
+        cohortRepository.deleteByCourseId(id);
+
+        // 5. Finally delete the course
         courseRepository.deleteById(id);
-        log.info("Course {} deleted", id);
+        
+        log.info("Course {} and all its associations (subjects, cohorts, etc.) deleted", id);
     }
 
     private Map<Integer, Integer> buildDefaultCohorts(int years) {

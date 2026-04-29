@@ -129,4 +129,12 @@ public interface ScheduledClassRepository extends JpaRepository<ScheduledClass, 
     @Modifying
     @Query("DELETE FROM ScheduledClass sc WHERE sc.cohortSubject.cohort.id = :cohortId")
     void deleteByCohortId(@Param("cohortId") Long cohortId);
+
+    @Modifying
+    @Query("DELETE FROM ScheduledClass sc WHERE sc.cohortSubject.subject.id = :subjectId")
+    void deleteBySubjectId(@Param("subjectId") Long subjectId);
+
+    @Modifying
+    @Query("DELETE FROM ScheduledClass sc WHERE sc.cohortSubject.cohort.course.id = :courseId")
+    void deleteByCourseId(@Param("courseId") Long courseId);
 }

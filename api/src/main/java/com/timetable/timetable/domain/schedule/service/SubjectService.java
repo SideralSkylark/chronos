@@ -14,6 +14,8 @@ import com.timetable.timetable.domain.schedule.dto.UpdateSubjectRequest;
 import com.timetable.timetable.domain.schedule.entity.Course;
 import com.timetable.timetable.domain.schedule.entity.Subject;
 import com.timetable.timetable.domain.schedule.exception.SubjectNotFoundException;
+import com.timetable.timetable.domain.schedule.repository.CohortSubjectRepository;
+import com.timetable.timetable.domain.schedule.repository.ScheduledClassRepository;
 import com.timetable.timetable.domain.schedule.repository.SubjectRepository;
 import com.timetable.timetable.domain.user.entity.ApplicationUser;
 import com.timetable.timetable.domain.user.entity.UserRole;
@@ -29,6 +31,8 @@ public class SubjectService {
     private final SubjectRepository subjectRepository;
     private final CourseService courseService;
     private final UserService userService;
+    private final CohortSubjectRepository cohortSubjectRepository;
+    private final ScheduledClassRepository scheduledClassRepository;
 
     @Transactional
     public Subject createSubject(CreateSubjectRequest request) {
@@ -161,8 +165,16 @@ public class SubjectService {
             );
         }
 
+        // 1. Delete scheduled classes associated with this subject (via CohortSubject)
+        scheduledClassRepository.deleteBySubjectId(id);
+        
+        // 2. Delete cohort-subject associations
+        cohortSubjectRepository.deleteBySubjectId(id);
+
+        // 3. Finally delete the subject
         subjectRepository.deleteById(id);
-        log.info("Subject {} deleted", id);
+        
+        log.info("Subject {} and all its associations deleted", id);
     }
 
     private Set<ApplicationUser> fetchEligibleTeachers(List<Long> ids) {

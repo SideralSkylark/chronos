@@ -45,7 +45,6 @@
               class="h-8 pl-8 pr-3 border border-gray-200 rounded-md text-sm text-gray-800 bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-900 outline-none transition placeholder:text-gray-300"
               style="width: 180px;"
             />
-            <Search class="w-3.5 h-3.5 text-gray-300 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
         </div>
 
@@ -461,7 +460,7 @@ const canEdit = (user: UserResponse) => {
 
 const canDelete = (user: UserResponse) => {
   if (isAdmin.value) return true
-  
+
   const isSelf = user.id === userStore.currentUser?.id
   const targetRoles = user.roles || []
   const isTargetAdmin = targetRoles.includes('ADMIN')
@@ -577,12 +576,12 @@ const openEdit = (user: UserResponse) => {
   formData.password = ''
   formData.selectedRoles = user.roles.filter((r: string) => r !== 'USER')
   formData.teacherType = user.teacherType ?? null
-  
+
   formErrors.username = false
   formErrors.email = false
   formErrors.password = false
   formErrors.teacherType = false
-  
+
   showUserModal.value = true
 }
 

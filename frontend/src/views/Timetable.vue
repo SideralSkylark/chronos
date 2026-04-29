@@ -120,6 +120,25 @@
       </template>
     </FilterBar>
 
+    <!-- Undo Bar -->
+    <Transition name="undo-bar">
+      <div v-if="undoAction" :key="undoAction.label"
+        class="w-full flex flex-col bg-white border border-gray-100 shadow-sm rounded-[10px] mb-3 overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-2.5">
+          <div class="flex items-center gap-2">
+            <ArrowRightLeft class="w-3.5 h-3.5 text-blue-900" />
+            <span class="text-xs text-gray-600">{{ undoAction.label }}</span>
+          </div>
+          <button @click="triggerUndo"
+            class="h-6 flex items-center gap-1 px-2.5 text-xs font-medium text-blue-900 bg-blue-50 border border-blue-100 rounded-md hover:bg-blue-100 transition">
+            <ArrowRightLeft class="w-3 h-3" />
+            Desfazer
+          </button>
+        </div>
+        <div class="undo-progress"></div>
+      </div>
+    </Transition>
+
     <!-- Table + side panel -->
     <div class="flex gap-4 items-start">
 
@@ -146,8 +165,8 @@
           <p class="text-sm font-semibold text-gray-600">Nenhum horário gerado</p>
           <p class="text-xs text-gray-400">
             {{ canGenerate
-              ? 'Seleccione o ano e semestre e clique em "Gerar horário".' :
-              'Aguarde a geração pelo' }}
+              ? 'Seleccione o ano e semestre e clique em "Gerar horário" no cabeçalho.' :
+              'Aguarde a geração pelo administrador ou assistente.' }}
           </p>
         </div>
 
@@ -212,10 +231,20 @@
         </div>
       </div>
 
-      <!-- Swap side panel -->
-      <Transition name="slide-panel">
-        <div v-if="canEdit && selectedCohort && selectedLesson"
-          class="bg-white rounded-[10px] shadow-sm border border-gray-100 flex-shrink-0" style="width: 264px;">
+      <!-- Side Panel Section -->
+      <div v-if="selectedCohort" class="flex-shrink-0" style="width: 264px;">
+        <div v-if="canEdit && selectedCohort && !selectedLesson"
+          class="bg-white rounded-[10px] shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-2 px-4 py-6">
+          <div class="bg-blue-50 rounded-full p-2.5">
+            <ArrowRightLeft class="w-3.5 h-3.5 text-blue-900" />
+          </div>
+          <p class="text-xs text-gray-400 text-center leading-relaxed">Seleccione uma aula da turma para ver as permutações disponíveis</p>
+        </div>
+
+        <!-- Swap side panel -->
+        <Transition name="slide-panel">
+          <div v-if="canEdit && selectedCohort && selectedLesson"
+            class="bg-white rounded-[10px] shadow-sm border border-gray-100 w-full">
           <div class="p-4 border-b border-gray-100 flex items-center justify-between">
             <div class="flex items-center gap-2">
               <ArrowRightLeft class="w-4 h-4 text-blue-900" />
@@ -256,7 +285,7 @@
                   Trocar com aula da mesma turma
                 </span>
               </div>
-              
+
               <div class="p-2.5 space-y-2">
                 <button :disabled="loadingCohortSwaps" @click="calculateCohortSwaps"
                   class="w-full h-8 flex items-center justify-center gap-1.5 px-3 bg-gray-700 text-white text-xs font-medium rounded-lg hover:bg-gray-600 transition disabled:opacity-50 disabled:cursor-not-allowed">
@@ -289,6 +318,7 @@
         </div>
       </Transition>
     </div>
+  </div>
 
         <!-- Hover tooltip -->
 
@@ -332,7 +362,7 @@
 
         </Teleport>
 
-    
+
 
         <!-- Modal: Confirm generate -->
 
@@ -396,7 +426,7 @@
 
         </div>
 
-    
+
 
         <!-- Modal: Move / Swap -->
 
@@ -508,7 +538,7 @@
 
         </div>
 
-    
+
 
         <!-- Modal: Cohort swap -->
 
@@ -676,6 +706,31 @@ const cohortSwapsCalculated = ref(false)
 const pendingCohortSwap = ref<CohortSwapCandidate | null>(null)
 const applyingCohortSwap = ref(false)
 
+const undoAction = ref<null | { label: string; fn: () => Promise<void> }>(null)
+let undoTimer: ReturnType<typeof setTimeout> | null = null
+
+function showUndo(label: string, fn: () => Promise<void>) {
+  undoAction.value = { label, fn }
+  if (undoTimer) clearTimeout(undoTimer)
+  undoTimer = setTimeout(() => {
+    undoAction.value = null
+  }, 6000)
+}
+
+async function triggerUndo() {
+  if (!undoAction.value) return
+  const action = undoAction.value
+  try {
+    await action.fn()
+    toast.success('Acção desfeita!')
+  } catch {
+    toast.error('Erro ao desfazer acção.')
+  } finally {
+    if (undoTimer) clearTimeout(undoTimer)
+    undoAction.value = null
+  }
+}
+
 const timetableStatus = computed(() => timetableStore.solution?.status)
 const canSubmit = computed(() => (isAdmin.value || isAssistant.value) && timetableStatus.value === 'DRAFT')
 const canApprove = computed(() => (isAdmin.value || isDirector.value) && timetableStatus.value === 'PENDING_APPROVAL')
@@ -810,9 +865,23 @@ async function calculateCohortSwaps() {
 async function handleApplySwap() {
   if (!selectedLesson.value || !pendingSwap.value) return
   applyingSwap.value = true
+
+  const originalTimeslotId = selectedLesson.value.timeslot?.id
+  const originalRoomId = selectedLesson.value.room?.id
+  const lessonId = selectedLesson.value.id
+  const isSwap = pendingSwap.value.isSwap
+
   try {
-    await permutationService.applySwap(selectedLesson.value.id, pendingSwap.value.timeslotId, pendingSwap.value.roomId, pendingSwap.value.swapWithId)
-    toast.success(pendingSwap.value.isSwap ? 'Aulas trocadas com sucesso!' : 'Aula movida com sucesso!')
+    await permutationService.applySwap(lessonId, pendingSwap.value.timeslotId, pendingSwap.value.roomId, pendingSwap.value.swapWithId)
+    toast.success(isSwap ? 'Aulas trocadas com sucesso!' : 'Aula movida com sucesso!')
+
+    showUndo(isSwap ? 'Troca de aulas efectuada' : 'Aula movida com sucesso', async () => {
+      if (originalTimeslotId !== undefined && originalRoomId !== undefined) {
+        await permutationService.applySwap(lessonId, originalTimeslotId, originalRoomId, null)
+        await timetableStore.loadForPeriod(selectedYear.value, selectedSemester.value)
+      }
+    })
+
     pendingSwap.value = null; clearSelection()
     await timetableStore.loadForPeriod(selectedYear.value, selectedSemester.value)
   } catch { toast.error('Erro ao aplicar permutação.') }
@@ -821,9 +890,19 @@ async function handleApplySwap() {
 async function handleApplyCohortSwap() {
   if (!selectedLesson.value || !pendingCohortSwap.value) return
   applyingCohortSwap.value = true
+
+  const lessonAId = selectedLesson.value.id
+  const lessonBId = pendingCohortSwap.value.scheduledClassId
+
   try {
-    await permutationService.applyCohortSwap(selectedLesson.value.id, pendingCohortSwap.value.scheduledClassId)
+    await permutationService.applyCohortSwap(lessonAId, lessonBId)
     toast.success('Aulas trocadas com sucesso!')
+
+    showUndo('Troca de aulas efectuada', async () => {
+      await permutationService.applyCohortSwap(lessonAId, lessonBId)
+      await timetableStore.loadForPeriod(selectedYear.value, selectedSemester.value)
+    })
+
     pendingCohortSwap.value = null; clearSelection()
     await timetableStore.loadForPeriod(selectedYear.value, selectedSemester.value)
   } catch { toast.error('Erro ao aplicar troca.') }
@@ -866,6 +945,12 @@ async function handleGenerate() {
   opacity: 0;
   transform: translateX(16px);
 }
+
+.undo-bar-enter-active, .undo-bar-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.undo-bar-enter-from, .undo-bar-leave-to { opacity: 0; transform: translateY(-6px); }
+
+@keyframes undo-shrink { from { width: 100%; } to { width: 0%; } }
+.undo-progress { height: 3px; background: #bfdbfe; border-radius: 0 0 10px 10px; animation: undo-shrink 6s linear forwards; }
 
 .line-clamp-2 {
   display: -webkit-box;

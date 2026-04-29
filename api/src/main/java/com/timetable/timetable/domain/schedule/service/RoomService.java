@@ -33,14 +33,14 @@ import java.util.List;
 public class RoomService {
     private final RoomRepository roomRepository;
     private final CourseService courseService;
-    
+
     public Room createRoom(CreateRoomRequest roomRequest) {
         log.debug("Creating room");
 
         if (roomRepository.existsByName(roomRequest.name())) {
             log.error("There is already a room with the same name: {}", roomRequest.name());
             throw new IllegalStateException();
-        } 
+        }
 
         Room room = Room.builder()
             .name(roomRequest.name())
@@ -84,11 +84,11 @@ public class RoomService {
 
             if (filters.getCourseId() != null || filters.getPeriod() != null) {
                 Join<Room, RoomCourseRestriction> restrictionsJoin = root.join("restrictions");
-                
+
                 if (filters.getCourseId() != null) {
                     predicates.add(cb.equal(restrictionsJoin.get("course").get("id"), filters.getCourseId()));
                 }
-                
+
                 if (filters.getPeriod() != null) {
                     predicates.add(cb.equal(restrictionsJoin.get("period"), filters.getPeriod()));
                 }
@@ -156,29 +156,29 @@ public class RoomService {
      * Helper: Adiciona restrições à sala
      * Prioriza periodRestrictions, senão usa restrictedToCourseId
      */
-    private void addRestrictions(Room room, Long singleCourseId, 
+    private void addRestrictions(Room room, Long singleCourseId,
                                  Map<TimePeriod, Set<Long>> periodRestrictions) {
-        
+
         // CASO 1: Restrições granulares por período (nova API)
         if (periodRestrictions != null && !periodRestrictions.isEmpty()) {
             for (Map.Entry<TimePeriod, Set<Long>> entry : periodRestrictions.entrySet()) {
                 TimePeriod period = entry.getKey();
                 Set<Long> courseIds = entry.getValue();
-                
+
                 for (Long courseId : courseIds) {
                     // Check if restriction already exists to avoid duplicates
                     boolean alreadyExists = room.getRestrictions().stream()
                         .anyMatch(r -> r.getCourse().getId().equals(courseId) && r.getPeriod() == period);
-                    
+
                     if (!alreadyExists) {
                         Course course = courseService.getById(courseId);
-                        
+
                         RoomCourseRestriction restriction = RoomCourseRestriction.builder()
                             .room(room)
                             .course(course)
                             .period(period)
                             .build();
-                        
+
                         room.getRestrictions().add(restriction);
                     }
                 }
@@ -186,24 +186,24 @@ public class RoomService {
             log.debug("Added {} granular restrictions", room.getRestrictions().size());
             return;
         }
-        
+
         // CASO 2: Curso único para todos os períodos (retrocompatibilidade)
         if (singleCourseId != null) {
             Course course = courseService.getById(singleCourseId);
-            
+
             for (TimePeriod period : TimePeriod.values()) {
                 RoomCourseRestriction restriction = RoomCourseRestriction.builder()
                     .room(room)
                     .course(course)
                     .period(period)
                     .build();
-                
+
                 room.getRestrictions().add(restriction);
             }
             log.debug("Added course restriction for all periods: {}", course.getName());
             return;
         }
-        
+
         // CASO 3: Sem restrições (sala disponível para todos)
         log.debug("No restrictions - room available for all courses in all periods");
     }

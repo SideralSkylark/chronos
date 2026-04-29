@@ -129,7 +129,7 @@ describe('Timetable.vue Business Logic', () => {
       expect(vm.canGenerate).toBe(false)
       
       authStoreMock.user.roles = [Role.TEACHER]
-      expect(factory().vm.canGenerate).toBe(false)
+      expect((factory().vm as any).canGenerate).toBe(false)
     })
 
     it('allows COORDINATOR to edit only their own course cohort', async () => {

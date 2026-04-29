@@ -5,6 +5,7 @@ import com.timetable.timetable.domain.schedule.entity.Cohort;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -72,4 +73,8 @@ public interface CohortRepository extends JpaRepository<Cohort, Long>, JpaSpecif
             @Param("semester") Integer semester,
             @Param("academicYear") Integer academicYear,
             @Param("courseId") Long courseId);
+
+    @Modifying
+    @Query("DELETE FROM Cohort c WHERE c.course.id = :courseId")
+    void deleteByCourseId(@Param("courseId") Long courseId);
 }
