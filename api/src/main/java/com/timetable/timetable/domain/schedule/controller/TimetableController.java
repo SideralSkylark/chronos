@@ -64,11 +64,7 @@ public class TimetableController {
     @Transactional
     public ResponseEntity<ApiResponse<TimetableResponse>> submit(@PathVariable Long id) {
         return ResponseFactory.ok(
-                TimetableResponse.from(timetableService.updateTimetable(id,
-                        new UpdateTimetableRequest(
-                                timetableService.getById(id).getAcademicYear(),
-                                timetableService.getById(id).getSemester(),
-                                TimetableStatus.PENDING_APPROVAL))),
+                TimetableResponse.from(timetableService.submitForApproval(id)),
                 "Timetable submitted for approval.");
     }
 
@@ -76,11 +72,7 @@ public class TimetableController {
     @Transactional
     public ResponseEntity<ApiResponse<TimetableResponse>> approve(@PathVariable Long id) {
         return ResponseFactory.ok(
-                TimetableResponse.from(timetableService.updateTimetable(id,
-                        new UpdateTimetableRequest(
-                                timetableService.getById(id).getAcademicYear(),
-                                timetableService.getById(id).getSemester(),
-                                TimetableStatus.APPROVED))),
+                TimetableResponse.from(timetableService.approve(id)),
                 "Timetable approved.");
     }
 
@@ -88,7 +80,7 @@ public class TimetableController {
     @Transactional
     public ResponseEntity<ApiResponse<TimetableResponse>> reject(@PathVariable Long id) {
         return ResponseFactory.ok(
-                TimetableResponse.from(timetableService.revertToDraft(id)),
+                TimetableResponse.from(timetableService.reject(id)),
                 "Timetable rejected and reverted to draft.");
     }
 
