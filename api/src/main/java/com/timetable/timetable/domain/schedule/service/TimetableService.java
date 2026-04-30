@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class TimetableService {
     private final TimetableRepository timetableRepository;
+    private final com.timetable.timetable.domain.user.service.NotificationService notificationService;
 
     @Transactional
     public Timetable createTimetable(CreateTimetableRequest createRequest) {
@@ -99,6 +100,53 @@ public class TimetableService {
     }
 
     @Transactional
+    public Timetable submitForApproval(Long id) {
+        log.debug("Submitting timetable {} for approval", id);
+        Timetable timetable = getById(id);
+        timetable.setStatus(TimetableStatus.PENDING_APPROVAL);
+        Timetable saved = timetableRepository.save(timetable);
+
+        Long currentUserId = com.timetable.timetable.security.SecurityUtil.getAuthenticatedId();
+        notificationService.notify(currentUserId, "Horário submetido para aprovação.");
+        notificationService.notifyAllWithRole("DIRECTOR",
+                "O horário de " + saved.getAcademicYear() + "·" + saved.getSemester() + "º semestre aguarda a sua aprovação.",
+                currentUserId);
+        notificationService.notifyAllWithRole("ADMIN",
+                "O horário de " + saved.getAcademicYear() + "·" + saved.getSemester() + "º semestre aguarda aprovação.",
+                currentUserId);
+
+        return saved;
+    }
+
+    @Transactional
+    public Timetable approve(Long id) {
+        log.debug("Approving timetable {}", id);
+        Timetable timetable = getById(id);
+        timetable.setStatus(TimetableStatus.APPROVED);
+        Timetable saved = timetableRepository.save(timetable);
+
+        Long currentUserId = com.timetable.timetable.security.SecurityUtil.getAuthenticatedId();
+        notificationService.notify(currentUserId, "Horário aprovado.");
+        // TODO: NotificationService call for submitter if Timetable tracks it in the future
+
+        return saved;
+    }
+
+    @Transactional
+    public Timetable reject(Long id) {
+        log.debug("Rejecting timetable {}", id);
+        Timetable timetable = getById(id);
+        timetable.setStatus(TimetableStatus.DRAFT);
+        Timetable saved = timetableRepository.save(timetable);
+
+        Long currentUserId = com.timetable.timetable.security.SecurityUtil.getAuthenticatedId();
+        notificationService.notify(currentUserId, "Horário rejeitado.");
+        // TODO: NotificationService call for submitter if Timetable tracks it in the future
+
+        return saved;
+    }
+
+    @Transactional
     public Timetable publishTimetable(Long id) {
         log.debug("publishing timetable");
         Timetable timetable = timetableRepository.findById(id)
@@ -119,6 +167,24 @@ public class TimetableService {
 
         timetable.setStatus(TimetableStatus.PUBLISHED);
         Timetable updated = timetableRepository.save(timetable);
+
+        Long currentUserId = com.timetable.timetable.security.SecurityUtil.getAuthenticatedId();
+        notificationService.notify(currentUserId, "Horário publicado com sucesso.");
+        notificationService.notifyAllWithRole("ASISTENT",
+                "O horário de " + updated.getAcademicYear() + "·" + updated.getSemester() + "º semestre foi publicado.",
+                currentUserId);
+
+        java.util.Set<Long> coordinatorIds = updated.getScheduledClasses().stream()
+                .map(sc -> sc.getCohortSubject().getCohort().getCourse().getCoordinator())
+                .filter(java.util.Objects::nonNull)
+                .map(com.timetable.timetable.domain.user.entity.ApplicationUser::getId)
+                .collect(java.util.stream.Collectors.toSet());
+
+        for (Long coordinatorId : coordinatorIds) {
+            notificationService.notify(coordinatorId,
+                    "O horário da sua turma foi publicado para " + updated.getAcademicYear() + "·" + updated.getSemester()
+                            + "º semestre.");
+        }
 
         log.info("timetable {} updated", updated.getId());
         return updated;

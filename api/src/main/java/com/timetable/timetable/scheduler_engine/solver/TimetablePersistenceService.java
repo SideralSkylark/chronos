@@ -24,6 +24,7 @@ public class TimetablePersistenceService {
     private final TimetableRepository timetableRepository;
     private final PersistenceMapper persistenceMapper;
     private final ScheduledClassRepository scheduledClassRepository;
+    private final com.timetable.timetable.domain.user.service.NotificationService notificationService;
 
     @Transactional
     public Timetable saveSolution(TimetableSolution solution) {
@@ -55,6 +56,20 @@ public class TimetablePersistenceService {
 
         timetable.setStatus(TimetableStatus.DRAFT);
         Timetable saved = timetableRepository.save(timetable);
+
+        try {
+            Long currentUserId = com.timetable.timetable.security.SecurityUtil.getAuthenticatedId();
+            notificationService.notify(currentUserId,
+                    "Horário " + year + "·" + semester + "º semestre gerado com sucesso.");
+            notificationService.notifyAllWithRole("DIRECTOR",
+                    "Um novo horário foi gerado para " + year + "·" + semester + "º semestre.",
+                    currentUserId);
+            notificationService.notifyAllWithRole("ADMIN",
+                    "Um novo horário foi gerado para " + year + "·" + semester + "º semestre.",
+                    currentUserId);
+        } catch (Exception e) {
+            log.warn("Failed to send generation notifications: {}", e.getMessage());
+        }
 
         log.info("Saved timetable id={} for {}.{} with {} scheduled classes",
                 saved.getId(), year, semester, classes.size());

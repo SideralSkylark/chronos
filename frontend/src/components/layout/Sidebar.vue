@@ -45,8 +45,17 @@
     <div class="px-3 py-3 border-t border-slate-200">
       <!-- User info -->
       <div class="flex items-center gap-2.5 px-2.5 py-2 rounded-md mb-0.5 bg-slate-100 border border-slate-200">
-        <div class="w-7 h-7 rounded-full bg-blue-900 flex items-center justify-center shrink-0">
+        <div class="w-7 h-7 rounded-full bg-blue-900 flex items-center justify-center shrink-0"
+          @click="showNotifications = true"
+        >
           <span class="text-xs font-medium text-white leading-none">{{ userInitials }}</span>
+          <!-- Notification badge -->
+          <span
+            v-if="notificationStore.unreadCount > 0"
+            class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-medium rounded-full min-w-[16px] h-4 px-0.5 flex items-center justify-center leading-none"
+          >
+            {{ notificationStore.unreadCount > 99 ? '99+' : notificationStore.unreadCount }}
+          </span>
         </div>
         <div class="flex-1 min-w-0">
           <p class="text-xs font-medium text-gray-800 truncate">
@@ -66,14 +75,17 @@
         <span class="font-medium">Terminar sessão</span>
       </button>
     </div>
+    <NotificationsModal v-model="showNotifications" />
   </aside>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useUserStore } from '@/stores/user'
+import { useNotificationStore } from '@/stores/notification'
+import NotificationsModal from '@/components/ui/NotificationsModal.vue'
 import {
   LayoutDashboard,
   DoorOpen,
@@ -90,6 +102,9 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const userStore = useUserStore()
+const notificationStore = useNotificationStore()
+
+const showNotifications = ref(false)
 
 const roleLabels: Record<string, string> = {
   ADMIN:       'Administrador',
@@ -131,7 +146,12 @@ const allowedRoutes = computed(() => {
 const isActive = (item: typeof dashboardRoutes[number]) => route.name === item.name
 
 const logout = async () => {
+  notificationStore.stopPolling()
   await auth.logout()
   router.push({ name: 'Login' })
 }
+
+onMounted(() => {
+  notificationStore.fetchUnreadCount()
+})
 </script>
