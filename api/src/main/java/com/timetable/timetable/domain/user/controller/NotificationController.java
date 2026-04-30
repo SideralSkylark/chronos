@@ -48,4 +48,28 @@ public class NotificationController {
         notificationService.markAllRead(userId);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{id}/mark-read")
+    public ResponseEntity<Void> markAsRead(@PathVariable Long id) {
+        Long userId = SecurityUtil.getAuthenticatedId();
+        log.debug("Marking notification {} as read for user {}", id, userId);
+        notificationService.markAsRead(id, userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        Long userId = SecurityUtil.getAuthenticatedId();
+        log.debug("Deleting notification {} for user {}", id, userId);
+        notificationService.deleteNotification(id, userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/clear-read")
+    public ResponseEntity<Void> clearRead() {
+        Long userId = SecurityUtil.getAuthenticatedId();
+        log.debug("Clearing read notifications for user {}", userId);
+        notificationService.clearReadNotifications(userId);
+        return ResponseEntity.noContent().build();
+    }
 }

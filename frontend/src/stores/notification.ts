@@ -54,6 +54,38 @@ export const useNotificationStore = defineStore('notification', {
       }
     },
 
+    async markAsRead(id: number) {
+      try {
+        await api.post(`/v1/notifications/${id}/mark-read`)
+        const n = this.notifications.find((n) => n.id === id)
+        if (n && !n.read) {
+          n.read = true
+          if (this.unreadCount > 0) this.unreadCount--
+        }
+      } catch (err) {
+        console.error('Erro ao marcar notificação como lida:', err)
+      }
+    },
+
+    async dismiss(id: number) {
+      try {
+        await api.delete(`/v1/notifications/${id}`)
+        this.notifications = this.notifications.filter((n) => n.id !== id)
+        this.unreadCount = this.notifications.filter((n) => !n.read).length
+      } catch (err) {
+        console.error('Erro ao eliminar notificação:', err)
+      }
+    },
+
+    async clearRead() {
+      try {
+        await api.post('/v1/notifications/clear-read')
+        this.notifications = this.notifications.filter((n) => !n.read)
+      } catch (err) {
+        console.error('Erro ao limpar notificações lidas:', err)
+      }
+    },
+
     startPolling() {
       if (pollingInterval !== null) return
       pollingInterval = window.setInterval(() => {

@@ -72,6 +72,27 @@ public class NotificationService {
         notificationRepository.markAllReadByUserId(userId);
     }
 
+    @Transactional
+    public void markAsRead(Long id, Long userId) {
+        notificationRepository.markAsRead(id, userId);
+    }
+
+    @Transactional
+    public void deleteNotification(Long id, Long userId) {
+        notificationRepository.findById(id).ifPresent(notification -> {
+            if (notification.getUser().getId().equals(userId)) {
+                notificationRepository.delete(notification);
+            } else {
+                throw new org.springframework.security.access.AccessDeniedException("Não tem permissão para eliminar esta notificação.");
+            }
+        });
+    }
+
+    @Transactional
+    public void clearReadNotifications(Long userId) {
+        notificationRepository.deleteReadByUserId(userId);
+    }
+
     private NotificationDto toDto(Notification notification) {
         return new NotificationDto(
                 notification.getId(),
