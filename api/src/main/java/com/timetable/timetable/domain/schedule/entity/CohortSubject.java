@@ -1,14 +1,17 @@
 package com.timetable.timetable.domain.schedule.entity;
 
 import com.timetable.timetable.domain.user.entity.ApplicationUser;
+import com.timetable.timetable.domain.user.entity.UserRole;
+
 import jakarta.persistence.*;
 import lombok.*;
-//TODO: Document this class
+
 /**
- * Representa a atribuição de uma disciplina a uma turma específica com um
- * professor específico.
- * Esta é a "instância concreta" de uma disciplina sendo lecionada.
+ * Binds a {@link Subject} to a specific @{link Cohort} with a
+ * {@link UserRole.TEACHER}
+ * Represents an instance of a lesson to be lectured
  */
+
 @Entity
 @Table(name = "cohort_subjects", uniqueConstraints = {
         @UniqueConstraint(columnNames = { "cohort_id", "subject_id", "academic_year", "semester" })
@@ -54,21 +57,18 @@ public class CohortSubject {
         return AcademicPolicy.SESSIONS_PER_WEEK;
     }
 
-    /** 4h de contacto por semana — para cálculo de carga do professor */
+    /** 4h/week of contact — used to calculate a teachers workload*/
     public int getWeeklyHours() {
         return AcademicPolicy.WEEKLY_CONTACT_HOURS;
     }
 
-    /**
-     * Nome para exibição
-     */
     public String getDisplayName() {
         return cohort.getDisplayName() + " - " + subject.getName() +
                 " (" + assignedTeacher.getUsername() + ")";
     }
 
     /**
-     * Verifica se o professor é elegível para lecionar esta disciplina
+     * Checks if a teacher is eligible to lecture the lesson
      */
     public boolean isTeacherEligible() {
         // Phantom teachers are always considered eligible
@@ -82,25 +82,25 @@ public class CohortSubject {
     }
 
     /**
-     * Valida consistência de dados
+     * Validates data consistency
      */
     public boolean isValid() {
-        // Verifica alinhamento de ano académico e semestre
+        // Checks year and semester alignment
         if (cohort.getAcademicYear() != academicYear || cohort.getSemester() != semester) {
             return false;
         }
 
-        // Verifica se a disciplina é do semestre correto
+        // Check if the subject is for the given semester
         if (subject.getTargetSemester() != semester) {
             return false;
         }
 
-        // Verifica se o professor é elegível
+        // check teacher elegibility
         if (!isTeacherEligible()) {
             return false;
         }
 
-        // Verifica se a disciplina pertence ao curso da turma
+        // Check if subject belongs to the cohorts course
         if (!subject.getCourse().equals(cohort.getCourse())) {
             return false;
         }
@@ -108,9 +108,6 @@ public class CohortSubject {
         return true;
     }
 
-    /**
-     * Validação antes de persistir
-     */
     @PrePersist
     @PreUpdate
     private void validate() {

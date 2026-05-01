@@ -118,20 +118,29 @@ public class TimetableService {
         return saved;
     }
 
+    /**
+     * Aproves a timetable if the user deems it valid, and sends a notification to the user approving it and all other users with the role {@link UserRole.ASISTENT}
+     *
+     * @return {@link Timetable} 
+     */
     @Transactional
     public Timetable approve(Long id) {
         log.debug("Approving timetable {}", id);
         Timetable timetable = getById(id);
         timetable.setStatus(TimetableStatus.APPROVED);
         Timetable saved = timetableRepository.save(timetable);
-
         Long currentUserId = com.timetable.timetable.security.SecurityUtil.getAuthenticatedId();
         notificationService.notify(currentUserId, "Horário aprovado.");
-        // TODO: NotificationService call for submitter if Timetable tracks it in the future
+        notificationService.notifyAllWithRole("ASISTENT", "Horário aprovado.", currentUserId);
 
         return saved;
     }
 
+    /**
+     * Rejects a {@link Timetable} if the user deems it invalid, and sends a notification to the user rejecting it and all other users with the role {@link UserRole.ASISTENT}
+     *
+     * @return {@link Timetable}
+     */
     @Transactional
     public Timetable reject(Long id) {
         log.debug("Rejecting timetable {}", id);
@@ -141,7 +150,7 @@ public class TimetableService {
 
         Long currentUserId = com.timetable.timetable.security.SecurityUtil.getAuthenticatedId();
         notificationService.notify(currentUserId, "Horário rejeitado.");
-        // TODO: NotificationService call for submitter if Timetable tracks it in the future
+        notificationService.notifyAllWithRole("ASISTENT", "Horário rejeitado.", currentUserId);
 
         return saved;
     }

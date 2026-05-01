@@ -5,7 +5,6 @@ import com.timetable.timetable.common.response.ResponseFactory;
 import com.timetable.timetable.domain.schedule.dto.CreateTimetableRequest;
 import com.timetable.timetable.domain.schedule.dto.TimetableResponse;
 import com.timetable.timetable.domain.schedule.dto.UpdateTimetableRequest;
-import com.timetable.timetable.domain.schedule.entity.TimetableStatus;
 import com.timetable.timetable.domain.schedule.service.TimetableService;
 
 import org.springframework.data.domain.Pageable;

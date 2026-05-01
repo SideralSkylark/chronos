@@ -59,7 +59,7 @@ public class NotificationService {
     public List<NotificationDto> getForUser(Long userId) {
         return notificationRepository.findByUserIdOrderByCreatedAtDesc(userId)
                 .stream()
-                .map(this::toDto)
+                .map(NotificationDto::from)
                 .collect(Collectors.toList());
     }
 
@@ -91,14 +91,5 @@ public class NotificationService {
     @Transactional
     public void clearReadNotifications(Long userId) {
         notificationRepository.deleteReadByUserId(userId);
-    }
-
-    private NotificationDto toDto(Notification notification) {
-        return new NotificationDto(
-                notification.getId(),
-                notification.getMessage(),
-                notification.getReadFlag(),
-                notification.getCreatedAt()
-        );
     }
 }
