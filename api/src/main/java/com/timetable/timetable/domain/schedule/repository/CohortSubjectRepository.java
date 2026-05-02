@@ -66,6 +66,20 @@ public interface CohortSubjectRepository extends JpaRepository<CohortSubject, Lo
             @Param("academicYear") int academicYear,
             @Param("semester") int semester);
 
+        @Query("""
+                SELECT cs FROM CohortSubject cs
+                JOIN FETCH cs.cohort
+                JOIN FETCH cs.subject
+                JOIN FETCH cs.assignedTeacher
+                WHERE cs.academicYear = :academicYear
+                  AND cs.semester = :semester
+                  AND cs.assignedTeacher = :assignedTeacher
+            """)
+    List<CohortSubject> findByAcademicYearAndSemesterAndAssignedTeacher(
+            @Param("academicYear") int academicYear,
+            @Param("semester") int semester,
+            @Param("assignedTeacher") Long assignedTeacher);
+
     @Query("""
                 SELECT cs FROM CohortSubject cs
                 JOIN FETCH cs.subject

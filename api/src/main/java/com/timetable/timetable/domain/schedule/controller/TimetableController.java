@@ -1,7 +1,10 @@
 package com.timetable.timetable.domain.schedule.controller;
 
+import java.util.List;
+
 import com.timetable.timetable.common.response.ApiResponse;
 import com.timetable.timetable.common.response.ResponseFactory;
+import com.timetable.timetable.domain.schedule.dto.CandidateTeacherResponse;
 import com.timetable.timetable.domain.schedule.dto.CreateTimetableRequest;
 import com.timetable.timetable.domain.schedule.dto.TimetableResponse;
 import com.timetable.timetable.domain.schedule.dto.UpdateTimetableRequest;
@@ -48,6 +51,14 @@ public class TimetableController {
         return ResponseFactory.ok(
                 TimetableResponse.from(timetableService.getById(id)),
                 "Timetable fetched successfully.");
+    }
+
+    @GetMapping("/lessons/{lessonId}/candidate-teachers")
+    public ResponseEntity<ApiResponse<List<CandidateTeacherResponse>>> getCandidates(@PathVariable Long lessonId) {
+        return ResponseFactory.ok(
+            timetableService.getCandidates(lessonId),
+            "Candidate teachers fetched successfully."
+        );
     }
 
     @PutMapping("/{id}")

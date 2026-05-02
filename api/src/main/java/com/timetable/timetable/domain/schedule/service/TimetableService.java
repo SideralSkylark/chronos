@@ -5,12 +5,22 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
+import com.timetable.timetable.domain.schedule.dto.CandidateTeacherResponse;
 import com.timetable.timetable.domain.schedule.dto.CreateTimetableRequest;
 import com.timetable.timetable.domain.schedule.dto.UpdateTimetableRequest;
+import com.timetable.timetable.domain.schedule.entity.AcademicPolicy;
+import com.timetable.timetable.domain.schedule.entity.CohortSubject;
 import com.timetable.timetable.domain.schedule.entity.Timetable;
 import com.timetable.timetable.domain.schedule.entity.TimetableStatus;
 import com.timetable.timetable.domain.schedule.exception.TimetableNotFoundException;
 import com.timetable.timetable.domain.schedule.repository.TimetableRepository;
+import com.timetable.timetable.domain.schedule.repository.CohortSubjectRepository;
+import com.timetable.timetable.domain.user.entity.ApplicationUser;
+import com.timetable.timetable.domain.user.service.NotificationService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +30,9 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class TimetableService {
     private final TimetableRepository timetableRepository;
-    private final com.timetable.timetable.domain.user.service.NotificationService notificationService;
+    private final CohortSubjectRepository cohortSubjectRepository;
+    private final SubjectService subjectService;
+    private final NotificationService notificationService;
 
     @Transactional
     public Timetable createTimetable(CreateTimetableRequest createRequest) {
@@ -75,6 +87,27 @@ public class TimetableService {
     }
 
     @Transactional
+    public List<CandidateTeacherResponse> getCandidates(Long subjectId, int academicYear, int semester) {
+        Set<ApplicationUser> candidates = subjectService.getById(subjectId).getEligibleTeachers();
+
+        List<CandidateTeacherResponse> response = new ArrayList<>();
+        for (ApplicationUser c : candidates) {
+            List<CohortSubject> cohorts = cohortSubjectRepository
+                    .findByAcademicYearAndSemesterAndAssignedTeacher(academicYear, semester, c.getId());
+            int weeklyHours = cohorts.size() * AcademicPolicy.WEEKLY_CONTACT_HOURS;
+            boolean wouldExceedLimits = (weeklyHours + AcademicPolicy.WEEKLY_CONTACT_HOURS > AcademicPolicy
+                    .getWeeklyHoursLimit(c));
+            response.add(CandidateTeacherResponse.from(
+                    c,
+                    weeklyHours,
+                    AcademicPolicy.getWeeklyHoursLimit(c),
+                    wouldExceedLimits));
+        }
+
+        return response;
+    }
+
+    @Transactional
     public Timetable updateTimetable(Long id, UpdateTimetableRequest updateRequest) {
         log.debug("updating timetable {}", id);
         Timetable timetable = getById(id);
@@ -109,7 +142,8 @@ public class TimetableService {
         Long currentUserId = com.timetable.timetable.security.SecurityUtil.getAuthenticatedId();
         notificationService.notify(currentUserId, "Horário submetido para aprovação.");
         notificationService.notifyAllWithRole("DIRECTOR",
-                "O horário de " + saved.getAcademicYear() + "·" + saved.getSemester() + "º semestre aguarda a sua aprovação.",
+                "O horário de " + saved.getAcademicYear() + "·" + saved.getSemester()
+                        + "º semestre aguarda a sua aprovação.",
                 currentUserId);
         notificationService.notifyAllWithRole("ADMIN",
                 "O horário de " + saved.getAcademicYear() + "·" + saved.getSemester() + "º semestre aguarda aprovação.",
@@ -119,9 +153,11 @@ public class TimetableService {
     }
 
     /**
-     * Aproves a timetable if the user deems it valid, and sends a notification to the user approving it and all other users with the role {@link UserRole.ASISTENT}
+     * Aproves a timetable if the user deems it valid, and sends a notification to
+     * the user approving it and all other users with the role
+     * {@link UserRole.ASISTENT}
      *
-     * @return {@link Timetable} 
+     * @return {@link Timetable}
      */
     @Transactional
     public Timetable approve(Long id) {
@@ -137,7 +173,9 @@ public class TimetableService {
     }
 
     /**
-     * Rejects a {@link Timetable} if the user deems it invalid, and sends a notification to the user rejecting it and all other users with the role {@link UserRole.ASISTENT}
+     * Rejects a {@link Timetable} if the user deems it invalid, and sends a
+     * notification to the user rejecting it and all other users with the role
+     * {@link UserRole.ASISTENT}
      *
      * @return {@link Timetable}
      */
@@ -191,7 +229,8 @@ public class TimetableService {
 
         for (Long coordinatorId : coordinatorIds) {
             notificationService.notify(coordinatorId,
-                    "O horário da sua turma foi publicado para " + updated.getAcademicYear() + "·" + updated.getSemester()
+                    "O horário da sua turma foi publicado para " + updated.getAcademicYear() + "·"
+                            + updated.getSemester()
                             + "º semestre.");
         }
 
