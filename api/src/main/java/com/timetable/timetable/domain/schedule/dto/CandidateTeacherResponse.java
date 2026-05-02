@@ -7,15 +7,17 @@ public record CandidateTeacherResponse(
         String username,
         int currentWeeklyHours,
         int weeklyLimit,
-        boolean wouldExceed) {
+        boolean wouldExceed,
+        boolean isEligible) {
     public static CandidateTeacherResponse from(
-            ApplicationUser teacher, int currentWeeklyHours, int weeklyLimit, boolean wouldExceed) {
+            ApplicationUser teacher, int currentWeeklyHours, int weeklyLimit, boolean wouldExceed, boolean isEligible) {
         return new CandidateTeacherResponse(
             teacher.getId(),
             teacher.getUsername(),
             currentWeeklyHours,
             weeklyLimit,
-            wouldExceed
+            wouldExceed,
+            isEligible
         );
     }
 }

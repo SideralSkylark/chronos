@@ -54,10 +54,10 @@ public class TimetableController {
     }
 
     @GetMapping("/lessons/{lessonId}/candidate-teachers")
-    public ResponseEntity<ApiResponse<List<CandidateTeacherResponse>>> getCandidates(@PathVariable Long lessonId) {
+    public ResponseEntity<ApiResponse<List<CandidateTeacherResponse>>> getReplacementCandidates(@PathVariable Long lessonId) {
         return ResponseFactory.ok(
-            timetableService.getCandidates(lessonId),
-            "Candidate teachers fetched successfully."
+            timetableService.getReplacementCandidates(lessonId),
+            "Teachers fetched successfully."
         );
     }
 

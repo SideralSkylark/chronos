@@ -7,19 +7,22 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 import com.timetable.timetable.domain.schedule.dto.CandidateTeacherResponse;
 import com.timetable.timetable.domain.schedule.dto.CreateTimetableRequest;
 import com.timetable.timetable.domain.schedule.dto.UpdateTimetableRequest;
 import com.timetable.timetable.domain.schedule.entity.AcademicPolicy;
 import com.timetable.timetable.domain.schedule.entity.CohortSubject;
+import com.timetable.timetable.domain.schedule.entity.ScheduledClass;
 import com.timetable.timetable.domain.schedule.entity.Timetable;
 import com.timetable.timetable.domain.schedule.entity.TimetableStatus;
+import com.timetable.timetable.domain.schedule.exception.ScheduledClassNotFoundException;
 import com.timetable.timetable.domain.schedule.exception.TimetableNotFoundException;
 import com.timetable.timetable.domain.schedule.repository.TimetableRepository;
 import com.timetable.timetable.domain.schedule.repository.CohortSubjectRepository;
+import com.timetable.timetable.domain.schedule.repository.ScheduledClassRepository;
 import com.timetable.timetable.domain.user.entity.ApplicationUser;
+import com.timetable.timetable.domain.user.repository.UserRepository;
 import com.timetable.timetable.domain.user.service.NotificationService;
 
 import lombok.RequiredArgsConstructor;
@@ -30,8 +33,9 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class TimetableService {
     private final TimetableRepository timetableRepository;
+    private final ScheduledClassRepository scheduledClassRepository;
+    private final UserRepository userRepository;
     private final CohortSubjectRepository cohortSubjectRepository;
-    private final SubjectService subjectService;
     private final NotificationService notificationService;
 
     @Transactional
@@ -86,22 +90,40 @@ public class TimetableService {
         return timetable;
     }
 
+    /**
+     * return a list of {@link CandidateTeacherResponse}. To be used for the phantom swap feature.
+     */
     @Transactional
-    public List<CandidateTeacherResponse> getCandidates(Long subjectId, int academicYear, int semester) {
-        Set<ApplicationUser> candidates = subjectService.getById(subjectId).getEligibleTeachers();
+    public List<CandidateTeacherResponse> getReplacementCandidates(Long lessonId) {
+        ScheduledClass lesson = scheduledClassRepository.findByIdWithDetails(lessonId)
+                .orElseThrow(() -> new ScheduledClassNotFoundException(
+                        "Lesson with id %d not found".formatted(lessonId)));
+        int academicYear = lesson.getCohortSubject().getAcademicYear();
+        int semester = lesson.getCohortSubject().getSemester();
+
+        List<ApplicationUser> allTeachers = userRepository.findAll()
+            .stream()
+            .filter(u -> !u.getUsername().contains("PHANTOM"))
+            .toList();
 
         List<CandidateTeacherResponse> response = new ArrayList<>();
-        for (ApplicationUser c : candidates) {
+
+        for (ApplicationUser teacher : allTeachers) {
             List<CohortSubject> cohorts = cohortSubjectRepository
-                    .findByAcademicYearAndSemesterAndAssignedTeacher(academicYear, semester, c.getId());
+                    .findByAcademicYearAndSemesterAndAssignedTeacher(academicYear, semester, teacher.getId());
+
             int weeklyHours = cohorts.size() * AcademicPolicy.WEEKLY_CONTACT_HOURS;
+            int limit = AcademicPolicy.getWeeklyHoursLimit(teacher);
             boolean wouldExceedLimits = (weeklyHours + AcademicPolicy.WEEKLY_CONTACT_HOURS > AcademicPolicy
-                    .getWeeklyHoursLimit(c));
+                    .getWeeklyHoursLimit(teacher));
+            boolean qualified = lesson.getSubject().getEligibleTeachers().contains(teacher);
+
             response.add(CandidateTeacherResponse.from(
-                    c,
+                    teacher,
                     weeklyHours,
-                    AcademicPolicy.getWeeklyHoursLimit(c),
-                    wouldExceedLimits));
+                    limit,
+                    wouldExceedLimits,
+                    qualified));
         }
 
         return response;
