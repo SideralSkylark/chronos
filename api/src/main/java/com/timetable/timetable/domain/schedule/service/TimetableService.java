@@ -10,6 +10,9 @@ import java.util.List;
 
 import com.timetable.timetable.domain.schedule.dto.CandidateTeacherResponse;
 import com.timetable.timetable.domain.schedule.dto.CreateTimetableRequest;
+import com.timetable.timetable.domain.schedule.dto.ReasignTeacherRequest;
+import com.timetable.timetable.domain.schedule.dto.TimetableResponse;
+import com.timetable.timetable.domain.schedule.dto.UpdateCohortSubjectRequest;
 import com.timetable.timetable.domain.schedule.dto.UpdateTimetableRequest;
 import com.timetable.timetable.domain.schedule.entity.AcademicPolicy;
 import com.timetable.timetable.domain.schedule.entity.CohortSubject;
@@ -22,6 +25,7 @@ import com.timetable.timetable.domain.schedule.repository.TimetableRepository;
 import com.timetable.timetable.domain.schedule.repository.CohortSubjectRepository;
 import com.timetable.timetable.domain.schedule.repository.ScheduledClassRepository;
 import com.timetable.timetable.domain.user.entity.ApplicationUser;
+import com.timetable.timetable.domain.user.exception.UserNotFoundException;
 import com.timetable.timetable.domain.user.repository.UserRepository;
 import com.timetable.timetable.domain.user.service.NotificationService;
 
@@ -36,6 +40,7 @@ public class TimetableService {
     private final ScheduledClassRepository scheduledClassRepository;
     private final UserRepository userRepository;
     private final CohortSubjectRepository cohortSubjectRepository;
+    private final CohortSubjectService cohortSubjectService;
     private final NotificationService notificationService;
 
     @Transactional
@@ -91,20 +96,21 @@ public class TimetableService {
     }
 
     /**
-     * return a list of {@link CandidateTeacherResponse}. To be used for the phantom swap feature.
+     * return a list of {@link CandidateTeacherResponse}. To be used for the phantom
+     * swap feature.
      */
     @Transactional
     public List<CandidateTeacherResponse> getReplacementCandidates(Long lessonId) {
-        ScheduledClass lesson = scheduledClassRepository.findByIdWithDetails(lessonId)
+        ScheduledClass scheduledClass = scheduledClassRepository.findByIdWithDetails(lessonId)
                 .orElseThrow(() -> new ScheduledClassNotFoundException(
-                        "Lesson with id %d not found".formatted(lessonId)));
-        int academicYear = lesson.getCohortSubject().getAcademicYear();
-        int semester = lesson.getCohortSubject().getSemester();
+                        "scheduled class with id %d not found".formatted(lessonId)));
+        int academicYear = scheduledClass.getCohortSubject().getAcademicYear();
+        int semester = scheduledClass.getCohortSubject().getSemester();
 
         List<ApplicationUser> allTeachers = userRepository.findAll()
-            .stream()
-            .filter(u -> !u.getUsername().contains("PHANTOM"))
-            .toList();
+                .stream()
+                .filter(u -> !u.getUsername().contains("PHANTOM"))
+                .toList();
 
         List<CandidateTeacherResponse> response = new ArrayList<>();
 
@@ -116,7 +122,7 @@ public class TimetableService {
             int limit = AcademicPolicy.getWeeklyHoursLimit(teacher);
             boolean wouldExceedLimits = (weeklyHours + AcademicPolicy.WEEKLY_CONTACT_HOURS > AcademicPolicy
                     .getWeeklyHoursLimit(teacher));
-            boolean qualified = lesson.getSubject().getEligibleTeachers().contains(teacher);
+            boolean qualified = scheduledClass.getSubject().getEligibleTeachers().contains(teacher);
 
             response.add(CandidateTeacherResponse.from(
                     teacher,
@@ -127,6 +133,32 @@ public class TimetableService {
         }
 
         return response;
+    }
+
+    @Transactional
+    public TimetableResponse reasignTeacher(Long lessonId, ReasignTeacherRequest request) {
+        ScheduledClass scheduledClass = scheduledClassRepository.findByIdWithDetails(lessonId)
+                .orElseThrow(() -> new ScheduledClassNotFoundException(
+                        "scheduled class not found with id %d".formatted(lessonId)));
+
+        ApplicationUser teacher = userRepository.findById(request.teacherId())
+                .orElseThrow(
+                        () -> new UserNotFoundException("could not find teacher %d".formatted(request.teacherId())));
+
+        if (teacher.getUsername().contains("PHANTOM")) {
+            throw new IllegalArgumentException("Cannot assign phantom teacher");
+        }
+
+        cohortSubjectService.updateCohortSubject(
+                scheduledClass.getCohortSubject().getId(), UpdateCohortSubjectRequest.from(teacher.getId(), true));
+
+        Timetable timetable = timetableRepository.findByAcademicYearAndSemester(
+                scheduledClass.getCohortSubject().getAcademicYear(), scheduledClass.getCohortSubject().getSemester())
+                .orElseThrow(() -> new TimetableNotFoundException("Could not find a timetable for %d / %d".formatted(
+                        scheduledClass.getCohortSubject().getAcademicYear(),
+                        scheduledClass.getCohortSubject().getSemester())));
+
+        return TimetableResponse.from(timetable);
     }
 
     @Transactional

@@ -273,6 +273,8 @@ Respect role visibility rules client-side (mirroring server enforcement):
 | My cohorts detail | ✗ | ✗ | ✗ | ✓ |
 
 ---
+
+
 ## Phantom Teacher Replacement — Implementation Plan
 
 ### Context
