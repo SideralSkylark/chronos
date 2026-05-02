@@ -5,12 +5,29 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import com.timetable.timetable.domain.schedule.dto.CandidateTeacherResponse;
 import com.timetable.timetable.domain.schedule.dto.CreateTimetableRequest;
+import com.timetable.timetable.domain.schedule.dto.ReasignTeacherRequest;
+import com.timetable.timetable.domain.schedule.dto.TimetableResponse;
+import com.timetable.timetable.domain.schedule.dto.UpdateCohortSubjectRequest;
 import com.timetable.timetable.domain.schedule.dto.UpdateTimetableRequest;
+import com.timetable.timetable.domain.schedule.entity.AcademicPolicy;
+import com.timetable.timetable.domain.schedule.entity.CohortSubject;
+import com.timetable.timetable.domain.schedule.entity.ScheduledClass;
 import com.timetable.timetable.domain.schedule.entity.Timetable;
 import com.timetable.timetable.domain.schedule.entity.TimetableStatus;
+import com.timetable.timetable.domain.schedule.exception.ScheduledClassNotFoundException;
 import com.timetable.timetable.domain.schedule.exception.TimetableNotFoundException;
 import com.timetable.timetable.domain.schedule.repository.TimetableRepository;
+import com.timetable.timetable.domain.schedule.repository.CohortSubjectRepository;
+import com.timetable.timetable.domain.schedule.repository.ScheduledClassRepository;
+import com.timetable.timetable.domain.user.entity.ApplicationUser;
+import com.timetable.timetable.domain.user.exception.UserNotFoundException;
+import com.timetable.timetable.domain.user.repository.UserRepository;
+import com.timetable.timetable.domain.user.service.NotificationService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +37,11 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class TimetableService {
     private final TimetableRepository timetableRepository;
-    private final com.timetable.timetable.domain.user.service.NotificationService notificationService;
+    private final ScheduledClassRepository scheduledClassRepository;
+    private final UserRepository userRepository;
+    private final CohortSubjectRepository cohortSubjectRepository;
+    private final CohortSubjectService cohortSubjectService;
+    private final NotificationService notificationService;
 
     @Transactional
     public Timetable createTimetable(CreateTimetableRequest createRequest) {
@@ -74,6 +95,72 @@ public class TimetableService {
         return timetable;
     }
 
+    /**
+     * return a list of {@link CandidateTeacherResponse}. To be used for the phantom
+     * swap feature.
+     */
+    @Transactional
+    public List<CandidateTeacherResponse> getReplacementCandidates(Long lessonId) {
+        ScheduledClass scheduledClass = scheduledClassRepository.findByIdWithDetails(lessonId)
+                .orElseThrow(() -> new ScheduledClassNotFoundException(
+                        "scheduled class with id %d not found".formatted(lessonId)));
+        int academicYear = scheduledClass.getCohortSubject().getAcademicYear();
+        int semester = scheduledClass.getCohortSubject().getSemester();
+
+        List<ApplicationUser> allTeachers = userRepository.findAll()
+                .stream()
+                .filter(u -> !u.getUsername().contains("PHANTOM"))
+                .toList();
+
+        List<CandidateTeacherResponse> response = new ArrayList<>();
+
+        for (ApplicationUser teacher : allTeachers) {
+            List<CohortSubject> cohorts = cohortSubjectRepository
+                    .findByAcademicYearAndSemesterAndAssignedTeacher(academicYear, semester, teacher.getId());
+
+            int weeklyHours = cohorts.size() * AcademicPolicy.WEEKLY_CONTACT_HOURS;
+            int limit = AcademicPolicy.getWeeklyHoursLimit(teacher);
+            boolean wouldExceedLimits = (weeklyHours + AcademicPolicy.WEEKLY_CONTACT_HOURS > AcademicPolicy
+                    .getWeeklyHoursLimit(teacher));
+            boolean qualified = scheduledClass.getSubject().getEligibleTeachers().contains(teacher);
+
+            response.add(CandidateTeacherResponse.from(
+                    teacher,
+                    weeklyHours,
+                    limit,
+                    wouldExceedLimits,
+                    qualified));
+        }
+
+        return response;
+    }
+
+    @Transactional
+    public TimetableResponse reasignTeacher(Long lessonId, ReasignTeacherRequest request) {
+        ScheduledClass scheduledClass = scheduledClassRepository.findByIdWithDetails(lessonId)
+                .orElseThrow(() -> new ScheduledClassNotFoundException(
+                        "scheduled class not found with id %d".formatted(lessonId)));
+
+        ApplicationUser teacher = userRepository.findById(request.teacherId())
+                .orElseThrow(
+                        () -> new UserNotFoundException("could not find teacher %d".formatted(request.teacherId())));
+
+        if (teacher.getUsername().contains("PHANTOM")) {
+            throw new IllegalArgumentException("Cannot assign phantom teacher");
+        }
+
+        cohortSubjectService.updateCohortSubject(
+                scheduledClass.getCohortSubject().getId(), UpdateCohortSubjectRequest.from(teacher.getId(), true));
+
+        Timetable timetable = timetableRepository.findByAcademicYearAndSemester(
+                scheduledClass.getCohortSubject().getAcademicYear(), scheduledClass.getCohortSubject().getSemester())
+                .orElseThrow(() -> new TimetableNotFoundException("Could not find a timetable for %d / %d".formatted(
+                        scheduledClass.getCohortSubject().getAcademicYear(),
+                        scheduledClass.getCohortSubject().getSemester())));
+
+        return TimetableResponse.from(timetable);
+    }
+
     @Transactional
     public Timetable updateTimetable(Long id, UpdateTimetableRequest updateRequest) {
         log.debug("updating timetable {}", id);
@@ -109,7 +196,8 @@ public class TimetableService {
         Long currentUserId = com.timetable.timetable.security.SecurityUtil.getAuthenticatedId();
         notificationService.notify(currentUserId, "Horário submetido para aprovação.");
         notificationService.notifyAllWithRole("DIRECTOR",
-                "O horário de " + saved.getAcademicYear() + "·" + saved.getSemester() + "º semestre aguarda a sua aprovação.",
+                "O horário de " + saved.getAcademicYear() + "·" + saved.getSemester()
+                        + "º semestre aguarda a sua aprovação.",
                 currentUserId);
         notificationService.notifyAllWithRole("ADMIN",
                 "O horário de " + saved.getAcademicYear() + "·" + saved.getSemester() + "º semestre aguarda aprovação.",
@@ -119,9 +207,11 @@ public class TimetableService {
     }
 
     /**
-     * Aproves a timetable if the user deems it valid, and sends a notification to the user approving it and all other users with the role {@link UserRole.ASISTENT}
+     * Aproves a timetable if the user deems it valid, and sends a notification to
+     * the user approving it and all other users with the role
+     * {@link UserRole.ASISTENT}
      *
-     * @return {@link Timetable} 
+     * @return {@link Timetable}
      */
     @Transactional
     public Timetable approve(Long id) {
@@ -137,7 +227,9 @@ public class TimetableService {
     }
 
     /**
-     * Rejects a {@link Timetable} if the user deems it invalid, and sends a notification to the user rejecting it and all other users with the role {@link UserRole.ASISTENT}
+     * Rejects a {@link Timetable} if the user deems it invalid, and sends a
+     * notification to the user rejecting it and all other users with the role
+     * {@link UserRole.ASISTENT}
      *
      * @return {@link Timetable}
      */
@@ -191,7 +283,8 @@ public class TimetableService {
 
         for (Long coordinatorId : coordinatorIds) {
             notificationService.notify(coordinatorId,
-                    "O horário da sua turma foi publicado para " + updated.getAcademicYear() + "·" + updated.getSemester()
+                    "O horário da sua turma foi publicado para " + updated.getAcademicYear() + "·"
+                            + updated.getSemester()
                             + "º semestre.");
         }
 

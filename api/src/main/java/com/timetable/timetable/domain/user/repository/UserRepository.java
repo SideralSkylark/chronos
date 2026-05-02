@@ -13,7 +13,8 @@ import com.timetable.timetable.domain.user.entity.ApplicationUser;
 import com.timetable.timetable.domain.user.entity.UserRole;
 
 @Repository
-public interface UserRepository extends JpaRepository<ApplicationUser, Long>, JpaSpecificationExecutor<ApplicationUser> {
+public interface UserRepository
+        extends JpaRepository<ApplicationUser, Long>, JpaSpecificationExecutor<ApplicationUser> {
 
     Optional<ApplicationUser> findByUsername(String username);
 

@@ -1,8 +1,12 @@
 package com.timetable.timetable.domain.schedule.controller;
 
+import java.util.List;
+
 import com.timetable.timetable.common.response.ApiResponse;
 import com.timetable.timetable.common.response.ResponseFactory;
+import com.timetable.timetable.domain.schedule.dto.CandidateTeacherResponse;
 import com.timetable.timetable.domain.schedule.dto.CreateTimetableRequest;
+import com.timetable.timetable.domain.schedule.dto.ReasignTeacherRequest;
 import com.timetable.timetable.domain.schedule.dto.TimetableResponse;
 import com.timetable.timetable.domain.schedule.dto.UpdateTimetableRequest;
 import com.timetable.timetable.domain.schedule.service.TimetableService;
@@ -10,8 +14,10 @@ import com.timetable.timetable.domain.schedule.service.TimetableService;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PagedModel;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -48,6 +54,15 @@ public class TimetableController {
         return ResponseFactory.ok(
                 TimetableResponse.from(timetableService.getById(id)),
                 "Timetable fetched successfully.");
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTOR', 'ASISTENT', 'COORDINATOR')")
+    @GetMapping("/lessons/{lessonId}/candidate-teachers")
+    public ResponseEntity<ApiResponse<List<CandidateTeacherResponse>>> getReplacementCandidates(@PathVariable Long scheduledClassId) {
+        return ResponseFactory.ok(
+            timetableService.getReplacementCandidates(scheduledClassId),
+            "Teachers fetched successfully."
+        );
     }
 
     @PutMapping("/{id}")
@@ -90,6 +105,19 @@ public class TimetableController {
                 TimetableResponse.from(timetableService.publishTimetable(id)),
                 "Timetable published.");
     }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTOR', 'ASISTENT', 'COORDINATOR')")
+    @PatchMapping("/lessons/{lessonId}/reassign-teacher")
+    public ResponseEntity<ApiResponse<TimetableResponse>> reasignTeacher(
+        @PathVariable Long scheduledClassId,
+        @RequestBody ReasignTeacherRequest request
+    ) {
+        return ResponseFactory.ok(
+            timetableService.reasignTeacher(scheduledClassId, request),
+            "Teacher reasigned successfully"
+        );
+    }
+
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
