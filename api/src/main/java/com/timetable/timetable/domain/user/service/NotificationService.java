@@ -1,7 +1,7 @@
 package com.timetable.timetable.domain.user.service;
 
+import com.timetable.timetable.auth.exception.UserNotAuthorizedException;
 import com.timetable.timetable.domain.user.dto.NotificationDto;
-import com.timetable.timetable.domain.user.entity.ApplicationUser;
 import com.timetable.timetable.domain.user.entity.Notification;
 import com.timetable.timetable.domain.user.entity.UserRole;
 import com.timetable.timetable.domain.user.repository.NotificationRepository;
@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional(readOnly = true)
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
@@ -34,8 +35,7 @@ public class NotificationService {
                     notificationRepository.save(notification);
                     log.info("Notification sent to user {}: {}", userId, message);
                 },
-                () -> log.warn("User {} not found, skipping notification", userId)
-        );
+                () -> log.warn("User {} not found, skipping notification", userId));
     }
 
     @Transactional
@@ -48,12 +48,17 @@ public class NotificationService {
             return;
         }
 
-        List<ApplicationUser> users = userRepository.findAllByRole(roleEnum);
-        for (ApplicationUser user : users) {
-            if (excludeUserId == null || !user.getId().equals(excludeUserId)) {
-                notify(user.getId(), message);
-            }
-        }
+        List<Notification> notifications = userRepository.findAllByRole(roleEnum).stream()
+            .filter(user -> excludeUserId == null || !user.getId().equals(excludeUserId))
+            .map(user -> Notification.builder()
+                .user(user)
+                .message(message)
+                .readFlag(false)
+                .build())
+            .toList();
+
+        notificationRepository.saveAll(notifications);
+        log.info("sent {} notifications for role {}", notifications.size(), roleEnum);
     }
 
     public List<NotificationDto> getForUser(Long userId) {
@@ -83,7 +88,8 @@ public class NotificationService {
             if (notification.getUser().getId().equals(userId)) {
                 notificationRepository.delete(notification);
             } else {
-                throw new org.springframework.security.access.AccessDeniedException("Não tem permissão para eliminar esta notificação.");
+                throw new UserNotAuthorizedException(
+                        "Não tem permissão para eliminar esta notificação.");
             }
         });
     }
