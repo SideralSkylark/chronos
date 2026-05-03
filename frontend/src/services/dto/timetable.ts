@@ -74,4 +74,14 @@ export interface TeacherInfo {
   name: string
   fullName: string
   email: string
+  username?: string
+}
+
+export interface CandidateTeacher {
+  teacherId: number
+  username: string
+  currentWeeklyHours: number
+  weeklyLimit: number
+  wouldExceed: boolean
+  isEligible: boolean
 }

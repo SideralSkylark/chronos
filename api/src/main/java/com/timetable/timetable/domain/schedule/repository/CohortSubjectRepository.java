@@ -78,7 +78,7 @@ public interface CohortSubjectRepository extends JpaRepository<CohortSubject, Lo
     List<CohortSubject> findByAcademicYearAndSemesterAndAssignedTeacher(
             @Param("academicYear") int academicYear,
             @Param("semester") int semester,
-            @Param("assignedTeacher") Long assignedTeacher);
+            @Param("assignedTeacher") ApplicationUser assignedTeacher);
 
     @Query("""
                 SELECT cs FROM CohortSubject cs

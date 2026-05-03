@@ -1,4 +1,6 @@
 import api from './api'
+import type { ApiResponse } from './responses/apiResponse'
+import type { CandidateTeacher } from './dto/timetable'
 
 export interface ValidSlot {
   timeslotId: number
@@ -66,5 +68,24 @@ export const permutationService = {
       scheduledClassIdA,
       scheduledClassIdB,
     })
+  },
+
+  getTeacherCandidates: async (
+    lessonId: number
+  ): Promise<CandidateTeacher[]> => {
+    const res = await api.get<ApiResponse<CandidateTeacher[]>>(
+      `/v1/timetables/lessons/${lessonId}/candidate-teachers`
+    )
+    return res.data.data
+  },
+
+  reassignTeacher: async (
+    lessonId: number,
+    teacherId: number
+  ): Promise<void> => {
+    await api.patch(
+      `/v1/timetables/lessons/${lessonId}/reassign-teacher`,
+      { teacherId }
+    )
   },
 }
