@@ -237,7 +237,7 @@ public class CohortService {
         Cohort cohort = getById(cohortId);
 
         Set<ApplicationUser> students = studentIds.stream()
-                .map(userService::findUserOrThrow)
+                .map(userService::findOrThrow)
                 .filter(u -> u.hasRole(UserRole.STUDENT))
                 .collect(Collectors.toSet());
 
@@ -263,7 +263,7 @@ public class CohortService {
             return new HashSet<>();
 
         return studentIds.stream()
-                .map(userService::findUserOrThrow)
+                .map(userService::findOrThrow)
                 .peek(user -> {
                     if (!user.hasRole(UserRole.STUDENT)) {
                         throw new IllegalArgumentException(

@@ -34,7 +34,7 @@ public class ScheduledClassService {
         CohortSubject cohortSubject =
                 cohortSubjectService.getById(request.cohortSubjectId());
         Room room =
-                roomService.getById(request.roomId());
+                roomService.findOrThrow(request.roomId());
         Timeslot timeslot =
                 timeslotService.getById(request.timeslotId());
 
@@ -212,7 +212,7 @@ public class ScheduledClassService {
     ) {
         return newId.equals(sc.getRoom().getId())
                 ? sc.getRoom()
-                : roomService.getById(newId);
+                : roomService.findOrThrow(newId);
     }
 
     private Timeslot resolveTimeslot(
