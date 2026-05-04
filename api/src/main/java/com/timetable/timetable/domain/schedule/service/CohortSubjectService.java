@@ -45,7 +45,7 @@ public class CohortSubjectService {
         Cohort cohort = cohortRepository.findById(request.cohortId())
                 .orElseThrow(() -> new CohortNotFoundException("Cohort not found: " + request.cohortId()));
 
-        Subject subject = subjectService.getById(request.subjectId());
+        Subject subject = subjectService.findOrThrow(request.subjectId());
         ApplicationUser teacher = userService.findOrThrow(request.assignedTeacherId());
 
         validateTeacherIsEligible(teacher, subject);
