@@ -28,14 +28,15 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class CourseService {
     private final CourseRepository courseRepository;
     private final UserService userService;
@@ -95,6 +96,7 @@ public class CourseService {
         return CourseResponse.from(findCourseOrThrow(id));
     }
 
+    @Transactional
     public Page<CourseListResponse> findAllWithSubjectCount(Pageable pageable) {
         // Step 1: paginated ID query (no JOIN FETCH, so LIMIT works correctly)
         Page<Long> idPage = courseRepository.findAllIds(pageable);

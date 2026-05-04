@@ -35,6 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @Slf4j
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class TimetableService {
     private final TimetableRepository timetableRepository;
     private final ScheduledClassRepository scheduledClassRepository;
