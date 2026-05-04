@@ -16,6 +16,7 @@ import com.timetable.timetable.auth.exception.UserAlreadyExistsException;
 import com.timetable.timetable.domain.user.dto.*;
 import com.timetable.timetable.domain.user.entity.*;
 import com.timetable.timetable.domain.user.exception.UserNotFoundException;
+import com.timetable.timetable.domain.user.mapper.UserMapper;
 import com.timetable.timetable.domain.user.repository.UserRepository;
 import com.timetable.timetable.domain.user.repository.UserRoleRepository;
 import com.timetable.timetable.domain.user.specification.UserSpecifications;
@@ -32,6 +33,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserRoleRepository roleRepository;
+    private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
@@ -65,7 +67,13 @@ public class UserService {
     // ============================================================
     // READ USERS
     // ============================================================
-    public ApplicationUser getAuthenticatedUserProfile() {
+
+    public UserResponse getAuthenticatedUserProfile() {
+        ApplicationUser user = getByUsernameOrThrow(SecurityUtil.getAuthenticatedUsername());
+        return userMapper.toDTO(user);
+    }
+
+    public ApplicationUser getAuthenticatedUser() {
         return getByUsernameOrThrow(SecurityUtil.getAuthenticatedUsername());
     }
 
@@ -107,12 +115,12 @@ public class UserService {
     // UPDATE USERS
     // ============================================================
     @Transactional
-    public ApplicationUser updateAuthenticatedUserProfile(UpdateUserProfileDTO dto) {
+    public UserResponse updateAuthenticatedUserProfile(UpdateUserProfileDTO dto) {
         log.debug("Updating user profile");
         ApplicationUser user = getByUsernameOrThrow(SecurityUtil.getAuthenticatedUsername());
         updateBasicFields(user, dto.username(), dto.email());
         log.info("User '{}' updated their profile", user.getUsername());
-        return userRepository.save(user);
+        return userMapper.toDTO(userRepository.save(user));
     }
 
     @Transactional

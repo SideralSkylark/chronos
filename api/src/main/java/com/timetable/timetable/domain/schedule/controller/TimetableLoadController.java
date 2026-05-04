@@ -108,7 +108,7 @@ public class TimetableLoadController {
             @RequestParam int year,
             @RequestParam int semester) {
 
-        ApplicationUser user = userService.getAuthenticatedUserProfile();
+        ApplicationUser user = userService.getAuthenticatedUser();
 
         // Encontra a turma do estudante para o período
         List<ScheduledClass> classes = scheduledClassRepository
@@ -150,7 +150,7 @@ public class TimetableLoadController {
             @RequestParam int year,
             @RequestParam int semester) {
 
-        ApplicationUser user = userService.getAuthenticatedUserProfile();
+        ApplicationUser user = userService.getAuthenticatedUser();
 
         List<ScheduledClass> classes = scheduledClassRepository
                 .findAllWithDetailsByPeriod(year, semester)
