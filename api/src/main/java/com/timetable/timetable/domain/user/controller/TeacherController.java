@@ -10,7 +10,6 @@ import com.timetable.timetable.domain.user.dto.UserFilterParams;
 import com.timetable.timetable.domain.user.dto.UserResponse;
 import com.timetable.timetable.domain.user.entity.AccountStatus;
 import com.timetable.timetable.domain.user.entity.UserRole;
-import com.timetable.timetable.domain.user.mapper.UserMapper;
 import com.timetable.timetable.domain.user.service.UserService;
 
 import org.springframework.data.domain.Pageable;
@@ -24,7 +23,6 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 public class TeacherController {
     private final UserService userService;
-    private final UserMapper userMapper;
 
     @GetMapping
     public ResponseEntity<ApiResponse<PagedModel<UserResponse>>> getAllTeachers(
@@ -39,7 +37,7 @@ public class TeacherController {
         filter.setStatus(status);
         filter.setTeacherType(teacherType);
         return ResponseFactory.ok(
-            new PagedModel<>(userService.getUsersByRole(UserRole.TEACHER, pageable, filter).map(userMapper::toDTO)),
+            new PagedModel<>(userService.getUsersByRole(UserRole.TEACHER, pageable, filter)),
             "teachers fetched sucessfully"
         );
     }
@@ -47,7 +45,7 @@ public class TeacherController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<UserResponse>> getById(@PathVariable Long id) {
         return ResponseFactory.ok(
-            userMapper.toDTO(userService.getUserByRoleAndId(UserRole.TEACHER, id)),
+            userService.getUserByRoleAndId(UserRole.TEACHER, id),
             "teachers fetched sucessfully"
         );
     }

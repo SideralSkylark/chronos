@@ -116,7 +116,7 @@ public class TimetableService {
 
         for (ApplicationUser teacher : allTeachers) {
             List<CohortSubject> cohorts = cohortSubjectRepository
-                    .findByAcademicYearAndSemesterAndAssignedTeacher(academicYear, semester, teacher.getId());
+                    .findByAcademicYearAndSemesterAndAssignedTeacher(academicYear, semester, teacher);
 
             int weeklyHours = cohorts.size() * AcademicPolicy.WEEKLY_CONTACT_HOURS;
             int limit = AcademicPolicy.getWeeklyHoursLimit(teacher);

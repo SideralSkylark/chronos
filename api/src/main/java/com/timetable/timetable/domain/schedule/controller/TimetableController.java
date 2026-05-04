@@ -58,9 +58,9 @@ public class TimetableController {
 
     @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTOR', 'ASISTENT', 'COORDINATOR')")
     @GetMapping("/lessons/{lessonId}/candidate-teachers")
-    public ResponseEntity<ApiResponse<List<CandidateTeacherResponse>>> getReplacementCandidates(@PathVariable Long scheduledClassId) {
+    public ResponseEntity<ApiResponse<List<CandidateTeacherResponse>>> getReplacementCandidates(@PathVariable Long lessonId) {
         return ResponseFactory.ok(
-            timetableService.getReplacementCandidates(scheduledClassId),
+            timetableService.getReplacementCandidates(lessonId),
             "Teachers fetched successfully."
         );
     }
@@ -109,11 +109,11 @@ public class TimetableController {
     @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTOR', 'ASISTENT', 'COORDINATOR')")
     @PatchMapping("/lessons/{lessonId}/reassign-teacher")
     public ResponseEntity<ApiResponse<TimetableResponse>> reasignTeacher(
-        @PathVariable Long scheduledClassId,
+        @PathVariable Long lessonId,
         @RequestBody ReasignTeacherRequest request
     ) {
         return ResponseFactory.ok(
-            timetableService.reasignTeacher(scheduledClassId, request),
+            timetableService.reasignTeacher(lessonId, request),
             "Teacher reasigned successfully"
         );
     }

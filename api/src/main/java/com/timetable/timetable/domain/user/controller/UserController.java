@@ -6,7 +6,6 @@ import com.timetable.timetable.domain.user.dto.UpdateUserProfileDTO;
 import com.timetable.timetable.domain.user.dto.UserResponse;
 import com.timetable.timetable.domain.user.entity.ApplicationUser;
 import com.timetable.timetable.domain.user.exception.UserNotFoundException;
-import com.timetable.timetable.domain.user.mapper.UserMapper;
 import com.timetable.timetable.domain.user.service.UserService;
 
 import jakarta.validation.Valid;
@@ -41,7 +40,6 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
-    private final UserMapper userMapper;
 
     /**
      * Get the profile of the currently authenticated user.
@@ -58,7 +56,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserResponse>> getUserDetails() {
 		log.debug("Fetching authenticated user profile");
         return ResponseFactory.ok(
-            userMapper.toDTO(userService.getAuthenticatedUserProfile()),
+            userService.getAuthenticatedUserProfile(),
             "User profile retrieved successfully"
         );
     }
@@ -80,7 +78,7 @@ public class UserController {
         @Valid @RequestBody UpdateUserProfileDTO payload) {
         log.debug("Updating authenticated user profile");
 		return ResponseFactory.ok(
-            userMapper.toDTO(userService.updateAuthenticatedUserProfile(payload)), 
+            userService.updateAuthenticatedUserProfile(payload),
 			"User profile updated successfully"
         );
     }

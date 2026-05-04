@@ -1,6 +1,7 @@
 package com.timetable.timetable.domain.schedule.dto;
 
+import jakarta.validation.constraints.NotNull;
+
 public record ReasignTeacherRequest(
-    Long teacherId
-) {
+        @NotNull(message = "teacher id not specified") Long teacherId) {
 }

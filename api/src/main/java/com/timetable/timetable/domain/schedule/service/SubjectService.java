@@ -185,7 +185,7 @@ public class SubjectService {
         }
         
         for (Long id : ids) {
-            ApplicationUser user = userService.getUserById(id);
+            ApplicationUser user = userService.findUserOrThrow(id);
             
             if (!user.hasRole(UserRole.TEACHER)) {
                 throw new IllegalArgumentException(

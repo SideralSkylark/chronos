@@ -223,6 +223,12 @@
                         <ArrowRightLeft class="w-2.5 h-2.5 text-white" />
                       </div>
                     </div>
+                    <div v-if="isPhantomTeacher(lesson)"
+                      class="absolute top-1 left-1">
+                      <div
+                        class="w-2 h-2 rounded-full bg-red-400 ring-1 ring-white">
+                      </div>
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -644,6 +650,13 @@
 
         </div>
 
+    <PhantomTeacherModal
+      v-if="phantomLesson"
+      v-model="showPhantomModal"
+      :lesson="phantomLesson"
+      @replaced="onPhantomReplaced"
+    />
+
   </div>
 </template>
 
@@ -657,7 +670,8 @@ import { permutationService, type ValidSlot, type CohortSwapCandidate } from '@/
 import type { LessonAssignment, CohortInfo } from '@/services/dto/timetable'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import FilterBar from '@/components/ui/FilterBar.vue'
-import { CalendarDays, ChevronDown, Zap, Loader2, CheckCircle, XCircle, ArrowRightLeft, ArrowRight, X, Send, Globe } from 'lucide-vue-next'
+import PhantomTeacherModal from '@/components/ui/PhantomTeacherModal.vue'
+import { CalendarDays, ChevronDown, Zap, Loader2, CheckCircle, XCircle, ArrowRightLeft, ArrowRight, X, Send, Globe, UserX } from 'lucide-vue-next'
 
 const auth = useAuthStore()
 const timetableStore = useTimetableStore()
@@ -708,6 +722,9 @@ const applyingCohortSwap = ref(false)
 
 const undoAction = ref<null | { label: string; fn: () => Promise<void> }>(null)
 let undoTimer: ReturnType<typeof setTimeout> | null = null
+
+const showPhantomModal = ref(false)
+const phantomLesson = ref<LessonAssignment | null>(null)
 
 function showUndo(label: string, fn: () => Promise<void>) {
   undoAction.value = { label, fn }
@@ -818,10 +835,22 @@ function yearColorClass(year: number): string {
   } as Record<number, string>)[year] ?? 'bg-gray-100 text-gray-800 border border-gray-200'
 }
 function dayLabel(day?: string) { return days.find(d => d.value === day)?.label ?? day ?? '' }
+
+function isPhantomTeacher(lesson: LessonAssignment): boolean {
+  return (lesson.teacher?.fullName ?? '').toUpperCase().includes('PHANTOM')
+}
+
 const canSelectLesson = computed(() => canEdit.value && !!selectedCohort.value)
 
 function selectLesson(lesson: LessonAssignment) {
-  if (selectedLesson.value?.id === lesson.id) { clearSelection(); return }
+  if (selectedLesson.value?.id === lesson.id) {
+    clearSelection(); return
+  }
+  if (isPhantomTeacher(lesson) && canSelectLesson.value) {
+    phantomLesson.value = lesson
+    showPhantomModal.value = true
+    return
+  }
   selectedLesson.value = lesson
   validSlots.value = []
   slotsCalculated.value = false
@@ -920,6 +949,13 @@ async function handleGenerate() {
       pollAttempt.value = attempt, pollElapsed.value = elapsed })
     toast.success('Horário gerado com sucesso!')
   } catch { toast.error(timetableStore.error ?? 'Erro ao gerar horário.') }
+}
+
+async function onPhantomReplaced() {
+  phantomLesson.value = null
+  clearSelection()
+  await timetableStore.loadForPeriod(
+    selectedYear.value, selectedSemester.value)
 }
 </script>
 

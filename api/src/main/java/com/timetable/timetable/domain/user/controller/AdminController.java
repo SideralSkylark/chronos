@@ -10,7 +10,6 @@ import com.timetable.timetable.domain.user.dto.UserFilterParams;
 import com.timetable.timetable.domain.user.dto.UserResponse;
 import com.timetable.timetable.domain.user.entity.AccountStatus;
 import com.timetable.timetable.domain.user.entity.UserRole;
-import com.timetable.timetable.domain.user.mapper.UserMapper;
 import com.timetable.timetable.domain.user.service.UserService;
 
 import lombok.RequiredArgsConstructor;
@@ -31,13 +30,12 @@ import jakarta.validation.Valid;
 @PreAuthorize("hasAnyRole('ADMIN', 'ASISTENT', 'DIRECTOR')")
 public class AdminController {
     private final UserService userService;
-    private final UserMapper userMapper;
 
     @PostMapping
     public ResponseEntity<ApiResponse<UserResponse>> createUser(
             @Valid @RequestBody CreateUser createUser) {
         return ResponseFactory.ok(
-                userMapper.toDTO(userService.createUser(createUser)),
+                userService.createUserResponse(createUser),
                 "User created sucessfully.");
     }
 
@@ -58,14 +56,14 @@ public class AdminController {
         log.info("params: {}", filter.toString());
 
         return ResponseFactory.ok(
-                new PagedModel<>(userService.getAllUsers(pageable, filter).map(userMapper::toDTO)),
+                new PagedModel<>(userService.getAllUsers(pageable, filter)),
                 "Users fetched sucessfully.");
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable Long id) {
         return ResponseFactory.ok(
-                userMapper.toDTO(userService.getUserById(id)),
+                userService.getUserById(id),
                 "User fetched sucessfully.");
     }
 
@@ -80,8 +78,7 @@ public class AdminController {
         filter.setEmail(email);
         filter.setStatus(status);
         return ResponseFactory.ok(
-                new PagedModel<>(userService.getUsersByRole(UserRole.STUDENT, pageable, filter)
-                        .map(userMapper::toDTO)),
+                new PagedModel<>(userService.getUsersByRole(UserRole.STUDENT, pageable, filter)),
                 "Students fetched successfully.");
     }
 
@@ -90,15 +87,14 @@ public class AdminController {
             @PathVariable Long id,
             @RequestBody AdminUpdateUserDTO updateRequest) {
         return ResponseFactory.ok(
-                userMapper.toDTO(userService.updateUserById(id, updateRequest)),
+                userService.updateUserById(id, updateRequest),
                 "User updated sucessfully.");
     }
 
     @PostMapping("/{id}/reset-password")
     public ResponseEntity<ApiResponse<ResetPasswordResponse>> resetPassword(@PathVariable Long id) {
-        String newPassword = userService.resetPassword(id);
         return ResponseFactory.ok(
-                new ResetPasswordResponse(newPassword),
+                userService.resetPassword(id),
                 "User password reset successfully.");
     }
 
