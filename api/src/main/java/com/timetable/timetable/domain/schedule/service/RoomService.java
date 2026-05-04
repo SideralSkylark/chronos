@@ -6,6 +6,7 @@ import java.util.Set;
 
 import com.timetable.timetable.domain.schedule.dto.CreateRoomRequest;
 import com.timetable.timetable.domain.schedule.dto.RoomFilterParams;
+import com.timetable.timetable.domain.schedule.dto.RoomResponse;
 import com.timetable.timetable.domain.schedule.dto.UpdateRoomRequest;
 import com.timetable.timetable.domain.schedule.entity.Course;
 import com.timetable.timetable.domain.schedule.entity.Room;
@@ -18,10 +19,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import java.util.ArrayList;
@@ -30,11 +31,12 @@ import java.util.List;
 @Service
 @Slf4j
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class RoomService {
     private final RoomRepository roomRepository;
     private final CourseService courseService;
 
-    public Room createRoom(CreateRoomRequest roomRequest) {
+    public RoomResponse createRoom(CreateRoomRequest roomRequest) {
         log.debug("Creating room");
 
         if (roomRepository.existsByName(roomRequest.name())) {
@@ -53,7 +55,7 @@ public class RoomService {
         Room saved = roomRepository.save(room);
 
         log.info("Room {} created", saved.getId());
-        return saved;
+        return RoomResponse.from(saved);
     }
 
     public int findMaxCapacity() {
@@ -61,9 +63,9 @@ public class RoomService {
     }
 
     @Transactional
-    public Page<Room> getAll(Pageable pageable, RoomFilterParams filters) {
+    public Page<RoomResponse> getAll(Pageable pageable, RoomFilterParams filters) {
         if (filters == null) {
-            return roomRepository.findAll(pageable);
+            return roomRepository.findAll(pageable).map(RoomResponse::from);
         }
 
         Specification<Room> spec = (root, query, cb) -> {
@@ -97,16 +99,11 @@ public class RoomService {
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
-        return roomRepository.findAll(spec, pageable);
+        return roomRepository.findAll(spec, pageable).map(RoomResponse::from);
     }
 
     @Transactional
-    public Page<Room> getAll(Pageable pageable) {
-        return getAll(pageable, null);
-    }
-
-    @Transactional
-    public Room getById(Long id) {
+    public Room findOrThrow(Long id) {
         log.debug("Looking for room: {}", id);
         Room room = roomRepository.findById(id)
             .orElseThrow(() -> new RoomNotFoundException("Room not found."));
@@ -116,9 +113,14 @@ public class RoomService {
     }
 
     @Transactional
-    public Room updateRoom(Long id, UpdateRoomRequest updateRequest) {
+    public RoomResponse getById(Long id) {
+        return RoomResponse.from(findOrThrow(id));
+    }
+
+    @Transactional
+    public RoomResponse updateRoom(Long id, UpdateRoomRequest updateRequest) {
         log.debug("Updating room {}", id);
-        Room room = getById(id);
+        Room room = findOrThrow(id);
 
         if (!room.getName().equals(updateRequest.name()) && roomRepository.existsByName(updateRequest.name())) {
             log.warn("Another room with the same name already exists");
@@ -133,13 +135,13 @@ public class RoomService {
         roomRepository.flush();
 
         // refresh reference so we have a managed collection after flush
-        room = getById(id);
+        room = findOrThrow(id);
         addRestrictions(room, updateRequest.restrictedToCourseId(), updateRequest.periodRestrictions());
 
         Room saved = roomRepository.save(room);
 
         log.info("Updated room {}", id);
-        return saved;
+        return RoomResponse.from(saved);
     }
 
     public void deleteRoom(Long id) {
@@ -171,7 +173,7 @@ public class RoomService {
                         .anyMatch(r -> r.getCourse().getId().equals(courseId) && r.getPeriod() == period);
 
                     if (!alreadyExists) {
-                        Course course = courseService.getById(courseId);
+                        Course course = courseService.findCourseOrThrow(courseId);
 
                         RoomCourseRestriction restriction = RoomCourseRestriction.builder()
                             .room(room)
@@ -189,7 +191,7 @@ public class RoomService {
 
         // CASO 2: Curso único para todos os períodos (retrocompatibilidade)
         if (singleCourseId != null) {
-            Course course = courseService.getById(singleCourseId);
+            Course course = courseService.findCourseOrThrow(singleCourseId);
 
             for (TimePeriod period : TimePeriod.values()) {
                 RoomCourseRestriction restriction = RoomCourseRestriction.builder()

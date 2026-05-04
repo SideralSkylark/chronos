@@ -1,9 +1,15 @@
 package com.timetable.timetable.domain.schedule.service;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.timetable.timetable.config.BusinessSimulationInitializer;
+import com.timetable.timetable.domain.schedule.dto.CoordinatorOption;
+import com.timetable.timetable.domain.schedule.dto.CourseListResponse;
+import com.timetable.timetable.domain.schedule.dto.CourseResponse;
 import com.timetable.timetable.domain.schedule.dto.CreateCourseRequest;
 import com.timetable.timetable.domain.schedule.dto.UpdateCourseRequest;
 import com.timetable.timetable.domain.schedule.entity.Course;
@@ -15,34 +21,40 @@ import com.timetable.timetable.domain.schedule.repository.ScheduledClassReposito
 import com.timetable.timetable.domain.schedule.repository.SubjectRepository;
 import com.timetable.timetable.domain.user.entity.ApplicationUser;
 import com.timetable.timetable.domain.user.entity.UserRole;
+import com.timetable.timetable.domain.user.repository.UserRepository;
 import com.timetable.timetable.domain.user.service.UserService;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class CourseService {
     private final CourseRepository courseRepository;
     private final UserService userService;
+    private final UserRepository userRepository;
     private final BusinessSimulationInitializer businessSimulationInitializer;
     private final ScheduledClassRepository scheduledClassRepository;
     private final CohortSubjectRepository cohortSubjectRepository;
     private final SubjectRepository subjectRepository;
     private final CohortRepository cohortRepository;
 
-    public Course createCourse(CreateCourseRequest createRequest) {
+    public CourseResponse createCourse(CreateCourseRequest createRequest) {
         log.debug("Creating course");
         if (courseRepository.existsByName(createRequest.name())) {
             log.warn("Course already exists with name: {}", createRequest.name());
             throw new IllegalStateException("Course already exists");
         }
 
-        ApplicationUser coordinator = userService.findUserOrThrow(createRequest.coordinatorId());
+        ApplicationUser coordinator = userService.findOrThrow(createRequest.coordinatorId());
 
         if (!coordinator.hasRole(UserRole.COORDINATOR)) {
             log.warn("User {}, is not a coordinator", createRequest.coordinatorId());
@@ -72,25 +84,60 @@ public class CourseService {
         }
 
         log.info("Course {} created", saved.getId());
-        return saved;
+        return CourseResponse.from(saved);
     }
 
-    public Course getById(Long id) {
+    public Course findCourseOrThrow(Long id) {
         return courseRepository.findById(id)
                 .orElseThrow(() -> new CourseNotFoundException("No course with id: %d".formatted(id)));
     }
 
+    public CourseResponse getById(Long id) {
+        return CourseResponse.from(findCourseOrThrow(id));
+    }
+
     @Transactional
-    public Course updateCourse(Long id, UpdateCourseRequest updateRequest) {
+    public Page<CourseListResponse> findAllWithSubjectCount(Pageable pageable) {
+        // Step 1: paginated ID query (no JOIN FETCH, so LIMIT works correctly)
+        Page<Long> idPage = courseRepository.findAllIds(pageable);
+
+        if (idPage.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        // Step 2: fetch full entities with the map in a single query
+        List<Course> courses = courseRepository.findAllByIdWithCohorts(idPage.getContent());
+
+        // Preserve the original page order
+        Map<Long, Course> courseById = courses.stream()
+                .collect(Collectors.toMap(Course::getId, Function.identity()));
+
+        List<CourseListResponse> responses = idPage.getContent().stream()
+                .map(id -> {
+                    Course course = courseById.get(id);
+                    Long subjectCount = subjectRepository.countByCourseId(id);
+                    return CourseListResponse.from(course, subjectCount);
+                })
+                .collect(Collectors.toList());
+
+        return new PageImpl<>(responses, pageable, idPage.getTotalElements());
+    }
+
+    public Page<CoordinatorOption> getAvailableCoordinators(Pageable pageable) {
+        return userRepository.findAllByRole(UserRole.COORDINATOR, pageable).map(CoordinatorOption::from);
+    }
+
+    @Transactional
+    public CourseResponse updateCourse(Long id, UpdateCourseRequest updateRequest) {
         log.debug("Updating course {}", id);
-        Course course = getById(id);
+        Course course = findCourseOrThrow(id);
 
         if (!course.getName().equals(updateRequest.name()) && courseRepository.existsByName(updateRequest.name())) {
             log.warn("Another course with that name already exists");
             throw new IllegalArgumentException("Another course with that name already exists.");
         }
 
-        ApplicationUser coordinator = userService.findUserOrThrow(updateRequest.coordinatorId());
+        ApplicationUser coordinator = userService.findOrThrow(updateRequest.coordinatorId());
 
         if (!coordinator.hasRole(UserRole.COORDINATOR)) {
             log.warn("User {} is not a coordinator", updateRequest.coordinatorId());
@@ -119,7 +166,7 @@ public class CourseService {
         }
 
         log.info("Course {} updated", id);
-        return updated;
+        return CourseResponse.from(updated);
     }
 
     @Transactional
@@ -144,7 +191,7 @@ public class CourseService {
 
         // 5. Finally delete the course
         courseRepository.deleteById(id);
-        
+
         log.info("Course {} and all its associations (subjects, cohorts, etc.) deleted", id);
     }
 

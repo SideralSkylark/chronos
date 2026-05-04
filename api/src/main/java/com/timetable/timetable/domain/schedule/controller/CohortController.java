@@ -11,7 +11,6 @@ import com.timetable.timetable.domain.schedule.dto.CreateCohortRequest;
 import com.timetable.timetable.domain.schedule.dto.UpdateCohortRequest;
 import com.timetable.timetable.domain.schedule.dto.UpdateCohortStudentsRequest;
 import com.timetable.timetable.domain.schedule.entity.CohortStatus;
-import com.timetable.timetable.domain.schedule.query.CohortQueryService;
 import com.timetable.timetable.domain.schedule.service.CohortService;
 
 import org.springframework.data.domain.Pageable;
@@ -36,12 +35,11 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("api/v1/cohorts")
 public class CohortController {
     private final CohortService cohortService;
-    private final CohortQueryService cohortQueryService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<CohortResponse>> create(@Valid @RequestBody CreateCohortRequest request) {
         return ResponseFactory.ok(
-                CohortResponse.from(cohortService.createCohort(request)),
+                cohortService.createCohortResponse(request),
                 "Cohort created successfully.");
     }
 
@@ -50,7 +48,7 @@ public class CohortController {
             @PathVariable Long id,
             @Valid @RequestBody ConfirmCohortRequest request) {
         return ResponseFactory.ok(
-                CohortResponse.from(cohortService.confirmCohort(id, request.studentCount())),
+                cohortService.confirmCohort(id, request.studentCount()),
                 "Ingressos confirmados com sucesso.");
     }
 
@@ -71,7 +69,7 @@ public class CohortController {
         filters.setStatus(status);
 
         return ResponseFactory.ok(
-                new PagedModel<>(cohortQueryService.findAll(pageable, filters)),
+                new PagedModel<>(cohortService.findAll(pageable, filters)),
                 "Cohorts fetched successfully.");
     }
 
@@ -89,14 +87,14 @@ public class CohortController {
         filters.setSemester(semester);
 
         return ResponseFactory.ok(
-                cohortQueryService.getSummary(filters),
+                cohortService.getSummary(filters),
                 "Summary fetched successfully.");
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<CohortResponse>> getById(@PathVariable Long id) {
         return ResponseFactory.ok(
-                CohortResponse.from(cohortService.getById(id)),
+                cohortService.getResponseById(id),
                 "Cohort fetched successfully.");
     }
 
@@ -105,7 +103,7 @@ public class CohortController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateCohortRequest request) {
         return ResponseFactory.ok(
-                CohortResponse.from(cohortService.updateCohort(id, request)),
+                cohortService.updateCohort(id, request),
                 "Cohort updated successfully.");
     }
 
@@ -114,7 +112,7 @@ public class CohortController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateCohortStudentsRequest request) {
         return ResponseFactory.ok(
-                CohortResponse.from(cohortService.updateStudents(id, request.studentIds())),
+                cohortService.updateStudents(id, request.studentIds()),
                 "Students updated successfully.");
     }
 

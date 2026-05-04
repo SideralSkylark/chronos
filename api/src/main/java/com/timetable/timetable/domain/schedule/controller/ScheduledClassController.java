@@ -29,27 +29,25 @@ public class ScheduledClassController {
     private final ScheduledClassService scheduledClassService;
 
     @PostMapping
-    public ResponseEntity<ApiResponse<ScheduledClassResponse>> create(@Valid @RequestBody CreateScheduledClassRequest request) {
+    public ResponseEntity<ApiResponse<ScheduledClassResponse>> create(
+            @Valid @RequestBody CreateScheduledClassRequest request) {
         return ResponseFactory.ok(
-            ScheduledClassResponse.from(scheduledClassService.createScheduledClass(request)),
-            "Time slot created successfully."
-        );
+                scheduledClassService.createScheduledClass(request),
+                "Time slot created successfully.");
     }
 
     @GetMapping
     public ResponseEntity<ApiResponse<PagedModel<ScheduledClassResponse>>> getAll(Pageable pageable) {
         return ResponseFactory.ok(
-            new PagedModel<>(scheduledClassService.getAll(pageable).map(ScheduledClassResponse::from)),
-            "Time slots fetched successfully."
-        );
+                new PagedModel<>(scheduledClassService.getAll(pageable)),
+                "Time slots fetched successfully.");
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ScheduledClassResponse>> getById(@PathVariable Long id) {
         return ResponseFactory.ok(
-            ScheduledClassResponse.from(scheduledClassService.getById(id)),
-            "Time slot fetched successfully."
-        );
+                scheduledClassService.getById(id),
+                "Time slot fetched successfully.");
     }
 
     @PutMapping("/{id}")
@@ -57,10 +55,8 @@ public class ScheduledClassController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateScheduledClassRequest request) {
         return ResponseFactory.ok(
-            
-            ScheduledClassResponse.from(scheduledClassService.updateScheduledClass(id, request)),
-            "Time slot updated successfully."
-        );
+                scheduledClassService.updateScheduledClass(id, request),
+                "Time slot updated successfully.");
     }
 
     @DeleteMapping("/{id}")
@@ -69,4 +65,3 @@ public class ScheduledClassController {
         return ResponseEntity.noContent().build();
     }
 }
-

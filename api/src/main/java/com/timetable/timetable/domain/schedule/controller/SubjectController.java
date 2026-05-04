@@ -32,7 +32,7 @@ public class SubjectController {
     public ResponseEntity<ApiResponse<SubjectDetailResponse>> create(
             @Valid @RequestBody CreateSubjectRequest request) {
         return ResponseFactory.ok(
-                SubjectDetailResponse.from(subjectService.createSubject(request)),
+                subjectService.createSubject(request),
                 "subject created");
     }
 
@@ -40,14 +40,14 @@ public class SubjectController {
     public ResponseEntity<ApiResponse<PagedModel<SubjectDetailResponse>>> getAllByCourse(@PathVariable Long courseId,
             Pageable pageable) {
         return ResponseFactory.ok(
-                new PagedModel<>(subjectService.getAllByCourse(courseId, pageable).map(SubjectDetailResponse::from)),
+                new PagedModel<>(subjectService.getAllByCourse(courseId, pageable)),
                 "Subject fetched successfully.");
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<SubjectDetailResponse>> getById(@PathVariable Long id) {
         return ResponseFactory.ok(
-                SubjectDetailResponse.from(subjectService.getById(id)),
+                subjectService.getById(id),
                 "Subject fetched successfully.");
     }
 
@@ -56,7 +56,7 @@ public class SubjectController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateSubjectRequest request) {
         return ResponseFactory.ok(
-                SubjectDetailResponse.from(subjectService.updateSubject(id, request)),
+                subjectService.updateSubject(id, request),
                 "subject updated successfully.");
     }
 

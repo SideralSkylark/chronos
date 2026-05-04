@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.timetable.timetable.domain.schedule.dto.CreateScheduledClassRequest;
+import com.timetable.timetable.domain.schedule.dto.ScheduledClassResponse;
 import com.timetable.timetable.domain.schedule.dto.UpdateScheduledClassRequest;
 import com.timetable.timetable.domain.schedule.entity.*;
 import com.timetable.timetable.domain.schedule.exception.ScheduledClassNotFoundException;
@@ -19,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @Slf4j
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ScheduledClassService {
 
     private final ScheduledClassRepository scheduledClassRepository;
@@ -28,18 +30,18 @@ public class ScheduledClassService {
     private final TimeslotService timeslotService;
 
     @Transactional
-    public ScheduledClass createScheduledClass(CreateScheduledClassRequest request) {
+    public ScheduledClassResponse createScheduledClass(CreateScheduledClassRequest request) {
         log.debug("Creating scheduled class");
 
         CohortSubject cohortSubject =
                 cohortSubjectService.getById(request.cohortSubjectId());
         Room room =
-                roomService.getById(request.roomId());
+                roomService.findOrThrow(request.roomId());
         Timeslot timeslot =
                 timeslotService.getById(request.timeslotId());
 
         Timetable timetable = request.timetableId() != null
-                ? timetableService.getById(request.timetableId())
+                ? timetableService.findOrThrow(request.timetableId())
                 : null;
 
         validateCohortSubject(cohortSubject);
@@ -68,16 +70,14 @@ public class ScheduledClassService {
                 timeslot.getDisplayName()
         );
 
-        return saved;
+        return ScheduledClassResponse.from(saved);
     }
 
-    @Transactional(readOnly = true)
-    public Page<ScheduledClass> getAll(Pageable pageable) {
-        return scheduledClassRepository.findAll(pageable);
+    public Page<ScheduledClassResponse> getAll(Pageable pageable) {
+        return scheduledClassRepository.findAll(pageable).map(ScheduledClassResponse::from);
     }
 
-    @Transactional(readOnly = true)
-    public ScheduledClass getById(Long id) {
+    public ScheduledClass findOrThrow(Long id) {
         return scheduledClassRepository.findByIdWithDetails(id)
                 .orElseThrow(() ->
                         new ScheduledClassNotFoundException(
@@ -86,35 +86,36 @@ public class ScheduledClassService {
                 );
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
+    public ScheduledClassResponse getById(Long id) {
+        return ScheduledClassResponse.from(findOrThrow(id));
+    }
+
     public Page<ScheduledClass> getByTimetable(Long timetableId, Pageable pageable) {
-        Timetable timetable = timetableService.getById(timetableId);
+        Timetable timetable = timetableService.findOrThrow(timetableId);
         return scheduledClassRepository.findByTimetable(timetable, pageable);
     }
 
-    @Transactional(readOnly = true)
     public Page<ScheduledClass> getByCohort(Long cohortId, Pageable pageable) {
         return scheduledClassRepository.findByCohortId(cohortId, pageable);
     }
 
-    @Transactional(readOnly = true)
     public Page<ScheduledClass> getByTeacher(Long teacherId, Pageable pageable) {
         return scheduledClassRepository.findByTeacherId(teacherId, pageable);
     }
 
-    @Transactional(readOnly = true)
     public Page<ScheduledClass> getByCohortSubject(Long cohortSubjectId, Pageable pageable) {
         return scheduledClassRepository.findByCohortSubjectId(cohortSubjectId, pageable);
     }
 
     @Transactional
-    public ScheduledClass updateScheduledClass(
+    public ScheduledClassResponse updateScheduledClass(
             Long id,
             UpdateScheduledClassRequest request
     ) {
         log.debug("Updating scheduled class {}", id);
 
-        ScheduledClass scheduledClass = getById(id);
+        ScheduledClass scheduledClass = findOrThrow(id);
 
         CohortSubject cohortSubject = resolveCohortSubject(
                 scheduledClass, request.cohortSubjectId()
@@ -147,7 +148,7 @@ public class ScheduledClassService {
         ScheduledClass updated = scheduledClassRepository.save(scheduledClass);
 
         log.info("Scheduled class {} updated", updated.getId());
-        return updated;
+        return ScheduledClassResponse.from(updated);
     }
 
     @Transactional
@@ -212,7 +213,7 @@ public class ScheduledClassService {
     ) {
         return newId.equals(sc.getRoom().getId())
                 ? sc.getRoom()
-                : roomService.getById(newId);
+                : roomService.findOrThrow(newId);
     }
 
     private Timeslot resolveTimeslot(
@@ -235,10 +236,9 @@ public class ScheduledClassService {
             newId.equals(sc.getTimetable().getId())) {
             return sc.getTimetable();
         }
-        return timetableService.getById(newId);
+        return timetableService.findOrThrow(newId);
     }
 
-    @Transactional(readOnly = true)
     public int countScheduledClassesForCohortSubject(Long cohortSubjectId) {
         return scheduledClassRepository.countByCohortSubjectId(cohortSubjectId);
     }

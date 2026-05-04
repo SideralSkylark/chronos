@@ -17,14 +17,15 @@ import com.timetable.timetable.domain.user.service.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class CohortSubjectService {
 
     private final CohortSubjectRepository cohortSubjectRepository;
@@ -45,8 +46,8 @@ public class CohortSubjectService {
         Cohort cohort = cohortRepository.findById(request.cohortId())
                 .orElseThrow(() -> new CohortNotFoundException("Cohort not found: " + request.cohortId()));
 
-        Subject subject = subjectService.getById(request.subjectId());
-        ApplicationUser teacher = userService.findUserOrThrow(request.assignedTeacherId());
+        Subject subject = subjectService.findOrThrow(request.subjectId());
+        ApplicationUser teacher = userService.findOrThrow(request.assignedTeacherId());
 
         validateTeacherIsEligible(teacher, subject);
         validateCohortSubjectCompatibility(cohort, subject);
@@ -101,7 +102,7 @@ public class CohortSubjectService {
 
     @Transactional()
     public Page<CohortSubject> getByTeacher(Long teacherId, Pageable pageable) {
-        ApplicationUser teacher = userService.findUserOrThrow(teacherId);
+        ApplicationUser teacher = userService.findOrThrow(teacherId);
 
         if (!teacher.hasRole(UserRole.TEACHER)) {
             throw new IllegalArgumentException("User is not a teacher");
@@ -123,7 +124,7 @@ public class CohortSubjectService {
         if (!cohortSubject.getAssignedTeacher().getId()
                 .equals(request.assignedTeacherId())) {
 
-            ApplicationUser newTeacher = userService.findUserOrThrow(request.assignedTeacherId());
+            ApplicationUser newTeacher = userService.findOrThrow(request.assignedTeacherId());
 
             validateTeacherIsEligible(newTeacher, cohortSubject.getSubject());
             validateTeacherWorkload(newTeacher,

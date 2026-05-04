@@ -95,7 +95,7 @@ public class UserService {
                 .map(userMapper::toDTO);
     }
 
-    public ApplicationUser findUserOrThrow(Long id) {
+    public ApplicationUser findOrThrow(Long id) {
         return getByIdOrThrow(id);
     }
 
