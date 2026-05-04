@@ -44,7 +44,7 @@ public class TimetableService {
     private final NotificationService notificationService;
 
     @Transactional
-    public Timetable createTimetable(CreateTimetableRequest createRequest) {
+    public TimetableResponse createTimetable(CreateTimetableRequest createRequest) {
         log.debug("Creating timetable");
         if (timetableRepository.existsByAcademicYearAndSemester(createRequest.academicYear(),
                 createRequest.semester())) {
@@ -62,12 +62,12 @@ public class TimetableService {
         Timetable saved = timetableRepository.save(timetable);
 
         log.info("Timetable {} created", saved.getId());
-        return saved;
+        return TimetableResponse.from(saved);
     }
 
-    public Page<Timetable> getAll(Pageable pageable) {
+    public Page<TimetableResponse> getAll(Pageable pageable) {
         log.debug("Fetching all timetables");
-        return timetableRepository.findAll(pageable);
+        return timetableRepository.findAll(pageable).map(TimetableResponse::from);
     }
 
     public Page<Timetable> getByStatus(TimetableStatus status, Pageable pageable) {
@@ -75,7 +75,7 @@ public class TimetableService {
         return timetableRepository.findByStatus(status, pageable);
     }
 
-    public Timetable getById(Long id) {
+    public Timetable findOrThrow(Long id) {
         log.debug("fetching timetable {}", id);
         Timetable timetable = timetableRepository.findById(id)
                 .orElseThrow(() -> new TimetableNotFoundException(
@@ -83,6 +83,10 @@ public class TimetableService {
 
         log.info("timetable {} found", timetable.getId());
         return timetable;
+    }
+
+    public TimetableResponse getById(Long id) {
+        return TimetableResponse.from(findOrThrow(id));
     }
 
     public Timetable getByAcademicPeriod(int academicYear, int semester) {
@@ -162,9 +166,9 @@ public class TimetableService {
     }
 
     @Transactional
-    public Timetable updateTimetable(Long id, UpdateTimetableRequest updateRequest) {
+    public TimetableResponse updateTimetable(Long id, UpdateTimetableRequest updateRequest) {
         log.debug("updating timetable {}", id);
-        Timetable timetable = getById(id);
+        Timetable timetable = findOrThrow(id);
 
         // Check if trying to change to a different academic period that already exists
         if (!timetable.getAcademicPeriod().equals(updateRequest.academicYear() + "." + updateRequest.semester()) &&
@@ -183,13 +187,13 @@ public class TimetableService {
         Timetable updated = timetableRepository.save(timetable);
 
         log.info("timetable {} updated", updated.getId());
-        return updated;
+        return TimetableResponse.from(updated);
     }
 
     @Transactional
-    public Timetable submitForApproval(Long id) {
+    public TimetableResponse submitForApproval(Long id) {
         log.debug("Submitting timetable {} for approval", id);
-        Timetable timetable = getById(id);
+        Timetable timetable = findOrThrow(id);
         timetable.setStatus(TimetableStatus.PENDING_APPROVAL);
         Timetable saved = timetableRepository.save(timetable);
 
@@ -203,7 +207,7 @@ public class TimetableService {
                 "O horário de " + saved.getAcademicYear() + "·" + saved.getSemester() + "º semestre aguarda aprovação.",
                 currentUserId);
 
-        return saved;
+        return TimetableResponse.from(saved);
     }
 
     /**
@@ -214,16 +218,16 @@ public class TimetableService {
      * @return {@link Timetable}
      */
     @Transactional
-    public Timetable approve(Long id) {
+    public TimetableResponse approve(Long id) {
         log.debug("Approving timetable {}", id);
-        Timetable timetable = getById(id);
+        Timetable timetable = findOrThrow(id);
         timetable.setStatus(TimetableStatus.APPROVED);
         Timetable saved = timetableRepository.save(timetable);
         Long currentUserId = com.timetable.timetable.security.SecurityUtil.getAuthenticatedId();
         notificationService.notify(currentUserId, "Horário aprovado.");
         notificationService.notifyAllWithRole("ASISTENT", "Horário aprovado.", currentUserId);
 
-        return saved;
+        return TimetableResponse.from(saved);
     }
 
     /**
@@ -234,9 +238,9 @@ public class TimetableService {
      * @return {@link Timetable}
      */
     @Transactional
-    public Timetable reject(Long id) {
+    public TimetableResponse reject(Long id) {
         log.debug("Rejecting timetable {}", id);
-        Timetable timetable = getById(id);
+        Timetable timetable = findOrThrow(id);
         timetable.setStatus(TimetableStatus.DRAFT);
         Timetable saved = timetableRepository.save(timetable);
 
@@ -244,11 +248,11 @@ public class TimetableService {
         notificationService.notify(currentUserId, "Horário rejeitado.");
         notificationService.notifyAllWithRole("ASISTENT", "Horário rejeitado.", currentUserId);
 
-        return saved;
+        return TimetableResponse.from(saved);
     }
 
     @Transactional
-    public Timetable publishTimetable(Long id) {
+    public TimetableResponse publishTimetable(Long id) {
         log.debug("publishing timetable");
         Timetable timetable = timetableRepository.findById(id)
                 .orElseThrow(() -> new TimetableNotFoundException(
@@ -289,7 +293,7 @@ public class TimetableService {
         }
 
         log.info("timetable {} updated", updated.getId());
-        return updated;
+        return TimetableResponse.from(updated);
     }
 
     @Transactional

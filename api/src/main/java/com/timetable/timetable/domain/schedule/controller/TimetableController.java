@@ -38,31 +38,31 @@ public class TimetableController {
     @PostMapping
     public ResponseEntity<ApiResponse<TimetableResponse>> create(@Valid @RequestBody CreateTimetableRequest request) {
         return ResponseFactory.ok(
-                TimetableResponse.from(timetableService.createTimetable(request)),
+                timetableService.createTimetable(request),
                 "Timetable created successfully.");
     }
 
     @GetMapping
     public ResponseEntity<ApiResponse<PagedModel<TimetableResponse>>> getAll(Pageable pageable) {
         return ResponseFactory.ok(
-                new PagedModel<>(timetableService.getAll(pageable).map(TimetableResponse::from)),
+                new PagedModel<>(timetableService.getAll(pageable)),
                 "Timetables fetched successfully.");
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<TimetableResponse>> getById(@PathVariable Long id) {
         return ResponseFactory.ok(
-                TimetableResponse.from(timetableService.getById(id)),
+                timetableService.getById(id),
                 "Timetable fetched successfully.");
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTOR', 'ASISTENT', 'COORDINATOR')")
     @GetMapping("/lessons/{lessonId}/candidate-teachers")
-    public ResponseEntity<ApiResponse<List<CandidateTeacherResponse>>> getReplacementCandidates(@PathVariable Long lessonId) {
+    public ResponseEntity<ApiResponse<List<CandidateTeacherResponse>>> getReplacementCandidates(
+            @PathVariable Long lessonId) {
         return ResponseFactory.ok(
-            timetableService.getReplacementCandidates(lessonId),
-            "Teachers fetched successfully."
-        );
+                timetableService.getReplacementCandidates(lessonId),
+                "Teachers fetched successfully.");
     }
 
     @PutMapping("/{id}")
@@ -70,7 +70,7 @@ public class TimetableController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateTimetableRequest request) {
         return ResponseFactory.ok(
-                TimetableResponse.from(timetableService.updateTimetable(id, request)),
+                timetableService.updateTimetable(id, request),
                 "Timetable updated successfully.");
     }
 
@@ -78,7 +78,7 @@ public class TimetableController {
     @Transactional
     public ResponseEntity<ApiResponse<TimetableResponse>> submit(@PathVariable Long id) {
         return ResponseFactory.ok(
-                TimetableResponse.from(timetableService.submitForApproval(id)),
+                timetableService.submitForApproval(id),
                 "Timetable submitted for approval.");
     }
 
@@ -86,7 +86,7 @@ public class TimetableController {
     @Transactional
     public ResponseEntity<ApiResponse<TimetableResponse>> approve(@PathVariable Long id) {
         return ResponseFactory.ok(
-                TimetableResponse.from(timetableService.approve(id)),
+                timetableService.approve(id),
                 "Timetable approved.");
     }
 
@@ -94,7 +94,7 @@ public class TimetableController {
     @Transactional
     public ResponseEntity<ApiResponse<TimetableResponse>> reject(@PathVariable Long id) {
         return ResponseFactory.ok(
-                TimetableResponse.from(timetableService.reject(id)),
+                timetableService.reject(id),
                 "Timetable rejected and reverted to draft.");
     }
 
@@ -102,22 +102,19 @@ public class TimetableController {
     @Transactional
     public ResponseEntity<ApiResponse<TimetableResponse>> publish(@PathVariable Long id) {
         return ResponseFactory.ok(
-                TimetableResponse.from(timetableService.publishTimetable(id)),
+                timetableService.publishTimetable(id),
                 "Timetable published.");
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTOR', 'ASISTENT', 'COORDINATOR')")
     @PatchMapping("/lessons/{lessonId}/reassign-teacher")
     public ResponseEntity<ApiResponse<TimetableResponse>> reasignTeacher(
-        @PathVariable Long lessonId,
-        @RequestBody ReasignTeacherRequest request
-    ) {
+            @PathVariable Long lessonId,
+            @RequestBody ReasignTeacherRequest request) {
         return ResponseFactory.ok(
-            timetableService.reasignTeacher(lessonId, request),
-            "Teacher reasigned successfully"
-        );
+                timetableService.reasignTeacher(lessonId, request),
+                "Teacher reasigned successfully");
     }
-
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {

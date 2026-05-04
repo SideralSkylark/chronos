@@ -41,7 +41,7 @@ public class ScheduledClassService {
                 timeslotService.getById(request.timeslotId());
 
         Timetable timetable = request.timetableId() != null
-                ? timetableService.getById(request.timetableId())
+                ? timetableService.findOrThrow(request.timetableId())
                 : null;
 
         validateCohortSubject(cohortSubject);
@@ -92,7 +92,7 @@ public class ScheduledClassService {
     }
 
     public Page<ScheduledClass> getByTimetable(Long timetableId, Pageable pageable) {
-        Timetable timetable = timetableService.getById(timetableId);
+        Timetable timetable = timetableService.findOrThrow(timetableId);
         return scheduledClassRepository.findByTimetable(timetable, pageable);
     }
 
@@ -236,7 +236,7 @@ public class ScheduledClassService {
             newId.equals(sc.getTimetable().getId())) {
             return sc.getTimetable();
         }
-        return timetableService.getById(newId);
+        return timetableService.findOrThrow(newId);
     }
 
     public int countScheduledClassesForCohortSubject(Long cohortSubjectId) {
