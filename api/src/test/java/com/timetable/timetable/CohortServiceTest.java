@@ -90,8 +90,8 @@ class CohortServiceTest {
             eq(1), eq("A"), eq(1), eq(2024), eq(1L)
         )).thenReturn(false);
         when(courseService.getById(1L)).thenReturn(course);
-        when(userService.getUserById(1L)).thenReturn(student1);
-        when(userService.getUserById(2L)).thenReturn(student2);
+        when(userService.findUserOrThrow(1L)).thenReturn(student1);
+        when(userService.findUserOrThrow(2L)).thenReturn(student2);
         when(cohortRepository.save(any(Cohort.class))).thenAnswer(inv -> {
             Cohort c = inv.getArgument(0);
             c.setId(1L);
@@ -132,7 +132,7 @@ class CohortServiceTest {
 
         assertThat(result).isNotNull();
         assertThat(result.getStudents()).isEmpty();
-        verify(userService, never()).getUserById(anyLong());
+        verify(userService, never()).findUserOrThrow(anyLong());
     }
 
     @Test
@@ -164,7 +164,7 @@ class CohortServiceTest {
             anyInt(), anyString(), anyInt(), anyInt(), anyLong()
         )).thenReturn(false);
         when(courseService.getById(1L)).thenReturn(course);
-        when(userService.getUserById(3L)).thenReturn(nonStudent);
+        when(userService.findUserOrThrow(3L)).thenReturn(nonStudent);
 
         assertThatThrownBy(() -> cohortService.createCohort(request))
             .isInstanceOf(IllegalArgumentException.class)
@@ -268,7 +268,7 @@ class CohortServiceTest {
         when(cohortRepository.existsAnotherWithSameAttributes(
             anyInt(), anyString(), anyInt(), anyInt(), anyLong(), anyLong()
         )).thenReturn(false);
-        when(userService.getUserById(1L)).thenReturn(student1);
+        when(userService.findUserOrThrow(1L)).thenReturn(student1);
         when(cohortRepository.save(any(Cohort.class))).thenAnswer(inv -> inv.getArgument(0));
 
         Cohort result = cohortService.updateCohort(1L, request);

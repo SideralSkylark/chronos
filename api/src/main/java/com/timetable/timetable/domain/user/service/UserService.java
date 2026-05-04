@@ -64,6 +64,11 @@ public class UserService {
         return user;
     }
 
+    @Transactional
+    public UserResponse createUserResponse(CreateUser request) {
+        return userMapper.toDTO(createUser(request));
+    }
+
     // ============================================================
     // READ USERS
     // ============================================================
@@ -77,26 +82,33 @@ public class UserService {
         return getByUsernameOrThrow(SecurityUtil.getAuthenticatedUsername());
     }
 
-    public Page<ApplicationUser> getAllUsers(Pageable pageable, UserFilterParams filter) {
+    public Page<UserResponse> getAllUsers(Pageable pageable, UserFilterParams filter) {
         log.info("Filter received: {}", filter);
-        return userRepository.findAll(UserSpecifications.withFilters(filter), pageable);
+        return userRepository.findAll(UserSpecifications.withFilters(filter), pageable).map(userMapper::toDTO);
     }
 
-    public Page<ApplicationUser> getUsersByRole(UserRole role, Pageable pageable, UserFilterParams filter) {
+    public Page<UserResponse> getUsersByRole(UserRole role, Pageable pageable, UserFilterParams filter) {
         return userRepository.findAll(
                 UserSpecifications.withFilters(filter)
                         .and(UserSpecifications.hasRole(role)),
-                pageable);
+                pageable)
+                .map(userMapper::toDTO);
     }
 
-    public ApplicationUser getUserById(Long id) {
+    public ApplicationUser findUserOrThrow(Long id) {
         return getByIdOrThrow(id);
     }
 
-    public ApplicationUser getUserByRoleAndId(UserRole role, Long id) {
-        return userRepository.findByIdAndRole(id, role)
+    public UserResponse getUserById(Long id) {
+        return userMapper.toDTO(getByIdOrThrow(id));
+    }
+
+    public UserResponse getUserByRoleAndId(UserRole role, Long id) {
+        ApplicationUser user = userRepository.findByIdAndRole(id, role)
                 .orElseThrow(() -> new UserNotFoundException(
                         "No user with id %d and role %s".formatted(id, role)));
+
+        return userMapper.toDTO(user);
     }
 
     public ApplicationUser getUserByUsername(String username) {
@@ -124,7 +136,7 @@ public class UserService {
     }
 
     @Transactional
-    public ApplicationUser updateUserById(Long id, AdminUpdateUserDTO payload) {
+    public UserResponse updateUserById(Long id, AdminUpdateUserDTO payload) {
         log.debug("Updating user {}", id);
         ApplicationUser user = getByIdOrThrow(id);
 
@@ -139,11 +151,11 @@ public class UserService {
 
         userRepository.save(user);
         log.info("Admin updated user '{}' with roles {}", id, newRoles);
-        return user;
+        return userMapper.toDTO(user);
     }
 
     @Transactional
-    public String resetPassword(Long id) {
+    public ResetPasswordResponse resetPassword(Long id) {
         log.debug("Resetting password for user {}", id);
         ApplicationUser user = getByIdOrThrow(id);
         String newPassword = generateRandomPassword(12);
@@ -151,7 +163,7 @@ public class UserService {
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
         log.info("Password reset for user id={}", id);
-        return newPassword;
+        return new ResetPasswordResponse(user.getPassword());
     }
 
     private String generateRandomPassword(int length) {

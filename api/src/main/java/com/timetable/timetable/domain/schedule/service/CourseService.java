@@ -42,7 +42,7 @@ public class CourseService {
             throw new IllegalStateException("Course already exists");
         }
 
-        ApplicationUser coordinator = userService.getUserById(createRequest.coordinatorId());
+        ApplicationUser coordinator = userService.findUserOrThrow(createRequest.coordinatorId());
 
         if (!coordinator.hasRole(UserRole.COORDINATOR)) {
             log.warn("User {}, is not a coordinator", createRequest.coordinatorId());
@@ -90,7 +90,7 @@ public class CourseService {
             throw new IllegalArgumentException("Another course with that name already exists.");
         }
 
-        ApplicationUser coordinator = userService.getUserById(updateRequest.coordinatorId());
+        ApplicationUser coordinator = userService.findUserOrThrow(updateRequest.coordinatorId());
 
         if (!coordinator.hasRole(UserRole.COORDINATOR)) {
             log.warn("User {} is not a coordinator", updateRequest.coordinatorId());
