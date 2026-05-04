@@ -38,7 +38,7 @@ public class SubjectService {
     public Subject createSubject(CreateSubjectRequest request) {
         log.debug("Creating subject: {}", request.name());
         
-        Course course = courseService.getById(request.courseId());
+        Course course = courseService.findCourseOrThrow(request.courseId());
 
         if (subjectRepository.existsByNameAndTargetYearAndTargetSemesterAndCourse(
             request.name(), 
@@ -78,7 +78,7 @@ public class SubjectService {
     public Page<Subject> getAllByCourse(Long courseId, Pageable pageable) {
         log.debug("Fetching all subjects for course {}", courseId);
 
-        Course course = courseService.getById(courseId);
+        Course course = courseService.findCourseOrThrow(courseId);
         Page<Subject> page = subjectRepository.findByCourse(course, pageable);
 
         log.debug("Found {} subjects for course {}", page.getTotalElements(), courseId);

@@ -171,7 +171,7 @@ public class RoomService {
                         .anyMatch(r -> r.getCourse().getId().equals(courseId) && r.getPeriod() == period);
 
                     if (!alreadyExists) {
-                        Course course = courseService.getById(courseId);
+                        Course course = courseService.findCourseOrThrow(courseId);
 
                         RoomCourseRestriction restriction = RoomCourseRestriction.builder()
                             .room(room)
@@ -189,7 +189,7 @@ public class RoomService {
 
         // CASO 2: Curso único para todos os períodos (retrocompatibilidade)
         if (singleCourseId != null) {
-            Course course = courseService.getById(singleCourseId);
+            Course course = courseService.findCourseOrThrow(singleCourseId);
 
             for (TimePeriod period : TimePeriod.values()) {
                 RoomCourseRestriction restriction = RoomCourseRestriction.builder()

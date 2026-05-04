@@ -7,7 +7,6 @@ import com.timetable.timetable.domain.schedule.dto.CourseListResponse;
 import com.timetable.timetable.domain.schedule.dto.CourseResponse;
 import com.timetable.timetable.domain.schedule.dto.CreateCourseRequest;
 import com.timetable.timetable.domain.schedule.dto.UpdateCourseRequest;
-import com.timetable.timetable.domain.schedule.query.CourseQueryService;
 import com.timetable.timetable.domain.schedule.service.CourseService;
 
 import org.springframework.data.domain.Pageable;
@@ -30,38 +29,33 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("api/v1/courses")
 public class CourseController {
     private final CourseService courseService;
-    private final CourseQueryService courseQueryService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<CourseResponse>> create(@Valid @RequestBody CreateCourseRequest request) {
         return ResponseFactory.ok(
-            CourseResponse.from(courseService.createCourse(request)),
-            "Course created"
-        );
+                courseService.createCourse(request),
+                "Course created");
     }
 
     @GetMapping
     public ResponseEntity<ApiResponse<PagedModel<CourseListResponse>>> getAll(Pageable pageable) {
         return ResponseFactory.ok(
-            new PagedModel<>(courseQueryService.findAllWithSubjectCount(pageable)),
-            "Courses fetched"
-        );
+                new PagedModel<>(courseService.findAllWithSubjectCount(pageable)),
+                "Courses fetched");
     }
 
     @GetMapping("/coordinators")
     public ResponseEntity<ApiResponse<PagedModel<CoordinatorOption>>> getCoordinators(Pageable pageable) {
         return ResponseFactory.ok(
-            new PagedModel<>(courseQueryService.getAvailableCoordinators(pageable)),
-            "Coordinators fetched"
-        );
+                new PagedModel<>(courseService.getAvailableCoordinators(pageable)),
+                "Coordinators fetched");
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<CourseResponse>> getById(@PathVariable Long id) {
         return ResponseFactory.ok(
-            CourseResponse.from(courseService.getById(id)),
-            "Course fetched"
-        );
+                courseService.getById(id),
+                "Course fetched");
     }
 
     @PutMapping("/{id}")
@@ -69,14 +63,13 @@ public class CourseController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateCourseRequest request) {
         return ResponseFactory.ok(
-            CourseResponse.from(courseService.updateCourse(id, request)),
-            "Course updated"
-        );
+                courseService.updateCourse(id, request),
+                "Course updated");
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        courseService.deleteCourse(id); 
+        courseService.deleteCourse(id);
         return ResponseEntity.noContent().build();
     }
 }

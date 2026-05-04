@@ -65,7 +65,7 @@ public class CohortService {
                     String.format("Cohort '%s' already exists for the designated course", cohortIdentifier));
         }
 
-        Course course = courseService.getById(createRequest.courseId());
+        Course course = courseService.findCourseOrThrow(createRequest.courseId());
 
         Integer expectedCohorts = course.getExpectedCohortsPerAcademicYear()
                 .get(createRequest.year());
