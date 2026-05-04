@@ -5,9 +5,15 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.timetable.timetable.domain.schedule.dto.CohortFilterParams;
+import com.timetable.timetable.domain.schedule.dto.CohortListResponse;
+import com.timetable.timetable.domain.schedule.dto.CohortResponse;
+import com.timetable.timetable.domain.schedule.dto.CohortSummaryResponse;
 import com.timetable.timetable.domain.schedule.dto.CreateCohortRequest;
 import com.timetable.timetable.domain.schedule.dto.UpdateCohortRequest;
 import com.timetable.timetable.domain.schedule.entity.Cohort;
@@ -17,6 +23,7 @@ import com.timetable.timetable.domain.schedule.exception.CohortNotFoundException
 import com.timetable.timetable.domain.schedule.repository.CohortRepository;
 import com.timetable.timetable.domain.schedule.repository.RoomRepository;
 import com.timetable.timetable.domain.schedule.repository.ScheduledClassRepository;
+import com.timetable.timetable.domain.schedule.specification.CohortSpecifications;
 import com.timetable.timetable.domain.user.entity.ApplicationUser;
 import com.timetable.timetable.domain.user.entity.UserRole;
 import com.timetable.timetable.domain.user.service.UserService;
@@ -108,7 +115,12 @@ public class CohortService {
     }
 
     @Transactional
-    public Cohort confirmCohort(Long id, int studentCount) {
+    public CohortResponse createCohortResponse(CreateCohortRequest request) {
+        return CohortResponse.from(createCohort(request));
+    }
+
+    @Transactional
+    public CohortResponse confirmCohort(Long id, int studentCount) {
         log.debug("starting confirmation");
         Cohort cohort = getById(id);
 
@@ -129,15 +141,46 @@ public class CohortService {
 
         Cohort saved = cohortRepository.save(cohort);
         log.info("Cohort {} confirmed with {} students", id, studentCount);
-        return saved;
+        return CohortResponse.from(saved);
+    }
+
+    @Transactional
+    public Page<CohortListResponse> findAll(Pageable pageable, CohortFilterParams filters) {
+
+        return cohortRepository.findAll(CohortSpecifications.withFilters(filters), pageable)
+                .map(cohort -> new CohortListResponse(
+                        cohort.getId(),
+                        cohort.getYear(),
+                        cohort.getSection(),
+                        cohort.getAcademicYear(),
+                        cohort.getSemester(),
+                        cohort.getCourse().getId(),
+                        cohort.getCourseNameSnapshot(),
+                        cohort.getStudentCount(),
+                        cohort.getStatus()));
+    }
+
+    @Transactional
+    public CohortSummaryResponse getSummary(CohortFilterParams filters) {
+        long total = cohortRepository.count(CohortSpecifications.withFilters(filters));
+
+        filters.setStatus(CohortStatus.CONFIRMED);
+        long confirmed = cohortRepository.count(CohortSpecifications.withFilters(filters));
+
+        return new CohortSummaryResponse(total, confirmed);
     }
 
     @Transactional
     public Cohort getById(Long id) {
         log.debug("Looking for cohort {}", id);
-        Cohort cohort = cohortRepository.findByIdWithStudentsAndCourse(id); // garante fetch do course
+        Cohort cohort = cohortRepository.findByIdWithStudentsAndCourse(id);
         log.info("Cohort {} found: {}", id, cohort.getDisplayName());
         return cohort;
+    }
+
+    @Transactional
+    public CohortResponse getResponseById(Long id) {
+        return CohortResponse.from(getById(id));
     }
 
     public List<Cohort> getCohortsByCourse(Long courseId) {
@@ -156,7 +199,7 @@ public class CohortService {
     }
 
     @Transactional
-    public Cohort updateCohort(Long id, UpdateCohortRequest updateRequest) {
+    public CohortResponse updateCohort(Long id, UpdateCohortRequest updateRequest) {
         log.debug("Updating cohort {}", id);
         Cohort cohort = cohortRepository.findById(id)
                 .orElseThrow(() -> new CohortNotFoundException(
@@ -186,11 +229,11 @@ public class CohortService {
         Cohort updated = cohortRepository.save(cohort);
 
         log.info("Cohort {} updated: {}", updated.getId(), updated.getDisplayName());
-        return updated;
+        return CohortResponse.from(updated);
     }
 
     @Transactional
-    public Cohort updateStudents(Long cohortId, List<Long> studentIds) {
+    public CohortResponse updateStudents(Long cohortId, List<Long> studentIds) {
         Cohort cohort = getById(cohortId);
 
         Set<ApplicationUser> students = studentIds.stream()
@@ -199,7 +242,7 @@ public class CohortService {
                 .collect(Collectors.toSet());
 
         cohort.setStudents(students);
-        return cohortRepository.save(cohort);
+        return CohortResponse.from(cohortRepository.save(cohort));
     }
 
     @Transactional
