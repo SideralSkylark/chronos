@@ -12,7 +12,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface RoomRepository extends JpaRepository<Room, Long>, JpaSpecificationExecutor<Room> {
-    @EntityGraph(attributePaths = "restrictions")
     boolean existsByName(String name);
 
     @EntityGraph(attributePaths = {"restrictions", "restrictions.course"})
