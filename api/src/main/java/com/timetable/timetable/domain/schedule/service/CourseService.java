@@ -98,28 +98,26 @@ public class CourseService {
 
     @Transactional
     public Page<CourseListResponse> findAllWithSubjectCount(Pageable pageable) {
-        // Step 1: paginated ID query (no JOIN FETCH, so LIMIT works correctly)
         Page<Long> idPage = courseRepository.findAllIds(pageable);
 
         if (idPage.isEmpty()) {
             return Page.empty(pageable);
         }
 
-        // Step 2: fetch full entities with the map in a single query
+        List<Long> ids = idPage.getContent();
         List<Course> courses = courseRepository.findAllByIdWithCohorts(idPage.getContent());
 
-        // Preserve the original page order
+        Map<Long, Long> subjectCounts = subjectRepository.countByCourseIds(ids)
+                .stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],
+                        row -> (Long) row[1]));
+
         Map<Long, Course> courseById = courses.stream()
                 .collect(Collectors.toMap(Course::getId, Function.identity()));
 
-        List<CourseListResponse> responses = idPage.getContent().stream()
-                .map(id -> {
-                    Course course = courseById.get(id);
-                    Long subjectCount = subjectRepository.countByCourseId(id);
-                    return CourseListResponse.from(course, subjectCount);
-                })
-                .collect(Collectors.toList());
-
+        List<CourseListResponse> responses = ids.stream()
+            .map(id -> CourseListResponse.from(courseById.get(id), subjectCounts.getOrDefault(id, 0L))).toList();
         return new PageImpl<>(responses, pageable, idPage.getTotalElements());
     }
 
