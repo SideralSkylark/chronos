@@ -84,14 +84,15 @@ public class NotificationService {
 
     @Transactional
     public void deleteNotification(Long id, Long userId) {
-        notificationRepository.findById(id).ifPresent(notification -> {
-            if (notification.getUser().getId().equals(userId)) {
-                notificationRepository.delete(notification);
-            } else {
-                throw new UserNotAuthorizedException(
-                        "Não tem permissão para eliminar esta notificação.");
+        if (!notificationRepository.existsByIdAndUserId(id, userId)) {
+            if (notificationRepository.existsById(id)) {
+                throw new UserNotAuthorizedException("user %d is not authorized to delete this notification".formatted(userId));
             }
-        });
+
+            return;
+        }
+
+        notificationRepository.deleteById(id);
     }
 
     @Transactional
