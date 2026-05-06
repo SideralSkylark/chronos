@@ -2,6 +2,9 @@ package com.timetable.timetable.domain.schedule.repository;
 
 import com.timetable.timetable.domain.schedule.entity.Cohort;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -11,6 +14,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface CohortRepository extends JpaRepository<Cohort, Long>, JpaSpecificationExecutor<Cohort> {
@@ -40,7 +44,20 @@ public interface CohortRepository extends JpaRepository<Cohort, Long>, JpaSpecif
             @Param("courseId") Long courseId,
             @Param("excludeId") Long excludeId);
 
-    List<Cohort> findBySemesterAndAcademicYearAndCourseId(int semester, int year, Long courseId);
+    @EntityGraph(attributePaths = { "students", "course" })
+    @Query("SELECT c FROM Cohort c WHERE c.id = :id")
+    Optional<Cohort> findByIdWithStudentsAndCourse(@Param("id") Long id);
+
+    @EntityGraph(attributePaths = { "students" })
+    @Query("SELECT c FROM Cohort c WHERE c.id = :id")
+    Cohort findByIdWithStudents(@Param("id") Long id);
+
+    @EntityGraph(attributePaths = { "course" })
+    @Query("SELECT c FROM Cohort c JOIN FETCH c.course WHERE c.id = :id")
+    Optional<Cohort> findByIdWithCourse(@Param("id") Long id);
+
+    @EntityGraph(attributePaths = { "course" })
+    Page<Cohort> findAll(Specification<Cohort> spec, Pageable pageable);
 
     List<Cohort> findByCourseId(Long courseId);
 
@@ -52,16 +69,7 @@ public interface CohortRepository extends JpaRepository<Cohort, Long>, JpaSpecif
 
     List<Cohort> findBySemester(int semester);
 
-    @Query("SELECT c FROM Cohort c JOIN FETCH c.course WHERE c.id = :id")
-    Cohort findByIdWithCourse(@Param("id") Long id);
-
-    @EntityGraph(attributePaths = { "students" })
-    @Query("SELECT c FROM Cohort c WHERE c.id = :id")
-    Cohort findByIdWithStudents(@Param("id") Long id);
-
-    @EntityGraph(attributePaths = { "students", "course" })
-    @Query("SELECT c FROM Cohort c WHERE c.id = :id")
-    Cohort findByIdWithStudentsAndCourse(@Param("id") Long id);
+    List<Cohort> findBySemesterAndAcademicYearAndCourseId(int semester, int year, Long courseId);
 
     @Query("SELECT c FROM Cohort c WHERE " +
             "(:year IS NULL OR c.year = :year) AND " +

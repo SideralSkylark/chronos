@@ -47,6 +47,7 @@ public class CourseService {
     private final SubjectRepository subjectRepository;
     private final CohortRepository cohortRepository;
 
+    @Transactional
     public CourseResponse createCourse(CreateCourseRequest createRequest) {
         log.debug("Creating course");
         if (courseRepository.existsByName(createRequest.name())) {
@@ -96,7 +97,6 @@ public class CourseService {
         return CourseResponse.from(findCourseOrThrow(id));
     }
 
-    @Transactional
     public Page<CourseListResponse> findAllWithSubjectCount(Pageable pageable) {
         Page<Long> idPage = courseRepository.findAllIds(pageable);
 
