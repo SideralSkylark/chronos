@@ -15,8 +15,6 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
 
     boolean existsByName(String name);
 
-    // Fetches IDs first (respects pagination), then loads full entities with the
-    // map
     @Query("SELECT c.id FROM Course c")
     Page<Long> findAllIds(Pageable pageable);
 
