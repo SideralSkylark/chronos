@@ -4,10 +4,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import com.timetable.timetable.domain.schedule.entity.Timetable;
-import com.timetable.timetable.domain.schedule.entity.TimetableStatus;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -18,8 +15,6 @@ public interface TimetableRepository extends JpaRepository<Timetable, Long> {
     Optional<Timetable> findByAcademicYearAndSemester(int academicYear, int semester);
 
     boolean existsByAcademicYearAndSemester(int academicYear, int semester);
-
-    Page<Timetable> findByStatus(TimetableStatus status, Pageable pageable);
 
     @Query("SELECT COUNT(sc) FROM ScheduledClass sc WHERE sc.timetable.id = :timetableId")
     long countScheduledClasses(@Param("timetableId") Long timetableId);
