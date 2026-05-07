@@ -103,7 +103,7 @@ public class TimetableService {
         int academicYear = scheduledClass.getCohortSubject().getAcademicYear();
         int semester = scheduledClass.getCohortSubject().getSemester();
 
-        List<ApplicationUser> allTeachers = userRepository.findAllWithRolesRole(UserRole.TEACHER);
+        List<ApplicationUser> allTeachers = userRepository.findAllByRole(UserRole.TEACHER);
 
         // one query for all cohort subjects in the period — avoids N+1 per teacher
         List<CohortSubject> allCohortSubjects = cohortSubjectRepository
