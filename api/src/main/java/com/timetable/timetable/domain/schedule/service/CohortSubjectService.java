@@ -71,7 +71,7 @@ public class CohortSubjectService {
         return saved;
     }
 
-    public CohortSubject getById(Long id) {
+    public CohortSubject findWithDetailsOrThrow(Long id) {
         return cohortSubjectRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new CohortSubjectNotFoundException(
                         "Cohort subject assignment with id " + id + " not found"));
@@ -98,7 +98,7 @@ public class CohortSubjectService {
 
     @Transactional
     public CohortSubject updateCohortSubject(Long id, UpdateCohortSubjectRequest request) {
-        CohortSubject cohortSubject = getById(id);
+        CohortSubject cohortSubject = findWithDetailsOrThrow(id);
 
         if (!cohortSubject.getAssignedTeacher().getId()
                 .equals(request.assignedTeacherId())) {

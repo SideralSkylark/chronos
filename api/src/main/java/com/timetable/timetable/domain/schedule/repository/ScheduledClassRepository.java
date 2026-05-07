@@ -38,29 +38,6 @@ public interface ScheduledClassRepository extends JpaRepository<ScheduledClass, 
     @Query("""
                 SELECT sc FROM ScheduledClass sc
                 JOIN FETCH sc.cohortSubject cs
-                JOIN FETCH cs.cohort co
-                JOIN FETCH co.course
-                JOIN FETCH cs.subject su
-                JOIN FETCH cs.assignedTeacher teacher
-                JOIN FETCH sc.timeslot ts
-                JOIN FETCH sc.room r
-                WHERE sc.timetable = :timetable
-            """)
-    List<ScheduledClass> findByTimetableWithAllDetails(@Param("timetable") Timetable timetable);
-
-    @EntityGraph(attributePaths = {
-            "cohortSubject",
-            "cohortSubject.cohort",
-            "cohortSubject.subject",
-            "cohortSubject.assignedTeacher",
-            "room",
-            "timeslot"
-    })
-    Page<ScheduledClass> findByTimetable(Timetable timetable, Pageable pageable);
-
-    @Query("""
-                SELECT sc FROM ScheduledClass sc
-                JOIN FETCH sc.cohortSubject cs
                 JOIN FETCH cs.cohort
                 JOIN FETCH cs.subject
                 JOIN FETCH cs.assignedTeacher
@@ -71,20 +48,6 @@ public interface ScheduledClassRepository extends JpaRepository<ScheduledClass, 
             """)
     Optional<ScheduledClass> findByIdWithDetails(@Param("id") Long id);
 
-    Page<ScheduledClass> findByCohortSubjectId(Long cohortSubjectId, Pageable pageable);
-
-    @Query("""
-                SELECT sc FROM ScheduledClass sc
-                WHERE sc.cohortSubject.cohort.id = :cohortId
-            """)
-    Page<ScheduledClass> findByCohortId(@Param("cohortId") Long cohortId, Pageable pageable);
-
-    @Query("""
-                SELECT sc FROM ScheduledClass sc
-                WHERE sc.cohortSubject.assignedTeacher.id = :teacherId
-            """)
-    Page<ScheduledClass> findByTeacherId(@Param("teacherId") Long teacherId, Pageable pageable);
-
     @Query("""
                 SELECT sc FROM ScheduledClass sc
                 WHERE (
@@ -94,21 +57,15 @@ public interface ScheduledClassRepository extends JpaRepository<ScheduledClass, 
                 )
                 AND sc.timeslot = :timeslot
                 AND (:timetable IS NULL OR sc.timetable = :timetable)
+                AND (:excludeId IS NULL OR sc.id <> :excludeId)
             """)
     List<ScheduledClass> findConflicts(
             @Param("teacher") ApplicationUser teacher,
             @Param("cohort") Cohort cohort,
             @Param("room") Room room,
             @Param("timeslot") Timeslot timeslot,
-            @Param("timetable") Timetable timetable);
-
-    int countByCohortSubjectId(Long cohortSubjectId);
-
-    /**
-     * Deletes all scheduled classes for a specific timetable.
-     * Useful when regenerating a timetable.
-     */
-    void deleteByTimetableId(Long timetableId);
+            @Param("timetable") Timetable timetable,
+            @Param("excludeId") Long excludeId);
 
     @Query("""
                 SELECT sc FROM ScheduledClass sc
