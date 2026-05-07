@@ -89,7 +89,7 @@ public class CohortSubjectService {
     }
 
     public Page<CohortSubject> getByTeacher(Long teacherId, Pageable pageable) {
-        if (!userRepository.existsByIdAndRole(teacherId, UserRole.TEACHER)) {
+        if (!userRepository.existsByIdAndRolesRole(teacherId, UserRole.TEACHER)) {
             throw new IllegalArgumentException("User is not a teacher");
         }
 

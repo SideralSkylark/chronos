@@ -23,7 +23,7 @@ public interface UserRepository
     @Query("SELECT u FROM ApplicationUser u JOIN u.roles r WHERE u.id = :id AND r.role = :role")
     Optional<ApplicationUser> findByIdAndRole(@Param("id") Long id, @Param("role") UserRole role);
 
-    boolean existsByIdAndRole(Long id, UserRole role);
+    boolean existsByIdAndRolesRole(Long id, UserRole role);
 
     boolean existsByUsername(String username);
 
