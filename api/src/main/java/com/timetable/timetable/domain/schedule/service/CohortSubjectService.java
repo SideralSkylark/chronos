@@ -12,6 +12,7 @@ import com.timetable.timetable.domain.schedule.repository.CohortRepository;
 import com.timetable.timetable.domain.schedule.repository.CohortSubjectRepository;
 import com.timetable.timetable.domain.user.entity.ApplicationUser;
 import com.timetable.timetable.domain.user.entity.UserRole;
+import com.timetable.timetable.domain.user.repository.UserRepository;
 import com.timetable.timetable.domain.user.service.UserService;
 
 import org.springframework.data.domain.Page;
@@ -30,20 +31,15 @@ public class CohortSubjectService {
 
     private final CohortSubjectRepository cohortSubjectRepository;
     private final CohortRepository cohortRepository;
+    private final UserRepository userRepository;
     private final SubjectService subjectService;
     private final UserService userService;
-
-    /*
-     * --------------------
-     * CREATE
-     * --------------------
-     */
 
     @Transactional
     public CohortSubject createCohortSubject(CreateCohortSubjectRequest request) {
         log.debug("Creating cohort subject assignment");
 
-        Cohort cohort = cohortRepository.findById(request.cohortId())
+        Cohort cohort = cohortRepository.findByIdWithCourse(request.cohortId())
                 .orElseThrow(() -> new CohortNotFoundException("Cohort not found: " + request.cohortId()));
 
         Subject subject = subjectService.findOrThrow(request.subjectId());
@@ -75,47 +71,30 @@ public class CohortSubjectService {
         return saved;
     }
 
-    /*
-     * --------------------
-     * READ
-     * --------------------
-     */
-
-    @Transactional()
     public CohortSubject getById(Long id) {
         return cohortSubjectRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new CohortSubjectNotFoundException(
                         "Cohort subject assignment with id " + id + " not found"));
     }
 
-    @Transactional()
     public Page<CohortSubject> getAll(Pageable pageable) {
         return cohortSubjectRepository.findAll(pageable);
     }
 
-    @Transactional()
     public Page<CohortSubject> getByCohort(Long cohortId, Pageable pageable) {
-        Cohort cohort = cohortRepository.findById(cohortId)
-                .orElseThrow(() -> new CohortNotFoundException("Cohort not found: " + cohortId));
-        return cohortSubjectRepository.findByCohort(cohort, pageable);
+        if (!cohortRepository.existsById(cohortId)) {
+            throw new CohortNotFoundException("Cohort not found: " + cohortId);
+        }
+        return cohortSubjectRepository.findByCohortId(cohortId, pageable);
     }
 
-    @Transactional()
     public Page<CohortSubject> getByTeacher(Long teacherId, Pageable pageable) {
-        ApplicationUser teacher = userService.findOrThrow(teacherId);
-
-        if (!teacher.hasRole(UserRole.TEACHER)) {
+        if (!userRepository.existsByIdAndRole(teacherId, UserRole.TEACHER)) {
             throw new IllegalArgumentException("User is not a teacher");
         }
 
-        return cohortSubjectRepository.findByAssignedTeacher(teacher, pageable);
+        return cohortSubjectRepository.findByAssignedTeacherId(teacherId, pageable);
     }
-
-    /*
-     * --------------------
-     * UPDATE
-     * --------------------
-     */
 
     @Transactional
     public CohortSubject updateCohortSubject(Long id, UpdateCohortSubjectRequest request) {
@@ -138,16 +117,12 @@ public class CohortSubjectService {
         return cohortSubjectRepository.save(cohortSubject);
     }
 
-    /*
-     * --------------------
-     * DELETE
-     * --------------------
-     */
-
     @Transactional
-    public void deleteCohortSubject(Long id) {
-        CohortSubject cohortSubject = getById(id);
-        cohortSubjectRepository.delete(cohortSubject);
+    public void deleteCohortSubjectById(Long id) {
+        if (!cohortSubjectRepository.existsById(id)) {
+            throw new CohortSubjectNotFoundException("no cohort subject with the id %d".formatted(id));
+        }
+        cohortSubjectRepository.deleteById(id);
     }
 
     @Transactional
@@ -155,25 +130,13 @@ public class CohortSubjectService {
         cohortSubjectRepository.deleteByCohortId(id);
     }
 
-    /*
-     * --------------------
-     * AGGREGATES
-     * --------------------
-     */
-
-    @Transactional()
     public int getTotalWeeklyHoursForCohort(Long cohortId) {
-        Cohort cohort = cohortRepository.findById(cohortId)
-                .orElseThrow(() -> new CohortNotFoundException("Cohort not found: " + cohortId));
-        int credits = cohortSubjectRepository.sumCreditsByCohort(cohort);
+        if (!cohortRepository.existsById(cohortId)) {
+            throw new CohortNotFoundException("cohort not found: %d".formatted(cohortId));
+        }
+        int credits = cohortSubjectRepository.sumCreditsByCohortId(cohortId);
         return AcademicPolicy.calculateWeeklyHours(credits);
     }
-
-    /*
-     * --------------------
-     * VALIDATIONS
-     * --------------------
-     */
 
     private void validateTeacherIsEligible(ApplicationUser teacher, Subject subject) {
         if (!teacher.hasRole(UserRole.TEACHER)) {

@@ -48,11 +48,14 @@ public interface CohortSubjectRepository extends JpaRepository<CohortSubject, Lo
     @EntityGraph(attributePaths = { "subject", "assignedTeacher" })
     Page<CohortSubject> findByCohort(Cohort cohort, Pageable pageable);
 
+    @EntityGraph(attributePaths = { "subject", "assignedTeacher"})
+    Page<CohortSubject> findByCohortId(Long cohortId, Pageable pageable);
+
     @EntityGraph(attributePaths = { "cohort", "assignedTeacher" })
     Page<CohortSubject> findBySubject(Subject subject, Pageable pageable);
 
     @EntityGraph(attributePaths = { "cohort", "subject" })
-    Page<CohortSubject> findByAssignedTeacher(ApplicationUser teacher, Pageable pageable);
+    Page<CohortSubject> findByAssignedTeacherId(Long id, Pageable pageable);
 
     @Query("""
                 SELECT cs FROM CohortSubject cs
@@ -108,10 +111,10 @@ public interface CohortSubjectRepository extends JpaRepository<CohortSubject, Lo
                 SELECT COALESCE(SUM(s.credits), 0)
                 FROM CohortSubject cs
                 JOIN cs.subject s
-                WHERE cs.cohort = :cohort
+                WHERE cs.cohort.id = :cohortId
                   AND cs.isActive = true
             """)
-    int sumCreditsByCohort(@Param("cohort") Cohort cohort);
+    int sumCreditsByCohortId(@Param("cohortId") Long cohortId);
 
     @Modifying
     @Query("DELETE FROM CohortSubject cs WHERE cs.cohort.id = :cohortId")
