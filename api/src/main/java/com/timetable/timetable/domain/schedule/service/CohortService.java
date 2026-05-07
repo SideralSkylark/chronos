@@ -3,7 +3,6 @@ package com.timetable.timetable.domain.schedule.service;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,7 +25,7 @@ import com.timetable.timetable.domain.schedule.repository.ScheduledClassReposito
 import com.timetable.timetable.domain.schedule.specification.CohortSpecifications;
 import com.timetable.timetable.domain.user.entity.ApplicationUser;
 import com.timetable.timetable.domain.user.entity.UserRole;
-import com.timetable.timetable.domain.user.service.UserService;
+import com.timetable.timetable.domain.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,7 +38,7 @@ public class CohortService {
     private final CohortRepository cohortRepository;
     private final CohortSubjectService cohortSubjectService;
     private final CourseService courseService;
-    private final UserService userService;
+    private final UserRepository userRepository;
     private final RoomRepository roomRepository;
     private final ScheduledClassRepository scheduledClassRepository;
 
@@ -78,7 +77,7 @@ public class CohortService {
 
         long existingCount = cohortRepository
                 .countByCourseIdAndYearAndAcademicYearAndSemester(
-                        createRequest.courseId(),
+                        course.getId(),
                         createRequest.year(),
                         createRequest.academicYear(),
                         createRequest.semester());
@@ -88,7 +87,7 @@ public class CohortService {
                     String.format(
                             "Maximum number of cohorts (%d) reached for course %d, academic year %d, semester %d",
                             expectedCohorts,
-                            createRequest.courseId(),
+                            course.getId(),
                             createRequest.academicYear(),
                             createRequest.semester()));
         }
@@ -145,7 +144,6 @@ public class CohortService {
         return CohortResponse.from(saved);
     }
 
-    @Transactional
     public Page<CohortListResponse> findAll(Pageable pageable, CohortFilterParams filters) {
 
         return cohortRepository.findAll(CohortSpecifications.withFilters(filters), pageable)
@@ -161,7 +159,6 @@ public class CohortService {
                         cohort.getStatus()));
     }
 
-    @Transactional
     public CohortSummaryResponse getSummary(CohortFilterParams filters) {
         long total = cohortRepository.count(CohortSpecifications.withFilters(filters));
 
@@ -171,15 +168,14 @@ public class CohortService {
         return new CohortSummaryResponse(total, confirmed);
     }
 
-    @Transactional
     public Cohort getById(Long id) {
         log.debug("Looking for cohort {}", id);
-        Cohort cohort = cohortRepository.findByIdWithStudentsAndCourse(id);
+        Cohort cohort = cohortRepository.findByIdWithStudentsAndCourse(id)
+            .orElseThrow(() -> new CohortNotFoundException("could not find cohort %d".formatted(id)));
         log.info("Cohort {} found: {}", id, cohort.getDisplayName());
         return cohort;
     }
 
-    @Transactional
     public CohortResponse getResponseById(Long id) {
         return CohortResponse.from(getById(id));
     }
@@ -202,11 +198,9 @@ public class CohortService {
     @Transactional
     public CohortResponse updateCohort(Long id, UpdateCohortRequest updateRequest) {
         log.debug("Updating cohort {}", id);
-        Cohort cohort = cohortRepository.findById(id)
-                .orElseThrow(() -> new CohortNotFoundException(
-                        String.format("Cohort with id %d not found", id)));
+        Cohort cohort = cohortRepository.findByIdWithCourse(id)
+                .orElseThrow(() -> new CohortNotFoundException("course d% not found".formatted(id)));
 
-        // Verificação atualizada para incluir semester
         if (cohortRepository.existsAnotherWithSameAttributes(
                 updateRequest.year(),
                 updateRequest.section(),
@@ -237,11 +231,7 @@ public class CohortService {
     public CohortResponse updateStudents(Long cohortId, List<Long> studentIds) {
         Cohort cohort = getById(cohortId);
 
-        Set<ApplicationUser> students = studentIds.stream()
-                .map(userService::findOrThrow)
-                .filter(u -> u.hasRole(UserRole.STUDENT))
-                .collect(Collectors.toSet());
-
+        Set<ApplicationUser> students = validateAndFetchStudents(studentIds);
         cohort.setStudents(students);
         return CohortResponse.from(cohortRepository.save(cohort));
     }
@@ -260,17 +250,20 @@ public class CohortService {
     }
 
     private Set<ApplicationUser> validateAndFetchStudents(List<Long> studentIds) {
-        if (studentIds == null)
-            return new HashSet<>();
+        if (studentIds == null || studentIds.isEmpty()) return new HashSet<>();
 
-        return studentIds.stream()
-                .map(userService::findOrThrow)
-                .peek(user -> {
-                    if (!user.hasRole(UserRole.STUDENT)) {
-                        throw new IllegalArgumentException(
-                                "User is not a student");
-                    }
-                })
-                .collect(Collectors.toSet());
+        List<ApplicationUser> users = userRepository.findAllById(studentIds);
+
+        if (users == null || users.isEmpty()) {
+            throw new IllegalArgumentException("One or more student ids not found");
+        }
+
+        users.forEach(user -> {
+            if (!user.hasRole(UserRole.STUDENT)) {
+                throw new IllegalArgumentException("user %d is not a student".formatted(user.getId()));
+            }
+        });
+
+        return new HashSet<>(users);
     }
 }

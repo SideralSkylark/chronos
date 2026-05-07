@@ -33,12 +33,9 @@ public class ScheduledClassService {
     public ScheduledClassResponse createScheduledClass(CreateScheduledClassRequest request) {
         log.debug("Creating scheduled class");
 
-        CohortSubject cohortSubject =
-                cohortSubjectService.getById(request.cohortSubjectId());
-        Room room =
-                roomService.findOrThrow(request.roomId());
-        Timeslot timeslot =
-                timeslotService.getById(request.timeslotId());
+        CohortSubject cohortSubject = cohortSubjectService.findWithDetailsOrThrow(request.cohortSubjectId());
+        Room room = roomService.findOrThrow(request.roomId());
+        Timeslot timeslot = timeslotService.getById(request.timeslotId());
 
         Timetable timetable = request.timetableId() != null
                 ? timetableService.findOrThrow(request.timetableId())
@@ -51,8 +48,7 @@ public class ScheduledClassService {
                 cohortSubject,
                 room,
                 timeslot,
-                timetable
-        );
+                timetable);
 
         ScheduledClass scheduledClass = ScheduledClass.builder()
                 .cohortSubject(cohortSubject)
@@ -67,8 +63,7 @@ public class ScheduledClassService {
                 "Scheduled class {} created for {} ({})",
                 saved.getId(),
                 cohortSubject.getDisplayName(),
-                timeslot.getDisplayName()
-        );
+                timeslot.getDisplayName());
 
         return ScheduledClassResponse.from(saved);
     }
@@ -79,56 +74,30 @@ public class ScheduledClassService {
 
     public ScheduledClass findOrThrow(Long id) {
         return scheduledClassRepository.findByIdWithDetails(id)
-                .orElseThrow(() ->
-                        new ScheduledClassNotFoundException(
-                                "Scheduled class with id %d not found".formatted(id)
-                        )
-                );
+                .orElseThrow(() -> new ScheduledClassNotFoundException(
+                        "Scheduled class with id %d not found".formatted(id)));
     }
 
-    @Transactional
     public ScheduledClassResponse getById(Long id) {
         return ScheduledClassResponse.from(findOrThrow(id));
     }
 
-    public Page<ScheduledClass> getByTimetable(Long timetableId, Pageable pageable) {
-        Timetable timetable = timetableService.findOrThrow(timetableId);
-        return scheduledClassRepository.findByTimetable(timetable, pageable);
-    }
-
-    public Page<ScheduledClass> getByCohort(Long cohortId, Pageable pageable) {
-        return scheduledClassRepository.findByCohortId(cohortId, pageable);
-    }
-
-    public Page<ScheduledClass> getByTeacher(Long teacherId, Pageable pageable) {
-        return scheduledClassRepository.findByTeacherId(teacherId, pageable);
-    }
-
-    public Page<ScheduledClass> getByCohortSubject(Long cohortSubjectId, Pageable pageable) {
-        return scheduledClassRepository.findByCohortSubjectId(cohortSubjectId, pageable);
-    }
-
-    @Transactional
+   @Transactional
     public ScheduledClassResponse updateScheduledClass(
             Long id,
-            UpdateScheduledClassRequest request
-    ) {
+            UpdateScheduledClassRequest request) {
         log.debug("Updating scheduled class {}", id);
 
         ScheduledClass scheduledClass = findOrThrow(id);
 
         CohortSubject cohortSubject = resolveCohortSubject(
-                scheduledClass, request.cohortSubjectId()
-        );
+                scheduledClass, request.cohortSubjectId());
         Room room = resolveRoom(
-                scheduledClass, request.roomId()
-        );
+                scheduledClass, request.roomId());
         Timeslot timeslot = resolveTimeslot(
-                scheduledClass, request.timeslotId()
-        );
+                scheduledClass, request.timeslotId());
         Timetable timetable = resolveTimetable(
-                scheduledClass, request.timetableId()
-        );
+                scheduledClass, request.timetableId());
 
         validateCohortSubject(cohortSubject);
 
@@ -137,8 +106,7 @@ public class ScheduledClassService {
                 cohortSubject,
                 room,
                 timeslot,
-                timetable
-        );
+                timetable);
 
         scheduledClass.setCohortSubject(cohortSubject);
         scheduledClass.setRoom(room);
@@ -155,8 +123,7 @@ public class ScheduledClassService {
     public void deleteScheduledClass(Long id) {
         if (!scheduledClassRepository.existsById(id)) {
             throw new ScheduledClassNotFoundException(
-                    "Scheduled class with id %d not found".formatted(id)
-            );
+                    "Scheduled class with id %d not found".formatted(id));
         }
         scheduledClassRepository.deleteById(id);
         log.info("Scheduled class {} deleted", id);
@@ -165,8 +132,7 @@ public class ScheduledClassService {
     private void validateCohortSubject(CohortSubject cohortSubject) {
         if (!cohortSubject.isActive()) {
             throw new IllegalStateException(
-                    "Cannot schedule a class for an inactive cohort subject"
-            );
+                    "Cannot schedule a class for an inactive cohort subject");
         }
     }
 
@@ -175,42 +141,33 @@ public class ScheduledClassService {
             CohortSubject cohortSubject,
             Room room,
             Timeslot timeslot,
-            Timetable timetable
-    ) {
-        List<ScheduledClass> conflicts =
-                scheduledClassRepository.findConflicts(
-                        cohortSubject.getAssignedTeacher(),
-                        cohortSubject.getCohort(),
-                        room,
-                        timeslot,
-                        timetable
-                );
-
-        if (excludeId != null) {
-            conflicts.removeIf(sc -> sc.getId().equals(excludeId));
-        }
+            Timetable timetable) {
+        List<ScheduledClass> conflicts = scheduledClassRepository.findConflicts(
+                cohortSubject.getAssignedTeacher(),
+                cohortSubject.getCohort(),
+                room,
+                timeslot,
+                timetable,
+                excludeId);
 
         if (!conflicts.isEmpty()) {
             throw new IllegalArgumentException(
                     "Schedule conflict detected for timeslot " +
-                            timeslot.getDisplayName()
-            );
+                            timeslot.getDisplayName());
         }
     }
 
     private CohortSubject resolveCohortSubject(
             ScheduledClass sc,
-            Long newId
-    ) {
+            Long newId) {
         return newId.equals(sc.getCohortSubject().getId())
                 ? sc.getCohortSubject()
-                : cohortSubjectService.getById(newId);
+                : cohortSubjectService.findWithDetailsOrThrow(newId);
     }
 
     private Room resolveRoom(
             ScheduledClass sc,
-            Long newId
-    ) {
+            Long newId) {
         return newId.equals(sc.getRoom().getId())
                 ? sc.getRoom()
                 : roomService.findOrThrow(newId);
@@ -218,8 +175,7 @@ public class ScheduledClassService {
 
     private Timeslot resolveTimeslot(
             ScheduledClass sc,
-            Long newId
-    ) {
+            Long newId) {
         return newId.equals(sc.getTimeslot().getId())
                 ? sc.getTimeslot()
                 : timeslotService.getById(newId);
@@ -227,19 +183,14 @@ public class ScheduledClassService {
 
     private Timetable resolveTimetable(
             ScheduledClass sc,
-            Long newId
-    ) {
+            Long newId) {
         if (newId == null) {
             return null;
         }
         if (sc.getTimetable() != null &&
-            newId.equals(sc.getTimetable().getId())) {
+                newId.equals(sc.getTimetable().getId())) {
             return sc.getTimetable();
         }
         return timetableService.findOrThrow(newId);
-    }
-
-    public int countScheduledClassesForCohortSubject(Long cohortSubjectId) {
-        return scheduledClassRepository.countByCohortSubjectId(cohortSubjectId);
     }
 }

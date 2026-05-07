@@ -3,8 +3,6 @@ package com.timetable.timetable.domain.schedule.service;
 import com.timetable.timetable.domain.schedule.repository.TimeslotRepository;
 import com.timetable.timetable.domain.schedule.exception.TimeslotNotFoundException;
 
-import java.util.List;
-
 import com.timetable.timetable.domain.schedule.entity.Timeslot;
 
 import org.springframework.stereotype.Service;
@@ -27,9 +25,5 @@ public class TimeslotService {
 
         log.info("timeslot {} found", id);
         return timeslot;
-    }
-
-    public List<Timeslot> getAll() {
-        return timeslotRepository.findAll();
     }
 }

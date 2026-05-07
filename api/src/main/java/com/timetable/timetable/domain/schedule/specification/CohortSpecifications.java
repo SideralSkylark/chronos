@@ -15,11 +15,19 @@ public class CohortSpecifications {
 
             if (f.getName() != null && !f.getName().isBlank()) {
                 String pattern = "%" + f.getName().toLowerCase() + "%";
-                predicates.add(cb.or(
-                    cb.like(cb.lower(root.get("courseNameSnapshot")), pattern),
-                    cb.like(cb.lower(root.get("section")), pattern),
-                    cb.like(root.get("year").as(String.class), pattern)
-                ));
+                List<Predicate> searchPredicates = new ArrayList<>();
+
+                searchPredicates.add(cb.like(cb.lower(root.get("courseNameSnapshot")), pattern));
+                searchPredicates.add(cb.like(cb.lower(root.get("section")), pattern));
+
+                try {
+                    int yearValue = Integer.parseInt(f.getName().trim());
+                    searchPredicates.add(cb.equal(root.get("year"), yearValue));
+                } catch (NumberFormatException ignored) {
+                    // not a number, skip year predicate
+                }
+
+                predicates.add(cb.or(searchPredicates.toArray(new Predicate[0])));
             }
 
             if (f.getCourseId() != null) {

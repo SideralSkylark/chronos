@@ -7,6 +7,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.timetable.timetable.domain.schedule.dto.CandidateTeacherResponse;
 import com.timetable.timetable.domain.schedule.dto.CreateTimetableRequest;
@@ -25,9 +28,11 @@ import com.timetable.timetable.domain.schedule.repository.TimetableRepository;
 import com.timetable.timetable.domain.schedule.repository.CohortSubjectRepository;
 import com.timetable.timetable.domain.schedule.repository.ScheduledClassRepository;
 import com.timetable.timetable.domain.user.entity.ApplicationUser;
+import com.timetable.timetable.domain.user.entity.UserRole;
 import com.timetable.timetable.domain.user.exception.UserNotFoundException;
 import com.timetable.timetable.domain.user.repository.UserRepository;
 import com.timetable.timetable.domain.user.service.NotificationService;
+import com.timetable.timetable.security.SecurityUtil;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -71,11 +76,6 @@ public class TimetableService {
         return timetableRepository.findAll(pageable).map(TimetableResponse::from);
     }
 
-    public Page<Timetable> getByStatus(TimetableStatus status, Pageable pageable) {
-        log.debug("Fetching all {} timetables", status);
-        return timetableRepository.findByStatus(status, pageable);
-    }
-
     public Timetable findOrThrow(Long id) {
         log.debug("fetching timetable {}", id);
         Timetable timetable = timetableRepository.findById(id)
@@ -90,16 +90,6 @@ public class TimetableService {
         return TimetableResponse.from(findOrThrow(id));
     }
 
-    public Timetable getByAcademicPeriod(int academicYear, int semester) {
-        log.debug("fetching timetable by {} year and {} semester", academicYear, semester);
-        Timetable timetable = timetableRepository.findByAcademicYearAndSemester(academicYear, semester)
-                .orElseThrow(() -> new TimetableNotFoundException(
-                        "Timetable for academic period '%s' not found".formatted(academicYear + "." + semester)));
-
-        log.info("timetable {} found", timetable.getId());
-        return timetable;
-    }
-
     /**
      * return a list of {@link CandidateTeacherResponse}. To be used for the phantom
      * swap feature.
@@ -109,32 +99,32 @@ public class TimetableService {
         ScheduledClass scheduledClass = scheduledClassRepository.findByIdWithDetails(lessonId)
                 .orElseThrow(() -> new ScheduledClassNotFoundException(
                         "scheduled class with id %d not found".formatted(lessonId)));
+
         int academicYear = scheduledClass.getCohortSubject().getAcademicYear();
         int semester = scheduledClass.getCohortSubject().getSemester();
 
-        List<ApplicationUser> allTeachers = userRepository.findAll()
-                .stream()
-                .filter(u -> !u.getUsername().contains("PHANTOM"))
-                .toList();
+        List<ApplicationUser> allTeachers = userRepository.findAllByRole(UserRole.TEACHER);
+
+        // one query for all cohort subjects in the period — avoids N+1 per teacher
+        List<CohortSubject> allCohortSubjects = cohortSubjectRepository
+                .findByAcademicYearAndSemester(academicYear, semester);
+
+        Map<Long, Long> countByTeacherId = allCohortSubjects.stream()
+                .collect(Collectors.groupingBy(
+                        cs -> cs.getAssignedTeacher().getId(),
+                        Collectors.counting()));
 
         List<CandidateTeacherResponse> response = new ArrayList<>();
 
         for (ApplicationUser teacher : allTeachers) {
-            List<CohortSubject> cohorts = cohortSubjectRepository
-                    .findByAcademicYearAndSemesterAndAssignedTeacher(academicYear, semester, teacher);
-
-            int weeklyHours = cohorts.size() * AcademicPolicy.WEEKLY_CONTACT_HOURS;
+            long count = countByTeacherId.getOrDefault(teacher.getId(), 0L);
+            int weeklyHours = (int) count * AcademicPolicy.WEEKLY_CONTACT_HOURS;
             int limit = AcademicPolicy.getWeeklyHoursLimit(teacher);
-            boolean wouldExceedLimits = (weeklyHours + AcademicPolicy.WEEKLY_CONTACT_HOURS > AcademicPolicy
-                    .getWeeklyHoursLimit(teacher));
+            boolean wouldExceedLimit = weeklyHours + AcademicPolicy.WEEKLY_CONTACT_HOURS > limit;
             boolean qualified = scheduledClass.getSubject().getEligibleTeachers().contains(teacher);
 
             response.add(CandidateTeacherResponse.from(
-                    teacher,
-                    weeklyHours,
-                    limit,
-                    wouldExceedLimits,
-                    qualified));
+                    teacher, weeklyHours, limit, wouldExceedLimit, qualified));
         }
 
         return response;
@@ -147,35 +137,38 @@ public class TimetableService {
                         "scheduled class not found with id %d".formatted(lessonId)));
 
         ApplicationUser teacher = userRepository.findById(request.teacherId())
-                .orElseThrow(
-                        () -> new UserNotFoundException("could not find teacher %d".formatted(request.teacherId())));
+                .orElseThrow(() -> new UserNotFoundException(
+                        "could not find teacher %d".formatted(request.teacherId())));
 
         if (teacher.getUsername().contains("PHANTOM")) {
             throw new IllegalArgumentException("Cannot assign phantom teacher");
         }
 
         cohortSubjectService.updateCohortSubject(
-                scheduledClass.getCohortSubject().getId(), UpdateCohortSubjectRequest.from(teacher.getId(), true));
+                scheduledClass.getCohortSubject().getId(),
+                UpdateCohortSubjectRequest.from(teacher.getId(), true));
 
         Timetable timetable = timetableRepository.findByAcademicYearAndSemester(
-                scheduledClass.getCohortSubject().getAcademicYear(), scheduledClass.getCohortSubject().getSemester())
-                .orElseThrow(() -> new TimetableNotFoundException("Could not find a timetable for %d / %d".formatted(
-                        scheduledClass.getCohortSubject().getAcademicYear(),
-                        scheduledClass.getCohortSubject().getSemester())));
+                scheduledClass.getCohortSubject().getAcademicYear(),
+                scheduledClass.getCohortSubject().getSemester())
+                .orElseThrow(() -> new TimetableNotFoundException(
+                        "Could not find a timetable for %d / %d".formatted(
+                                scheduledClass.getCohortSubject().getAcademicYear(),
+                                scheduledClass.getCohortSubject().getSemester())));
 
         return TimetableResponse.from(timetable);
     }
 
     @Transactional
     public TimetableResponse updateTimetable(Long id, UpdateTimetableRequest updateRequest) {
-        log.debug("updating timetable {}", id);
+        log.debug("Updating timetable {}", id);
         Timetable timetable = findOrThrow(id);
 
-        // Check if trying to change to a different academic period that already exists
-        if (!timetable.getAcademicPeriod().equals(updateRequest.academicYear() + "." + updateRequest.semester()) &&
-                timetableRepository.existsByAcademicYearAndSemester(updateRequest.academicYear(),
-                        updateRequest.semester())) {
-            log.warn("another timetable for {} period already exists", updateRequest.academicYear());
+        if (!timetable.getAcademicPeriod().equals(
+                updateRequest.academicYear() + "." + updateRequest.semester()) &&
+                timetableRepository.existsByAcademicYearAndSemester(
+                        updateRequest.academicYear(), updateRequest.semester())) {
+            log.warn("Another timetable for {} period already exists", updateRequest.academicYear());
             throw new IllegalArgumentException(
                     "Another timetable for academic period '%s' already exists"
                             .formatted(updateRequest.academicYear()));
@@ -186,8 +179,7 @@ public class TimetableService {
         timetable.setStatus(updateRequest.status());
 
         Timetable updated = timetableRepository.save(timetable);
-
-        log.info("timetable {} updated", updated.getId());
+        log.info("Timetable {} updated", updated.getId());
         return TimetableResponse.from(updated);
     }
 
@@ -198,15 +190,14 @@ public class TimetableService {
         timetable.setStatus(TimetableStatus.PENDING_APPROVAL);
         Timetable saved = timetableRepository.save(timetable);
 
-        Long currentUserId = com.timetable.timetable.security.SecurityUtil.getAuthenticatedId();
+        Long currentUserId = SecurityUtil.getAuthenticatedId();
+        String period = saved.getAcademicYear() + "·" + saved.getSemester() + "º semestre";
+
         notificationService.notify(currentUserId, "Horário submetido para aprovação.");
         notificationService.notifyAllWithRole("DIRECTOR",
-                "O horário de " + saved.getAcademicYear() + "·" + saved.getSemester()
-                        + "º semestre aguarda a sua aprovação.",
-                currentUserId);
+                "O horário de " + period + " aguarda a sua aprovação.", currentUserId);
         notificationService.notifyAllWithRole("ADMIN",
-                "O horário de " + saved.getAcademicYear() + "·" + saved.getSemester() + "º semestre aguarda aprovação.",
-                currentUserId);
+                "O horário de " + period + " aguarda aprovação.", currentUserId);
 
         return TimetableResponse.from(saved);
     }
@@ -224,7 +215,8 @@ public class TimetableService {
         Timetable timetable = findOrThrow(id);
         timetable.setStatus(TimetableStatus.APPROVED);
         Timetable saved = timetableRepository.save(timetable);
-        Long currentUserId = com.timetable.timetable.security.SecurityUtil.getAuthenticatedId();
+
+        Long currentUserId = SecurityUtil.getAuthenticatedId();
         notificationService.notify(currentUserId, "Horário aprovado.");
         notificationService.notifyAllWithRole("ASISTENT", "Horário aprovado.", currentUserId);
 
@@ -245,7 +237,7 @@ public class TimetableService {
         timetable.setStatus(TimetableStatus.DRAFT);
         Timetable saved = timetableRepository.save(timetable);
 
-        Long currentUserId = com.timetable.timetable.security.SecurityUtil.getAuthenticatedId();
+        Long currentUserId = SecurityUtil.getAuthenticatedId();
         notificationService.notify(currentUserId, "Horário rejeitado.");
         notificationService.notifyAllWithRole("ASISTENT", "Horário rejeitado.", currentUserId);
 
@@ -254,19 +246,16 @@ public class TimetableService {
 
     @Transactional
     public TimetableResponse publishTimetable(Long id) {
-        log.debug("publishing timetable");
-        Timetable timetable = timetableRepository.findById(id)
-                .orElseThrow(() -> new TimetableNotFoundException(
-                        "Timetable with id %d not found".formatted(id)));
+        log.debug("Publishing timetable {}", id);
+        Timetable timetable = findOrThrow(id);
 
         if (timetable.getStatus() == TimetableStatus.PUBLISHED) {
-            log.warn("timetable {} is already published", id);
-            throw new IllegalStateException(
-                    "Timetable is already published");
+            log.warn("Timetable {} is already published", id);
+            throw new IllegalStateException("Timetable is already published");
         }
 
-        if (timetable.getScheduledClasses() == null || timetable.getScheduledClasses().isEmpty()) {
-            log.warn("cannot publish an empty timetable");
+        if (timetableRepository.countScheduledClasses(id) == 0) {
+            log.warn("Cannot publish an empty timetable");
             throw new IllegalStateException(
                     "Cannot publish an empty timetable. Please add time slots first");
         }
@@ -274,73 +263,19 @@ public class TimetableService {
         timetable.setStatus(TimetableStatus.PUBLISHED);
         Timetable updated = timetableRepository.save(timetable);
 
-        Long currentUserId = com.timetable.timetable.security.SecurityUtil.getAuthenticatedId();
+        Long currentUserId = SecurityUtil.getAuthenticatedId();
+        String period = updated.getAcademicYear() + "·" + updated.getSemester() + "º semestre";
+
         notificationService.notify(currentUserId, "Horário publicado com sucesso.");
         notificationService.notifyAllWithRole("ASISTENT",
-                "O horário de " + updated.getAcademicYear() + "·" + updated.getSemester() + "º semestre foi publicado.",
-                currentUserId);
+                "O horário de " + period + " foi publicado.", currentUserId);
 
-        java.util.Set<Long> coordinatorIds = updated.getScheduledClasses().stream()
-                .map(sc -> sc.getCohortSubject().getCohort().getCourse().getCoordinator())
-                .filter(java.util.Objects::nonNull)
-                .map(com.timetable.timetable.domain.user.entity.ApplicationUser::getId)
-                .collect(java.util.stream.Collectors.toSet());
+        Set<Long> coordinatorIds = timetableRepository.findCoordinatorIdsByTimetableId(id);
+        coordinatorIds.forEach(coordinatorId -> notificationService.notify(coordinatorId,
+                "O horário da sua turma foi publicado para " + period + "."));
 
-        for (Long coordinatorId : coordinatorIds) {
-            notificationService.notify(coordinatorId,
-                    "O horário da sua turma foi publicado para " + updated.getAcademicYear() + "·"
-                            + updated.getSemester()
-                            + "º semestre.");
-        }
-
-        log.info("timetable {} updated", updated.getId());
+        log.info("Timetable {} published", updated.getId());
         return TimetableResponse.from(updated);
-    }
-
-    @Transactional
-    public Timetable archiveTimetable(Long id) {
-        log.debug("archiving timetable {}", id);
-        Timetable timetable = timetableRepository.findById(id)
-                .orElseThrow(() -> new TimetableNotFoundException(
-                        "Timetable with id %d not found".formatted(id)));
-
-        if (timetable.getStatus() == TimetableStatus.ARCHIVED) {
-            log.warn("timetable {} already arquived", timetable.getId());
-            throw new IllegalStateException(
-                    "Timetable is already archived");
-        }
-
-        timetable.setStatus(TimetableStatus.ARCHIVED);
-        Timetable updated = timetableRepository.save(timetable);
-
-        log.info("timetable {} arquived", timetable.getId());
-        return updated;
-    }
-
-    @Transactional
-    public Timetable revertToDraft(Long id) {
-        log.debug("Reverting timetable {} to draft", id);
-        Timetable timetable = timetableRepository.findById(id)
-                .orElseThrow(() -> new TimetableNotFoundException(
-                        "Timetable with id %d not found".formatted(id)));
-
-        if (timetable.getStatus() == TimetableStatus.DRAFT) {
-            log.debug("timetable {} is already in draft status", timetable.getId());
-            throw new IllegalStateException(
-                    "Timetable is already in draft status");
-        }
-
-        if (timetable.getStatus() == TimetableStatus.ARCHIVED) {
-            log.debug("cannot revert an archived timetable");
-            throw new IllegalStateException(
-                    "Cannot revert an archived timetable to draft. Please create a new timetable");
-        }
-
-        timetable.setStatus(TimetableStatus.DRAFT);
-        Timetable updated = timetableRepository.save(timetable);
-
-        log.info("timetable {} updated", updated.getId());
-        return updated;
     }
 
     @Transactional

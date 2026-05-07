@@ -20,7 +20,7 @@ import com.timetable.timetable.domain.schedule.repository.ScheduledClassReposito
 import com.timetable.timetable.domain.schedule.repository.SubjectRepository;
 import com.timetable.timetable.domain.user.entity.ApplicationUser;
 import com.timetable.timetable.domain.user.entity.UserRole;
-import com.timetable.timetable.domain.user.service.UserService;
+import com.timetable.timetable.domain.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 public class SubjectService {
     private final SubjectRepository subjectRepository;
     private final CourseService courseService;
-    private final UserService userService;
+    private final UserRepository userRepository;
     private final CohortSubjectRepository cohortSubjectRepository;
     private final ScheduledClassRepository scheduledClassRepository;
 
@@ -79,7 +79,8 @@ public class SubjectService {
         log.debug("Fetching all subjects for course {}", courseId);
 
         Course course = courseService.findCourseOrThrow(courseId);
-        Page<SubjectDetailResponse> page = subjectRepository.findByCourse(course, pageable).map(SubjectDetailResponse::from);
+        Page<SubjectDetailResponse> page = subjectRepository.findByCourse(course, pageable)
+                .map(SubjectDetailResponse::from);
 
         log.debug("Found {} subjects for course {}", page.getTotalElements(), courseId);
         return page;
@@ -106,7 +107,6 @@ public class SubjectService {
         return subject;
     }
 
-    @Transactional
     public SubjectDetailResponse getById(Long id) {
         return SubjectDetailResponse.from(findOrThrow(id));
     }
@@ -153,7 +153,6 @@ public class SubjectService {
         return SubjectDetailResponse.from(updated);
     }
 
-    @Transactional
     public Long countLessonsByCourseId(Long courseId) {
         return subjectRepository.countByCourseId(courseId);
     }
@@ -179,24 +178,21 @@ public class SubjectService {
     }
 
     private Set<ApplicationUser> fetchEligibleTeachers(List<Long> ids) {
-        Set<ApplicationUser> teachers = new HashSet<>();
+        if (ids == null || ids.isEmpty()) return new HashSet<>();
 
-        if (ids == null || ids.isEmpty()) {
-            return teachers;
+        List<ApplicationUser> users = userRepository.findAllById(ids);
+
+        if (ids.size() != users.size()) {
+            throw new IllegalArgumentException("one or more teacher ids not found");
         }
 
-        for (Long id : ids) {
-            ApplicationUser user = userService.findOrThrow(id);
-
+        users.forEach(user -> {
             if (!user.hasRole(UserRole.TEACHER)) {
-                throw new IllegalArgumentException(
-                        String.format("User with id %d is not a teacher", id));
+                throw new IllegalArgumentException("user %d is not a teacher".formatted(user.getId()));
             }
+        }); 
 
-            teachers.add(user);
-        }
-
-        return teachers;
+        return new HashSet<>(users);
     }
 
     private void validateCredits(int credits) {
@@ -217,7 +213,6 @@ public class SubjectService {
         }
     }
 
-    // Métodos adicionais úteis
 
     public List<Subject> getSubjectsByTeacher(Long teacherId) {
         log.debug("Fetching subjects for teacher {}", teacherId);
