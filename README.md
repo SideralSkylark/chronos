@@ -90,41 +90,12 @@ Unit tests are provided for core services. To execute tests:
 cd api
 mvn test -Dtest="*ServiceTest"
 ```
-
-The following N+1 query patterns have been identified in the backend and require optimization (e.g., using `JOIN FETCH` or `@EntityGraph`):
-
-1. **`CohortSubjectRepository.findByAcademicYearAndSemesterAndIsActive`**
-   - **Usage**: `PreSolverService` and `TeacherAssignmentService`.
-   - **Problem**: Iterating over the results to calculate teacher workloads or generate display names triggers separate queries for `Cohort`, `Subject`, and `ApplicationUser` (assignedTeacher) for *each* `CohortSubject`.
-   - **Impact**: High. This occurs during the critical data preparation phase of the scheduler engine.
-
-2. **`SubjectRepository.search` (and other finders like `findByTargetYearAndTargetSemester`)**
-   - **Usage**: `SubjectController` (list views).
-   - **Problem**: Returns a list of `Subject` without fetching the associated `Course` or the `eligibleTeachers` collection.
-   - **Impact**: Medium. Causes multiple queries when displaying a list of subjects with their course names or eligible teacher counts.
-
-3. **`CohortRepository` list finders (e.g., `findByCourseId`, `findByAcademicYear`)**
-   - **Usage**: `CohortController`.
-   - **Problem**: Fetches `Cohort` entities without joining the `Course` or the `students` collection.
-   - **Impact**: Medium. Accessing `getStudentCount()` (accesses `students.size()`) or `getDisplayName()` (accesses `course.getName()`) triggers an N+1 for each cohort in the list.
-
-4. **`ScheduledClassRepository.findByCohortId` (and `findByTeacherId`, `findByCohortSubjectId`)**
-   - **Usage**: `ScheduledClassController`.
-   - **Problem**: These methods use simple JPQL that does not `JOIN FETCH` related entities like `cohortSubject`, `room`, `timeslot`, or `timetable`.
-   - **Impact**: Medium. Displays of scheduled classes in the UI will trigger separate queries for each row's details.
-
-5. **`UserRepository.findAllByRole` (and Specification-based `findAll`)**
-   - **Usage**: `UserService.getAllUsers`.
-   - **Problem**: `ApplicationUser.roles` is marked as `FetchType.EAGER`, but the queries often do not use `FETCH JOIN`.
-   - **Impact**: Low/Medium. Depending on Hibernate's execution plan, it may fetch roles in separate queries for each user in the result list.
-
----
-
 TODO:
 - [ ] phantom swap with real teacher
 - [ ] refactor backend (proper exception handling, logging, clean code, spring conventions, optimization no N+1s)
 - [ ] Dashboard with better info (more usefull ie: teacher workloads room ocupation and so on)
-- [ ] Cohort management (improve confirmation it should scale with the room capacity, so i have to be mindfull of how big cohorts can get withouth breaking the system)
+- [x] Cohort management (improve confirmation it should scale with the room capacity, so i have to be mindfull of how big cohorts can get withouth breaking the system)
+- [ ] pre-solver awarness (compute cohorts and rooms to derive the likelyhood of generating a valid solution. Informative only on the "ui" not restrictive "solver")
 - [ ] Phantom cleanUp(on swap with real teacher)
 - [ ] Notification tab improvments
 - [ ] frontend refactor (match backend)

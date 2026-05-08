@@ -21,11 +21,17 @@ public final class AcademicPolicy {
     /** Weekly contact hours per discipline for teacher workload calculation. */
     public static final int WEEKLY_CONTACT_HOURS = 4;
 
-    public static final int ESTIMATED_STUDENT_COUNT = 35;
+    /**
+     * Default generated cohort size used during preprocessing.
+     *
+     * Chosen to maximize compatibility with the institution's
+     * dominant classroom capacity distribution.
+    */
+    public static final int ESTIMATED_STUDENT_COUNT = 30;
 
     public static int getWeeklyHoursLimit(ApplicationUser teacher) {
         if (teacher.getTeacherType() == null) {
-            return WEEKLY_TEACHING_HOURS_LIMIT; // legacy fallback 
+            return WEEKLY_TEACHING_HOURS_LIMIT; //legacy fallback
         }
         return teacher.getWeeklyHoursLimit();
     }
