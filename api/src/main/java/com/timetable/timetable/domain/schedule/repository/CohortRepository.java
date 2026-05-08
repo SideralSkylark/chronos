@@ -48,10 +48,6 @@ public interface CohortRepository extends JpaRepository<Cohort, Long>, JpaSpecif
     @Query("SELECT c FROM Cohort c WHERE c.id = :id")
     Optional<Cohort> findByIdWithStudentsAndCourse(@Param("id") Long id);
 
-    @EntityGraph(attributePaths = { "students" })
-    @Query("SELECT c FROM Cohort c WHERE c.id = :id")
-    Cohort findByIdWithStudents(@Param("id") Long id);
-
     @EntityGraph(attributePaths = { "course" })
     @Query("SELECT c FROM Cohort c JOIN FETCH c.course WHERE c.id = :id")
     Optional<Cohort> findByIdWithCourse(@Param("id") Long id);
@@ -59,28 +55,7 @@ public interface CohortRepository extends JpaRepository<Cohort, Long>, JpaSpecif
     @EntityGraph(attributePaths = { "course" })
     Page<Cohort> findAll(Specification<Cohort> spec, Pageable pageable);
 
-    List<Cohort> findByCourseId(Long courseId);
-
-    List<Cohort> findByYearAndSemester(int year, int semester);
-
-    List<Cohort> findByAcademicYear(int academicYear);
-
-    List<Cohort> findByYear(int year);
-
-    List<Cohort> findBySemester(int semester);
-
     List<Cohort> findBySemesterAndAcademicYearAndCourseId(int semester, int year, Long courseId);
-
-    @Query("SELECT c FROM Cohort c WHERE " +
-            "(:year IS NULL OR c.year = :year) AND " +
-            "(:semester IS NULL OR c.semester = :semester) AND " +
-            "(:academicYear IS NULL OR c.academicYear = :academicYear) AND " +
-            "(:courseId IS NULL OR c.course.id = :courseId)")
-    List<Cohort> findByCriteria(
-            @Param("year") Integer year,
-            @Param("semester") Integer semester,
-            @Param("academicYear") Integer academicYear,
-            @Param("courseId") Long courseId);
 
     @Modifying
     @Query("DELETE FROM Cohort c WHERE c.course.id = :courseId")

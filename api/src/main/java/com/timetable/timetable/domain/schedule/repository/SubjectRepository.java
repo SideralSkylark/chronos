@@ -34,54 +34,13 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
     @EntityGraph(attributePaths = { "eligibleTeachers" })
     Page<Subject> findByCourse(Course course, Pageable pageable);
 
-    Page<Subject> findByTargetYearAndTargetSemester(int targetYear, int targetSemester, Pageable pageable);
-
-    List<Subject> findByTargetYearAndTargetSemesterAndCourseId(
-            int targetYear, int targetSemester, Long courseId);
-
-    List<Subject> findByCourseIdAndTargetYear(Long courseId, int targetYear);
-
-    List<Subject> findByEligibleTeachersId(Long teacherId);
-
     List<Subject> findByTargetSemesterAndCourseId(int semester, Long courseId);
 
     @EntityGraph(attributePaths = { "course", "eligibleTeachers" })
     Optional<Subject> findWithDetailsById(Long id);
 
-    @EntityGraph(attributePaths = { "eligibleTeachers" })
-    List<Subject> findByIdIn(List<Long> ids);
-
-    @Query("SELECT s FROM Subject s WHERE " +
-            "(:name IS NULL OR LOWER(s.name) LIKE LOWER(CONCAT('%', :name, '%'))) AND " +
-            "(:targetYear IS NULL OR s.targetYear = :targetYear) AND " +
-            "(:targetSemester IS NULL OR s.targetSemester = :targetSemester) AND " +
-            "(:courseId IS NULL OR s.course.id = :courseId)")
-    Page<Subject> search(
-            @Param("name") String name,
-            @Param("targetYear") Integer targetYear,
-            @Param("targetSemester") Integer targetSemester,
-            @Param("courseId") Long courseId,
-            Pageable pageable);
-
-    @Query("SELECT s FROM Subject s WHERE " +
-            "(:name IS NULL OR LOWER(s.name) LIKE LOWER(CONCAT('%', :name, '%'))) AND " +
-            "(:targetYear IS NULL OR s.targetYear = :targetYear) AND " +
-            "(:targetSemester IS NULL OR s.targetSemester = :targetSemester) AND " +
-            "(:courseId IS NULL OR s.course.id = :courseId)")
-    List<Subject> search(
-            @Param("name") String name,
-            @Param("targetYear") Integer targetYear,
-            @Param("targetSemester") Integer targetSemester,
-            @Param("courseId") Long courseId);
-
-    @Query("SELECT COUNT(s) FROM Subject s WHERE s.course.id = :courseId")
-    long countByCourseId(@Param("courseId") Long courseId);
-
     @Query("SELECT s.course.id, COUNT(s) FROM Subject s WHERE s.course.id IN :courseIds GROUP BY s.course.id")
     List<Object[]> countByCourseIds(@Param("courseIds") List<Long> courseIds);
-
-    @Query("SELECT s.targetYear, COUNT(s) FROM Subject s WHERE s.course.id = :courseId GROUP BY s.targetYear")
-    List<Object[]> countSubjectsByYearForCourse(@Param("courseId") Long courseId);
 
     boolean existsByNameAndCourseAndTargetYearAndTargetSemester(
             String name, Course course, int targetYear, int targetSemester);

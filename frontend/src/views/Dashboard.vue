@@ -17,7 +17,7 @@
             <h2 class="text-xl font-bold text-gray-900">Olá, {{ auth.username }}!</h2>
             <p class="text-gray-500 text-sm">Bem-vindo de volta ao sistema de gestão de horários.</p>
             <div class="flex flex-wrap gap-1.5 mt-2">
-              <span v-for="role in auth.roles" :key="role" 
+              <span v-for="role in auth.roles" :key="role"
                 class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md text-[10px] font-bold uppercase tracking-wider">
                 {{ roleLabel(role) }}
               </span>
@@ -52,6 +52,8 @@
         </div>
       </div>
 
+      <DashboardInsights v-if="isStaff" />
+
       <!-- Main Content Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Quick Access -->
@@ -82,7 +84,7 @@
                 Operacional
               </span>
             </div>
-            
+
             <div class="space-y-4 pt-4 border-t border-gray-50">
               <div class="flex items-start gap-3">
                 <div class="bg-blue-50 p-2 rounded-md">
@@ -128,13 +130,14 @@ import { useUserStore } from '@/stores/user'
 import { useRoomStore } from '@/stores/room'
 import { useCourseStore } from '@/stores/course'
 import { useCohortStore } from '@/stores/cohorts'
+import DashboardInsights from '@/components/dashboard/DashboardInsights.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
-import { 
-  LayoutDashboard, 
-  User as UserIcon, 
-  Users, 
-  DoorOpen, 
-  BookOpen, 
+import {
+  LayoutDashboard,
+  User as UserIcon,
+  Users,
+  DoorOpen,
+  BookOpen,
   GraduationCap,
   Calendar,
   ArrowRight,
@@ -170,37 +173,37 @@ const statValues = reactive({
 
 const stats = computed(() => {
   const allStats = [
-    { 
-      label: 'Utilizadores', 
-      value: statValues.users, 
-      icon: Users, 
+    {
+      label: 'Utilizadores',
+      value: statValues.users,
+      icon: Users,
       link: '/users',
-      bg: 'bg-blue-50 group-hover:bg-blue-100', 
+      bg: 'bg-blue-50 group-hover:bg-blue-100',
       text: 'text-blue-900',
     },
-    { 
-      label: 'Salas', 
-      value: statValues.rooms, 
-      icon: DoorOpen, 
+    {
+      label: 'Salas',
+      value: statValues.rooms,
+      icon: DoorOpen,
       link: '/rooms',
-      bg: 'bg-purple-50 group-hover:bg-purple-100', 
+      bg: 'bg-purple-50 group-hover:bg-purple-100',
       text: 'text-purple-700',
     },
-    { 
-      label: 'Cursos', 
-      value: statValues.courses, 
-      icon: GraduationCap, 
+    {
+      label: 'Cursos',
+      value: statValues.courses,
+      icon: GraduationCap,
       link: '/courses',
-      bg: 'bg-indigo-50 group-hover:bg-indigo-100', 
+      bg: 'bg-indigo-50 group-hover:bg-indigo-100',
       text: 'text-indigo-700',
       roles: ['ADMIN', 'COORDINATOR']
     },
-    { 
-      label: 'Turmas', 
-      value: statValues.cohorts, 
-      icon: BookOpen, 
+    {
+      label: 'Turmas',
+      value: statValues.cohorts,
+      icon: BookOpen,
       link: '/cohorts',
-      bg: 'bg-amber-50 group-hover:bg-amber-100', 
+      bg: 'bg-amber-50 group-hover:bg-amber-100',
       text: 'text-amber-700',
     },
   ]
@@ -210,7 +213,7 @@ const stats = computed(() => {
 
 const quickActions = computed(() => {
   const actions = []
-  
+
   if (auth.roles.includes('ADMIN') || auth.roles.includes('ASISTENT')) {
     actions.push({
       title: 'Gerar Horário',
@@ -220,7 +223,7 @@ const quickActions = computed(() => {
       color: 'bg-amber-100 text-amber-700'
     })
   }
-  
+
   if (auth.roles.includes('ADMIN') || auth.roles.includes('DIRECTOR')) {
     actions.push({
       title: 'Gestão de Salas',
@@ -275,7 +278,7 @@ onMounted(async () => {
         courseStore.fetchCourses(0, 1),
         cohortStore.fetchCohorts(0, 1)
       ])
-      
+
       statValues.users = userStore.pagedUsers?.page.totalElements ?? 0
       statValues.rooms = roomStore.pagedRooms?.page.totalElements ?? 0
       statValues.courses = courseStore.pagedCourses?.page.totalElements ?? 0

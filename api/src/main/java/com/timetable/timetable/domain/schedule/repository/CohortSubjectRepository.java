@@ -45,18 +45,6 @@ public interface CohortSubjectRepository extends JpaRepository<CohortSubject, Lo
     @EntityGraph(attributePaths = { "cohort", "subject", "assignedTeacher" })
     Page<CohortSubject> findAll(Pageable pageable);
 
-    @EntityGraph(attributePaths = { "subject", "assignedTeacher" })
-    Page<CohortSubject> findByCohort(Cohort cohort, Pageable pageable);
-
-    @EntityGraph(attributePaths = { "subject", "assignedTeacher"})
-    Page<CohortSubject> findByCohortId(Long cohortId, Pageable pageable);
-
-    @EntityGraph(attributePaths = { "cohort", "assignedTeacher" })
-    Page<CohortSubject> findBySubject(Subject subject, Pageable pageable);
-
-    @EntityGraph(attributePaths = { "cohort", "subject" })
-    Page<CohortSubject> findByAssignedTeacherId(Long id, Pageable pageable);
-
     @Query("""
                 SELECT cs FROM CohortSubject cs
                 JOIN FETCH cs.cohort
@@ -69,35 +57,6 @@ public interface CohortSubjectRepository extends JpaRepository<CohortSubject, Lo
             @Param("academicYear") int academicYear,
             @Param("semester") int semester);
 
-        @Query("""
-                SELECT cs FROM CohortSubject cs
-                JOIN FETCH cs.cohort
-                JOIN FETCH cs.subject
-                JOIN FETCH cs.assignedTeacher
-                WHERE cs.academicYear = :academicYear
-                  AND cs.semester = :semester
-                  AND cs.assignedTeacher = :assignedTeacher
-            """)
-    List<CohortSubject> findByAcademicYearAndSemesterAndAssignedTeacher(
-            @Param("academicYear") int academicYear,
-            @Param("semester") int semester,
-            @Param("assignedTeacher") ApplicationUser assignedTeacher);
-
-    @Query("""
-                SELECT cs FROM CohortSubject cs
-                JOIN FETCH cs.subject
-                JOIN FETCH cs.assignedTeacher
-                WHERE cs.cohort = :cohort
-                  AND cs.isActive = true
-            """)
-    List<CohortSubject> findActiveByCohort(@Param("cohort") Cohort cohort);
-
-    /*
-     * -----------------------------
-     * CÁLCULOS DERIVADOS DE CRÉDITOS
-     * -----------------------------
-     */
-
     @Query("""
                 SELECT COALESCE(SUM(s.credits), 0)
                 FROM CohortSubject cs
@@ -106,15 +65,6 @@ public interface CohortSubjectRepository extends JpaRepository<CohortSubject, Lo
                   AND cs.isActive = true
             """)
     int sumCreditsByTeacher(@Param("teacher") ApplicationUser teacher);
-
-    @Query("""
-                SELECT COALESCE(SUM(s.credits), 0)
-                FROM CohortSubject cs
-                JOIN cs.subject s
-                WHERE cs.cohort.id = :cohortId
-                  AND cs.isActive = true
-            """)
-    int sumCreditsByCohortId(@Param("cohortId") Long cohortId);
 
     @Modifying
     @Query("DELETE FROM CohortSubject cs WHERE cs.cohort.id = :cohortId")

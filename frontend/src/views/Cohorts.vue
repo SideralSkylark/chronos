@@ -251,6 +251,15 @@
             <p v-else class="text-xs text-gray-400 mt-1.5">
               Capacidade máxima das salas: {{ cohortStore.maxRoomCapacity }} alunos
             </p>
+
+            <!-- Room Pressure Warning -->
+            <div v-if="roomPressure"
+              class="flex items-start gap-2 px-3 py-2 border rounded-md mt-3 transition-colors duration-200"
+              :class="roomPressure.level === 'HIGH' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-200 text-amber-700'"
+            >
+              <AlertCircle class="w-4 h-4 mt-0.5 shrink-0" />
+              <p class="text-xs font-medium">{{ roomPressure.message }}</p>
+            </div>
           </div>
 
           <div class="flex gap-2 pt-1">
@@ -515,6 +524,21 @@ const confirmDeleteId = ref<number | null>(null)
 const confirmingCohort = ref<(CohortListResponse & { turma: string }) | null>(null)
 const confirmForm = reactive({ studentCount: 35 })
 const confirmFormErrors = reactive({ studentCount: false })
+
+const roomPressure = computed(() => {
+  const count = confirmForm.studentCount
+  if (count <= 35) return null
+  if (count <= 50) {
+    return {
+      level: 'MEDIUM',
+      message: 'Esta turma poderá limitar as opções de alocação de salas.'
+    }
+  }
+  return {
+    level: 'HIGH',
+    message: 'Muito poucas salas suportam esta turma. A viabilidade do horário pode ser reduzida.'
+  }
+})
 
 const form = reactive({
   year: 1,

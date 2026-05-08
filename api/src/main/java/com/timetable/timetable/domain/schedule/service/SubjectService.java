@@ -86,17 +86,6 @@ public class SubjectService {
         return page;
     }
 
-    public Page<Subject> getByTargetYearAndSemester(int targetYear, int targetSemester, Pageable pageable) {
-        log.debug("Fetching subjects for year {} semester {}", targetYear, targetSemester);
-        return subjectRepository.findByTargetYearAndTargetSemester(targetYear, targetSemester, pageable);
-    }
-
-    public List<Subject> getSubjectsForCohort(int year, int semester, Long courseId) {
-        log.debug("Fetching subjects for cohort (year {}, semester {}, course {})",
-                year, semester, courseId);
-        return subjectRepository.findByTargetYearAndTargetSemesterAndCourseId(year, semester, courseId);
-    }
-
     public Subject findOrThrow(Long id) {
         log.debug("Fetching subject {}", id);
         Subject subject = subjectRepository.findWithDetailsById(id)
@@ -153,10 +142,6 @@ public class SubjectService {
         return SubjectDetailResponse.from(updated);
     }
 
-    public Long countLessonsByCourseId(Long courseId) {
-        return subjectRepository.countByCourseId(courseId);
-    }
-
     @Transactional
     public void deleteSubject(Long id) {
         log.debug("Deleting subject {}", id);
@@ -178,7 +163,8 @@ public class SubjectService {
     }
 
     private Set<ApplicationUser> fetchEligibleTeachers(List<Long> ids) {
-        if (ids == null || ids.isEmpty()) return new HashSet<>();
+        if (ids == null || ids.isEmpty())
+            return new HashSet<>();
 
         List<ApplicationUser> users = userRepository.findAllById(ids);
 
@@ -190,7 +176,7 @@ public class SubjectService {
             if (!user.hasRole(UserRole.TEACHER)) {
                 throw new IllegalArgumentException("user %d is not a teacher".formatted(user.getId()));
             }
-        }); 
+        });
 
         return new HashSet<>(users);
     }
@@ -211,23 +197,5 @@ public class SubjectService {
         if (targetSemester < 1 || targetSemester > 2) {
             throw new IllegalArgumentException("Target semester must be 1 or 2");
         }
-    }
-
-
-    public List<Subject> getSubjectsByTeacher(Long teacherId) {
-        log.debug("Fetching subjects for teacher {}", teacherId);
-        return subjectRepository.findByEligibleTeachersId(teacherId);
-    }
-
-    public List<Subject> getSubjectsByCourseAndYear(Long courseId, int targetYear) {
-        log.debug("Fetching subjects for course {} and year {}", courseId, targetYear);
-        return subjectRepository.findByCourseIdAndTargetYear(courseId, targetYear);
-    }
-
-    public Page<Subject> searchSubjects(String name, Integer targetYear, Integer targetSemester,
-            Long courseId, Pageable pageable) {
-        log.debug("Searching subjects with filters: name={}, year={}, semester={}, courseId={}",
-                name, targetYear, targetSemester, courseId);
-        return subjectRepository.search(name, targetYear, targetSemester, courseId, pageable);
     }
 }

@@ -180,21 +180,6 @@ public class CohortService {
         return CohortResponse.from(getById(id));
     }
 
-    public List<Cohort> getCohortsByCourse(Long courseId) {
-        log.debug("Fetching cohorts for course {}", courseId);
-        return cohortRepository.findByCourseId(courseId);
-    }
-
-    public List<Cohort> getCohortsByYearAndSemester(int year, int semester) {
-        log.debug("Fetching cohorts for year {} and semester {}", year, semester);
-        return cohortRepository.findByYearAndSemester(year, semester);
-    }
-
-    public List<Cohort> getCohortsByAcademicYear(int academicYear) {
-        log.debug("Fetching cohorts for academic year {}", academicYear);
-        return cohortRepository.findByAcademicYear(academicYear);
-    }
-
     @Transactional
     public CohortResponse updateCohort(Long id, UpdateCohortRequest updateRequest) {
         log.debug("Updating cohort {}", id);

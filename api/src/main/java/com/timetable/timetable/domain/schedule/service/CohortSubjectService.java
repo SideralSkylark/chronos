@@ -12,11 +12,8 @@ import com.timetable.timetable.domain.schedule.repository.CohortRepository;
 import com.timetable.timetable.domain.schedule.repository.CohortSubjectRepository;
 import com.timetable.timetable.domain.user.entity.ApplicationUser;
 import com.timetable.timetable.domain.user.entity.UserRole;
-import com.timetable.timetable.domain.user.repository.UserRepository;
 import com.timetable.timetable.domain.user.service.UserService;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,7 +28,6 @@ public class CohortSubjectService {
 
     private final CohortSubjectRepository cohortSubjectRepository;
     private final CohortRepository cohortRepository;
-    private final UserRepository userRepository;
     private final SubjectService subjectService;
     private final UserService userService;
 
@@ -77,25 +73,6 @@ public class CohortSubjectService {
                         "Cohort subject assignment with id " + id + " not found"));
     }
 
-    public Page<CohortSubject> getAll(Pageable pageable) {
-        return cohortSubjectRepository.findAll(pageable);
-    }
-
-    public Page<CohortSubject> getByCohort(Long cohortId, Pageable pageable) {
-        if (!cohortRepository.existsById(cohortId)) {
-            throw new CohortNotFoundException("Cohort not found: " + cohortId);
-        }
-        return cohortSubjectRepository.findByCohortId(cohortId, pageable);
-    }
-
-    public Page<CohortSubject> getByTeacher(Long teacherId, Pageable pageable) {
-        if (!userRepository.existsByIdAndRolesRole(teacherId, UserRole.TEACHER)) {
-            throw new IllegalArgumentException("User is not a teacher");
-        }
-
-        return cohortSubjectRepository.findByAssignedTeacherId(teacherId, pageable);
-    }
-
     @Transactional
     public CohortSubject updateCohortSubject(Long id, UpdateCohortSubjectRequest request) {
         CohortSubject cohortSubject = findWithDetailsOrThrow(id);
@@ -118,24 +95,8 @@ public class CohortSubjectService {
     }
 
     @Transactional
-    public void deleteCohortSubjectById(Long id) {
-        if (!cohortSubjectRepository.existsById(id)) {
-            throw new CohortSubjectNotFoundException("no cohort subject with the id %d".formatted(id));
-        }
-        cohortSubjectRepository.deleteById(id);
-    }
-
-    @Transactional
     public void deleteByCohort(Long id) {
         cohortSubjectRepository.deleteByCohortId(id);
-    }
-
-    public int getTotalWeeklyHoursForCohort(Long cohortId) {
-        if (!cohortRepository.existsById(cohortId)) {
-            throw new CohortNotFoundException("cohort not found: %d".formatted(cohortId));
-        }
-        int credits = cohortSubjectRepository.sumCreditsByCohortId(cohortId);
-        return AcademicPolicy.calculateWeeklyHours(credits);
     }
 
     private void validateTeacherIsEligible(ApplicationUser teacher, Subject subject) {
