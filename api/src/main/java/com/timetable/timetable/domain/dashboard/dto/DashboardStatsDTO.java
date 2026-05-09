@@ -39,4 +39,12 @@ public class DashboardStatsDTO {
     private List<CourseRankDTO> topCoursesByCohorts;
     private List<TeacherWorkloadDTO> mostLoadedTeachers;
     private List<TeacherWorkloadDTO> leastLoadedTeachers;
+
+    // Feasibility diagnostics
+    private List<OversizedCohortDTO> oversizedCohorts;
+    private List<FragmentationRiskCohortDTO> fragmentationRisk;
+    private List<RoomTierDTO> roomTierDistribution;
+    private String roomScarcityNote;
+    private List<DistributionMismatchDTO> distributionMismatches;
+    private String distributionMismatchNote;
 }

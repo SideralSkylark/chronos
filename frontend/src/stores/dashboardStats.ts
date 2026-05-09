@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import api from '@/services/api'
 import type { ApiResponse } from '@/services/responses/apiResponse'
 
+// ── Existing DTOs ──────────────────────────────────────────────────────────
+
 export interface YearBreakdownDTO {
   year: number
   cohortCount: number
@@ -22,7 +24,54 @@ export interface TeacherWorkloadDTO {
   overloaded: boolean
 }
 
+// ── New feasibility diagnostic DTOs ───────────────────────────────────────
+
+export interface OversizedCohortDTO {
+  cohortId: number
+  cohortName: string
+  headcount: number
+  minRequiredCapacity: number
+  /** How many rooms in the system can fit this cohort */
+  compatibleRooms: number
+  /** RED = zero compatible rooms; YELLOW = very few (1–2) */
+  severity: 'RED' | 'YELLOW'
+}
+
+export interface FragmentationRiskCohortDTO {
+  cohortId: number
+  cohortName: string
+  headcount: number
+  /** Capacity of the largest compatible room */
+  maxCompatibleCapacity: number
+  /** headcount / maxCompatibleCapacity * 100, rounded */
+  utilizationPercent: number
+}
+
+export interface RoomTierDTO {
+  /** e.g. "Grande (≥55)", "Média (30–54)", "Pequena (≤29)" */
+  label: string
+  roomCount: number
+  /** % of total rooms that fall in this tier */
+  supplyPercent: number
+  /** % of cohorts that require this tier */
+  demandPercent: number
+  /** RED = severe supply/demand mismatch; YELLOW = moderate; GREEN = ok */
+  severity: 'RED' | 'YELLOW' | 'GREEN'
+}
+
+export interface DistributionMismatchDTO {
+  /** e.g. "Média dimensão (30–54 lug.)" */
+  category: string
+  /** % of cohorts needing this room category */
+  demandPercent: number
+  /** % of rooms in this category */
+  supplyPercent: number
+}
+
+// ── Main DTO ───────────────────────────────────────────────────────────────
+
 export interface DashboardStatsDTO {
+  // Capacity KPIs
   totalRoomCapacity: number
   totalRoomCount: number
   totalCohortDemand: number
@@ -30,16 +79,13 @@ export interface DashboardStatsDTO {
   largestCohort: number
   smallestCohort: number
   averageCohortSize: number
-  bottleneckYear: number
-  cohortsByYear: YearBreakdownDTO[]
-  totalTeachers: number
-  teachersOverloaded: number
-  totalAssignedSlots: number
-  avgSlotsPerTeacher: number
-  solverReadiness: 'GREEN' | 'YELLOW' | 'RED'
-  solverReadinessReason: string
   capacityMargin: number
 
+  // Solver readiness
+  solverReadiness: 'GREEN' | 'YELLOW' | 'RED'
+  solverReadinessReason: string
+
+  // Shift analysis
   morningDemand: number
   afternoonDemand: number
   morningReadiness: 'GREEN' | 'YELLOW' | 'RED'
@@ -47,10 +93,37 @@ export interface DashboardStatsDTO {
   morningReadinessReason: string
   afternoonReadinessReason: string
 
+  // Teacher KPIs
+  totalTeachers: number
+  teachersOverloaded: number
+  totalAssignedSlots: number
+  avgSlotsPerTeacher: number
+
+  // Year distribution
+  bottleneckYear: number
+  cohortsByYear: YearBreakdownDTO[]
+
+  // Rankings
   topCoursesByCohorts: CourseRankDTO[]
   mostLoadedTeachers: TeacherWorkloadDTO[]
   leastLoadedTeachers: TeacherWorkloadDTO[]
+
+  // ── Feasibility diagnostics (new) ─────────────────────────────────────
+  /** Cohorts whose headcount exceeds available room capacity */
+  oversizedCohorts: OversizedCohortDTO[]
+  /** Cohorts at ≥85% of their largest compatible room's capacity */
+  fragmentationRisk: FragmentationRiskCohortDTO[]
+  /** Room supply vs. cohort demand broken down by size tier */
+  roomTierDistribution: RoomTierDTO[]
+  /** Optional free-text note for the scarcity card (backend-generated) */
+  roomScarcityNote: string | null
+  /** Per-category demand vs. supply mismatch */
+  distributionMismatches: DistributionMismatchDTO[]
+  /** Optional free-text note for the mismatch card (backend-generated) */
+  distributionMismatchNote: string | null
 }
+
+// ── Store ──────────────────────────────────────────────────────────────────
 
 interface State {
   stats: DashboardStatsDTO | null
@@ -76,6 +149,6 @@ export const useDashboardStatsStore = defineStore('dashboardStats', {
       } finally {
         this.loading = false
       }
-    }
-  }
+    },
+  },
 })
