@@ -28,7 +28,7 @@
           </div>
           <div class="pt-2 border-t border-gray-50 flex justify-between text-sm">
             <span class="text-gray-500 font-medium">Média sessões</span>
-            <span class="font-bold text-gray-900">{{ stats.avgSlotsPerTeacher.toFixed(1) }}</span>
+            <span class="font-bold text-gray-900">{{ stats.avgSlotsPerTeacher.toFixed(2) }}</span>
           </div>
         </div>
 
@@ -143,8 +143,8 @@
                 ></div>
               </div>
               <div class="flex justify-between text-[10px] text-gray-400">
-                <span>Oferta: {{ tier.supplyPercent }}%</span>
-                <span>Procura: {{ tier.demandPercent }}%</span>
+                <span>Oferta: {{ tier.supplyPercent.toFixed(2) }}%</span>
+                <span>Procura: {{ tier.demandPercent.toFixed(2) }}%</span>
               </div>
             </div>
           </div>
@@ -194,7 +194,7 @@
                     ? 'bg-red-50 text-red-700'
                     : 'bg-amber-50 text-amber-700'"
                 >
-                  Δ{{ Math.abs(m.demandPercent - m.supplyPercent) }}%
+                  Δ{{ Math.abs(m.demandPercent - m.supplyPercent).toFixed(2) }}%
                 </span>
               </div>
               <div class="flex gap-1 items-center">
@@ -202,14 +202,14 @@
                 <div class="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                   <div class="h-full rounded-full bg-red-400 transition-all duration-500" :style="{ width: `${m.demandPercent}%` }"></div>
                 </div>
-                <span class="text-[10px] text-gray-500 w-8 text-right">{{ m.demandPercent }}%</span>
+                <span class="text-[10px] text-gray-500 w-8 text-right">{{ m.demandPercent.toFixed(2) }}%</span>
               </div>
               <div class="flex gap-1 items-center">
                 <span class="text-[10px] text-gray-400 w-14 shrink-0">Salas</span>
                 <div class="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                   <div class="h-full rounded-full bg-blue-400 transition-all duration-500" :style="{ width: `${m.supplyPercent}%` }"></div>
                 </div>
-                <span class="text-[10px] text-gray-500 w-8 text-right">{{ m.supplyPercent }}%</span>
+                <span class="text-[10px] text-gray-500 w-8 text-right">{{ m.supplyPercent.toFixed(2) }}%</span>
               </div>
             </div>
           </div>
@@ -256,7 +256,7 @@
                 <span
                   class="font-bold text-[10px] px-1.5 py-0.5 rounded"
                   :class="c.utilizationPercent >= 95 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'"
-                >{{ c.utilizationPercent }}%</span>
+                >{{ c.utilizationPercent.toFixed(2) }}%</span>
               </div>
             </div>
           </div>

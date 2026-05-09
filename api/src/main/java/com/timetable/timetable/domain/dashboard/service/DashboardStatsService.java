@@ -229,7 +229,7 @@ public class DashboardStatsService {
                             .max()
                             .orElse(0);
                     double utilization = (double) headcount / maxCompCap * 100;
-                    return new FragmentationRiskCohortDTO(c.getId(), c.getDisplayName(), headcount, maxCompCap, Math.round(utilization));
+                    return new FragmentationRiskCohortDTO(c.getId(), c.getDisplayName(), headcount, maxCompCap, utilization);
                 })
                 .toList();
 

@@ -43,7 +43,7 @@ export interface FragmentationRiskCohortDTO {
   headcount: number
   /** Capacity of the largest compatible room */
   maxCompatibleCapacity: number
-  /** headcount / maxCompatibleCapacity * 100, rounded */
+  /** headcount / maxCompatibleCapacity * 100 */
   utilizationPercent: number
 }
 
