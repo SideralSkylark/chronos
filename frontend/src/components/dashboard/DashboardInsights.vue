@@ -9,45 +9,8 @@
 
     <div v-else-if="stats" class="space-y-4">
 
-      <!-- ── Row 0: Solver readiness + KPI cards ─────────────────────────── -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-
-        <!-- Solver readiness -->
-        <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5 flex flex-col items-center justify-center text-center gap-3">
-          <div
-            class="px-4 py-1.5 rounded-full text-sm font-bold border flex items-center gap-2"
-            :class="{
-              'bg-green-50 text-green-700 border-green-200': stats.solverReadiness === 'GREEN',
-              'bg-amber-50 text-amber-700 border-amber-200': stats.solverReadiness === 'YELLOW',
-              'bg-red-50 text-red-700 border-red-200': stats.solverReadiness === 'RED'
-            }"
-          >
-            <CheckCircle v-if="stats.solverReadiness === 'GREEN'" class="w-4 h-4" />
-            <AlertTriangle v-else-if="stats.solverReadiness === 'YELLOW'" class="w-4 h-4" />
-            <XCircle v-else class="w-4 h-4" />
-            {{ readinessLabel }}
-          </div>
-          <p class="text-xs text-gray-500 leading-relaxed">{{ stats.solverReadinessReason }}</p>
-        </div>
-
-        <!-- Capacity balance -->
-        <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5 space-y-3">
-          <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Balanço de capacidade</h4>
-          <div class="flex justify-between text-sm">
-            <span class="text-gray-500">Lugares nas salas</span>
-            <span class="font-bold text-gray-900">{{ stats.totalRoomCapacity }}</span>
-          </div>
-          <div class="flex justify-between text-sm">
-            <span class="text-gray-500">Procura estimada</span>
-            <span class="font-bold text-gray-900">{{ stats.totalCohortDemand }} est.</span>
-          </div>
-          <div class="pt-2 border-t border-gray-50 flex justify-between text-sm">
-            <span class="text-gray-500 font-medium">Margem</span>
-            <span class="font-bold" :class="stats.capacityMargin >= 0 ? 'text-green-600' : 'text-red-600'">
-              {{ stats.capacityMargin > 0 ? '+' : '' }}{{ stats.capacityMargin }}
-            </span>
-          </div>
-        </div>
+      <!-- ── Row 0: Teacher load + Conflicts ─────────────────────────── -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
         <!-- Teacher load -->
         <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5 space-y-3">
@@ -468,13 +431,13 @@
 import { onMounted, computed } from 'vue'
 import { useDashboardStatsStore } from '@/stores/dashboardStats'
 import {
-  CheckCircle,
   AlertTriangle,
-  XCircle,
   Users,
   DoorOpen,
   BarChart2,
   AlertOctagon,
+  CheckCircle,
+  XCircle,
 } from 'lucide-vue-next'
 
 const store = useDashboardStatsStore()
@@ -508,15 +471,6 @@ const maxYearStudents = computed(() => {
 })
 
 // ── Labels ─────────────────────────────────────────────────────────────────
-
-const readinessLabel = computed(() => {
-  switch (stats.value?.solverReadiness) {
-    case 'GREEN': return 'Pronto para gerar'
-    case 'YELLOW': return 'Verificar configuração'
-    case 'RED': return 'Inviável — sem capacidade'
-    default: return 'Desconhecido'
-  }
-})
 
 const shiftLabel = (readiness: 'GREEN' | 'YELLOW' | 'RED') => {
   switch (readiness) {
