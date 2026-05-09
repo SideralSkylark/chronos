@@ -63,7 +63,7 @@
 
           <component 
             :is="stat.icon" 
-            class="absolute -right-6 -bottom-6 w-[110px] h-[110px] opacity-[0.06] text-gray-900 group-hover:scale-110 group-hover:opacity-[0.09] transition-all duration-500 transform rotate-12" 
+            class="absolute -right-4 -bottom-4 w-[96px] h-[96px] opacity-[0.05] text-gray-900 group-hover:scale-110 group-hover:opacity-[0.08] transition-all duration-500 transform rotate-6" 
           />
         </div>
       </div>
@@ -82,7 +82,7 @@
                 v-for="action in quickActions"
                 :key="action.title"
                 :to="action.link"
-                class="p-3 rounded-[10px] bg-gray-50/80 border border-transparent hover:border-gray-200 transition group flex items-start gap-3"
+                class="p-3 rounded-[10px] bg-gray-50/80 border border-transparent hover:border-blue-200 transition group flex items-start gap-3"
               >
                 <div class="p-2.5 rounded-lg shrink-0 bg-white border border-gray-100 shadow-sm">
                   <component :is="action.icon" class="w-5 h-5" :class="action.color.split(' ')[1]" />
