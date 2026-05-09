@@ -93,9 +93,9 @@ mvn test -Dtest="*ServiceTest"
 TODO:
 - [ ] phantom swap with real teacher
 - [ ] refactor backend (proper exception handling, logging, clean code, spring conventions, optimization no N+1s)
-- [ ] Dashboard with better info (more usefull ie: teacher workloads room ocupation and so on)
+- [x] Dashboard with better info (more usefull ie: teacher workloads room ocupation and so on)
 - [x] Cohort management (improve confirmation it should scale with the room capacity, so i have to be mindfull of how big cohorts can get withouth breaking the system)
 - [ ] pre-solver awarness (compute cohorts and rooms to derive the likelyhood of generating a valid solution. Informative only on the "ui" not restrictive "solver")
 - [ ] Phantom cleanUp(on swap with real teacher)
-- [ ] Notification tab improvments
+- [x] Notification tab improvments
 - [ ] frontend refactor (match backend)
