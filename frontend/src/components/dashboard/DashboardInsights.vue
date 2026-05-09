@@ -4,53 +4,123 @@
 
     <!-- Loading skeleton -->
     <div v-if="store.loading" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div v-for="i in 6" :key="i" class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5 h-32 animate-pulse"></div>
+      <div v-for="i in 6" :key="i" class="bg-white rounded-[10px] border border-gray-100 p-5 h-32 animate-pulse"></div>
     </div>
 
     <div v-else-if="stats" class="space-y-4">
 
-      <!-- ── Row 0: Teacher load + Conflicts ─────────────────────────── -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-        <!-- Teacher load -->
-        <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5 space-y-3">
-          <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Carga docente</h4>
-          <div class="flex justify-between text-sm">
-            <span class="text-gray-500">Total professores</span>
-            <span class="font-bold text-gray-900">{{ stats.totalTeachers }}</span>
+      <!-- ── Row 0: KPI strip ────────────────────────────────────────── -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <!-- (1) Potential conflicts -->
+        <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-4 flex flex-col h-36 hover:border-blue-200 transition-all group">
+          <div class="flex items-start justify-between mb-auto">
+            <div class="p-1.5 rounded-lg bg-white border border-gray-100 shadow-sm group-hover:shadow transition-all duration-300">
+              <AlertOctagon class="w-4 h-4 text-red-500" />
+            </div>
+            <span
+              class="text-3xl font-bold leading-none mt-1"
+              :class="{
+                'text-red-600': potentialConflicts > 2,
+                'text-amber-500': potentialConflicts > 0 && potentialConflicts <= 2,
+                'text-green-600': potentialConflicts === 0
+              }"
+            >{{ potentialConflicts }}</span>
           </div>
-          <div class="flex justify-between text-sm">
-            <span class="text-gray-500">Sobrecarga</span>
-            <span class="font-bold flex items-center gap-1" :class="stats.teachersOverloaded > 0 ? 'text-amber-600' : 'text-gray-900'">
-              <AlertTriangle v-if="stats.teachersOverloaded > 0" class="w-3.5 h-3.5" />
-              {{ stats.teachersOverloaded }} prof.
-            </span>
-          </div>
-          <div class="pt-2 border-t border-gray-50 flex justify-between text-sm">
-            <span class="text-gray-500 font-medium">Média sessões</span>
-            <span class="font-bold text-gray-900">{{ stats.avgSlotsPerTeacher.toFixed(2) }}</span>
+          <div class="mt-2">
+            <h4 class="text-xs font-bold text-gray-900 mb-2">Conflitos Potenciais</h4>
+            <div class="space-y-1">
+              <div class="flex justify-between items-center text-[10px] leading-none">
+                <span class="text-gray-400 font-medium uppercase tracking-tighter">Inviáveis (RED)</span>
+                <span class="font-bold text-red-600">{{ hardFailsCount }}</span>
+              </div>
+              <div class="flex justify-between items-center text-[10px] leading-none">
+                <span class="text-gray-400 font-medium uppercase tracking-tighter">Críticos (≥95%)</span>
+                <span class="font-bold text-amber-600">{{ nearMissesCount }}</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- Potential conflicts count -->
-        <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5 flex flex-col items-center justify-center text-center gap-2">
-          <span
-            class="text-4xl font-bold"
-            :class="{
-              'text-red-600': potentialConflicts > 2,
-              'text-amber-500': potentialConflicts === 1 || potentialConflicts === 2,
-              'text-green-600': potentialConflicts === 0
-            }"
-          >{{ potentialConflicts }}</span>
-          <p class="text-xs text-gray-500 font-medium leading-tight">Conflitos potenciais<br>identificados</p>
-          <span
-            class="text-[10px] font-bold px-2 py-0.5 rounded-full border"
-            :class="{
-              'bg-red-50 text-red-700 border-red-200': potentialConflicts > 2,
-              'bg-amber-50 text-amber-700 border-amber-200': potentialConflicts === 1 || potentialConflicts === 2,
-              'bg-green-50 text-green-700 border-green-200': potentialConflicts === 0
-            }"
-          >{{ potentialConflicts > 0 ? 'Requer atenção' : 'Sem conflitos' }}</span>
+        <!-- (2) Carga docente -->
+        <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-4 flex flex-col h-36 hover:border-blue-200 transition-all group">
+          <div class="flex items-start justify-between mb-auto">
+            <div class="p-1.5 rounded-lg bg-white border border-gray-100 shadow-sm group-hover:shadow transition-all duration-300">
+              <Briefcase class="w-4 h-4 text-blue-600" />
+            </div>
+            <span class="text-2xl font-bold text-gray-900 mt-1">{{ stats.totalTeachers }}</span>
+          </div>
+          <div class="mt-2">
+            <h4 class="text-xs font-bold text-gray-900 mb-2">Carga Docente</h4>
+            <div class="space-y-1">
+              <div class="flex justify-between items-center text-[10px] leading-none">
+                <span class="text-gray-400 font-medium uppercase tracking-tighter">Sobrecarga</span>
+                <span class="font-bold" :class="stats.teachersOverloaded > 0 ? 'text-amber-600' : 'text-gray-400'">{{ stats.teachersOverloaded }} prof.</span>
+              </div>
+              <div class="flex justify-between items-center text-[10px] leading-none">
+                <span class="text-gray-400 font-medium uppercase tracking-tighter">Média sessões</span>
+                <span class="font-bold text-gray-400">{{ stats.avgSlotsPerTeacher.toFixed(1) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- (3) Turno Manhã -->
+        <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-4 flex flex-col h-36 hover:border-blue-200 transition-all group">
+          <div class="flex items-start justify-between mb-auto">
+            <div class="p-1.5 rounded-lg bg-white border border-gray-100 shadow-sm group-hover:shadow transition-all duration-300">
+              <Sun class="w-4 h-4 text-amber-500" />
+            </div>
+            <span 
+              class="text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-gray-100 bg-gray-50 text-gray-600 shadow-sm mt-1 uppercase tracking-wider"
+              :class="{
+                'text-green-700 border-green-200 bg-green-50': stats.morningReadiness === 'GREEN',
+                'text-amber-700 border-amber-200 bg-amber-50': stats.morningReadiness === 'YELLOW',
+                'text-red-700 border-red-200 bg-red-50': stats.morningReadiness === 'RED'
+              }"
+            >
+              {{ shiftLabel(stats.morningReadiness) }}
+            </span>
+          </div>
+          <div class="mt-2">
+            <h4 class="text-xs font-bold text-gray-900 mb-2">Turno Manhã</h4>
+            <div class="space-y-1">
+              <div class="flex justify-between items-center text-[10px] leading-none">
+                <span class="text-gray-400 font-medium uppercase tracking-tighter">Procura / Cap.</span>
+                <span class="font-bold text-gray-600">{{ stats.morningDemand }} / {{ stats.totalRoomCapacity }}</span>
+              </div>
+              <p v-if="stats.morningReadinessReason" class="text-[9px] text-gray-400 truncate italic font-medium">{{ stats.morningReadinessReason }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- (4) Turno Tarde -->
+        <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-4 flex flex-col h-36 hover:border-blue-200 transition-all group">
+          <div class="flex items-start justify-between mb-auto">
+            <div class="p-1.5 rounded-lg bg-white border border-gray-100 shadow-sm group-hover:shadow transition-all duration-300">
+              <Moon class="w-4 h-4 text-indigo-500" />
+            </div>
+            <span 
+              class="text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-gray-100 bg-gray-50 text-gray-600 shadow-sm mt-1 uppercase tracking-wider"
+              :class="{
+                'text-green-700 border-green-200 bg-green-50': stats.afternoonReadiness === 'GREEN',
+                'text-amber-700 border-amber-200 bg-amber-50': stats.afternoonReadiness === 'YELLOW',
+                'text-red-700 border-red-200 bg-red-50': stats.afternoonReadiness === 'RED'
+              }"
+            >
+              {{ shiftLabel(stats.afternoonReadiness) }}
+            </span>
+          </div>
+          <div class="mt-2">
+            <h4 class="text-xs font-bold text-gray-900 mb-2">Turno Tarde</h4>
+            <div class="space-y-1">
+              <div class="flex justify-between items-center text-[10px] leading-none">
+                <span class="text-gray-400 font-medium uppercase tracking-tighter">Procura / Cap.</span>
+                <span class="font-bold text-gray-600">{{ stats.afternoonDemand }} / {{ stats.totalRoomCapacity }}</span>
+              </div>
+              <p v-if="stats.afternoonReadinessReason" class="text-[9px] text-gray-400 truncate italic font-medium">{{ stats.afternoonReadinessReason }}</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -58,19 +128,19 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
         <!-- Diagnostic 1: Oversized cohorts -->
-        <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5 space-y-3">
+        <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5 space-y-4 hover:border-blue-200 transition-colors">
           <div class="flex items-start justify-between gap-3">
-            <div class="flex items-center gap-2">
-              <div class="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
-                <Users class="w-4 h-4 text-red-600" />
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-white flex items-center justify-center shrink-0 border border-gray-100 shadow-sm">
+                <Users class="w-4 h-4 text-red-500" />
               </div>
               <div>
                 <h4 class="text-sm font-bold text-gray-900">Turmas sobredimensionadas</h4>
-                <p class="text-xs text-gray-400 mt-0.5">Capacidade excede as salas disponíveis</p>
+                <p class="text-[11px] text-gray-400 font-medium">Capacidade insuficiente em salas compatíveis</p>
               </div>
             </div>
             <span
-              class="text-[10px] font-bold px-2.5 py-1 rounded-full border shrink-0"
+              class="text-[10px] font-bold px-2.5 py-1 rounded-full border shrink-0 shadow-sm"
               :class="stats.oversizedCohorts.length > 0
                 ? 'bg-red-50 text-red-700 border-red-200'
                 : 'bg-green-50 text-green-700 border-green-200'"
@@ -81,40 +151,42 @@
             </span>
           </div>
 
-          <div v-if="stats.oversizedCohorts.length > 0" class="space-y-2">
+          <div v-if="stats.oversizedCohorts.length > 0" class="space-y-2.5">
             <div
               v-for="c in stats.oversizedCohorts"
               :key="c.cohortId"
-              class="px-3 py-2 rounded-lg border-l-2 text-xs leading-relaxed"
+              class="px-3 py-2 rounded-lg border-l-4 text-xs leading-relaxed shadow-sm bg-white border-gray-100"
               :class="c.severity === 'RED'
-                ? 'bg-red-50 border-red-400 text-red-800'
-                : 'bg-amber-50 border-amber-400 text-amber-800'"
+                ? 'border-l-red-500 bg-red-50/40'
+                : 'border-l-amber-500 bg-amber-50/40'"
             >
-              <span class="font-bold">{{ c.cohortName }}</span> — {{ c.headcount }} estudantes.
-              {{ c.compatibleRooms === 0
-                ? 'Nenhuma sala disponível.'
-                : `Apenas ${c.compatibleRooms} sala${c.compatibleRooms > 1 ? 's' : ''} compatível${c.compatibleRooms > 1 ? 'eis' : ''} (≥ ${c.minRequiredCapacity} lugares).` }}
+              <span class="font-bold text-gray-900">{{ c.cohortName }}</span> — <span class="font-bold text-gray-700">{{ c.headcount }} estudantes</span>.
+              <p class="text-gray-500 mt-1 font-medium">
+                {{ c.compatibleRooms === 0
+                  ? 'Nenhuma sala compatível.'
+                  : `Apenas ${c.compatibleRooms} sala${c.compatibleRooms > 1 ? 's' : ''} compatível${c.compatibleRooms > 1 ? 'eis' : ''}.` }}
+              </p>
             </div>
           </div>
-          <div v-else class="px-3 py-2 rounded-lg bg-green-50 border-l-2 border-green-400 text-xs text-green-800">
-            Todas as turmas têm pelo menos uma sala compatível.
+          <div v-else class="px-4 py-3 rounded-lg bg-green-50 border-l-4 border-green-400 text-xs text-green-800 shadow-sm font-bold">
+            Todas as turmas têm pelo menos uma sala compatível disponível.
           </div>
         </div>
 
         <!-- Diagnostic 2: Room scarcity by tier -->
-        <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5 space-y-3">
+        <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5 space-y-4 hover:border-blue-200 transition-colors">
           <div class="flex items-start justify-between gap-3">
-            <div class="flex items-center gap-2">
-              <div class="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
-                <DoorOpen class="w-4 h-4 text-purple-700" />
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-white flex items-center justify-center shrink-0 border border-gray-100 shadow-sm">
+                <DoorOpen class="w-4 h-4 text-purple-600" />
               </div>
               <div>
                 <h4 class="text-sm font-bold text-gray-900">Escassez de salas</h4>
-                <p class="text-xs text-gray-400 mt-0.5">Disponibilidade por capacidade vs. procura</p>
+                <p class="text-[11px] text-gray-400 font-medium">Disponibilidade por capacidade vs. procura</p>
               </div>
             </div>
             <span
-              class="text-[10px] font-bold px-2.5 py-1 rounded-full border shrink-0"
+              class="text-[10px] font-bold px-2.5 py-1 rounded-full border shrink-0 shadow-sm"
               :class="{
                 'bg-red-50 text-red-700 border-red-200': roomScarcitySeverity === 'RED',
                 'bg-amber-50 text-amber-700 border-amber-200': roomScarcitySeverity === 'YELLOW',
@@ -125,55 +197,52 @@
             </span>
           </div>
 
-          <div class="space-y-2.5">
-            <div v-for="tier in stats.roomTierDistribution" :key="tier.label" class="space-y-1">
-              <div class="flex justify-between text-xs text-gray-500">
-                <span>{{ tier.label }}</span>
-                <span class="font-medium text-gray-700">{{ tier.roomCount }} sala{{ tier.roomCount !== 1 ? 's' : '' }}</span>
+          <div class="space-y-4 pt-1">
+            <div v-for="tier in stats.roomTierDistribution" :key="tier.label" class="space-y-2">
+              <div class="flex justify-between items-end">
+                <span class="text-[11px] font-bold text-gray-700">{{ tier.label }}</span>
+                <span class="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">
+                  <span class="bg-gray-50 px-1 rounded">oferta {{ tier.supplyPercent.toFixed(0) }}%</span> 
+                  <span class="mx-1 text-gray-300">/</span>
+                  <span class="bg-gray-50 px-1 rounded">procura {{ tier.demandPercent.toFixed(0) }}%</span>
+                </span>
               </div>
-              <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div class="h-2.5 bg-gray-100 rounded-full overflow-hidden shadow-inner">
                 <div
-                  class="h-full rounded-full transition-all duration-500"
+                  class="h-full rounded-full transition-all duration-500 shadow-sm"
                   :class="{
-                    'bg-red-400': tier.severity === 'RED',
-                    'bg-amber-400': tier.severity === 'YELLOW',
-                    'bg-blue-400': tier.severity === 'GREEN'
+                    'bg-red-500': tier.severity === 'RED',
+                    'bg-amber-500': tier.severity === 'YELLOW',
+                    'bg-blue-500': tier.severity === 'GREEN'
                   }"
                   :style="{ width: `${tier.supplyPercent}%` }"
                 ></div>
-              </div>
-              <div class="flex justify-between text-[10px] text-gray-400">
-                <span>Oferta: {{ tier.supplyPercent.toFixed(2) }}%</span>
-                <span>Procura: {{ tier.demandPercent.toFixed(2) }}%</span>
               </div>
             </div>
           </div>
 
           <div
             v-if="stats.roomScarcityNote"
-            class="px-3 py-2 rounded-lg border-l-2 text-xs leading-relaxed"
-            :class="roomScarcitySeverity === 'RED'
-              ? 'bg-red-50 border-red-400 text-red-800'
-              : 'bg-amber-50 border-amber-400 text-amber-800'"
+            class="px-3.5 py-2 rounded-lg border-l-4 text-[11px] leading-relaxed bg-gray-50 border-gray-300 text-gray-500 shadow-sm italic font-medium"
           >
             {{ stats.roomScarcityNote }}
           </div>
         </div>
 
         <!-- Diagnostic 3: Distribution mismatch -->
-        <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5 space-y-3">
+        <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5 space-y-4 hover:border-blue-200 transition-colors">
           <div class="flex items-start justify-between gap-3">
-            <div class="flex items-center gap-2">
-              <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-white flex items-center justify-center shrink-0 border border-gray-100 shadow-sm">
                 <BarChart2 class="w-4 h-4 text-amber-600" />
               </div>
               <div>
                 <h4 class="text-sm font-bold text-gray-900">Desequilíbrio de distribuição</h4>
-                <p class="text-xs text-gray-400 mt-0.5">Correspondência entre procura e oferta</p>
+                <p class="text-[11px] text-gray-400 font-medium">Correspondência entre procura e oferta</p>
               </div>
             </div>
             <span
-              class="text-[10px] font-bold px-2.5 py-1 rounded-full border shrink-0"
+              class="text-[10px] font-bold px-2.5 py-1 rounded-full border shrink-0 shadow-sm"
               :class="{
                 'bg-red-50 text-red-700 border-red-200': distributionMismatchSeverity === 'RED',
                 'bg-amber-50 text-amber-700 border-amber-200': distributionMismatchSeverity === 'YELLOW',
@@ -184,55 +253,48 @@
             </span>
           </div>
 
-          <div class="space-y-3">
-            <div v-for="m in stats.distributionMismatches" :key="m.category" class="space-y-1">
-              <div class="flex justify-between text-xs font-medium text-gray-700">
-                <span>{{ m.category }}</span>
-                <span
-                  class="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                  :class="Math.abs(m.demandPercent - m.supplyPercent) > 25
-                    ? 'bg-red-50 text-red-700'
-                    : 'bg-amber-50 text-amber-700'"
-                >
-                  Δ{{ Math.abs(m.demandPercent - m.supplyPercent).toFixed(2) }}%
+          <div class="space-y-4">
+            <div v-for="m in stats.distributionMismatches" :key="m.category" class="space-y-2.5">
+              <div class="flex items-center gap-2">
+                <span class="text-[11px] font-bold text-gray-800">{{ m.category }}</span>
+                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 shadow-sm border border-gray-200">
+                  Δ{{ Math.abs(m.demandPercent - m.supplyPercent).toFixed(1) }}%
                 </span>
               </div>
-              <div class="flex gap-1 items-center">
-                <span class="text-[10px] text-gray-400 w-14 shrink-0">Turmas</span>
-                <div class="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div class="h-full rounded-full bg-red-400 transition-all duration-500" :style="{ width: `${m.demandPercent}%` }"></div>
+              <div class="space-y-2">
+                <div class="flex gap-2 items-center">
+                  <span class="text-[9px] font-bold text-gray-400 w-12 shrink-0 uppercase tracking-tighter text-right">Turmas</span>
+                  <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                    <div class="h-full rounded-full bg-red-400 transition-all duration-500 shadow-sm" :style="{ width: `${m.demandPercent}%` }"></div>
+                  </div>
+                  <span class="text-[10px] font-bold text-gray-600 w-8 text-right">{{ m.demandPercent.toFixed(0) }}%</span>
                 </div>
-                <span class="text-[10px] text-gray-500 w-8 text-right">{{ m.demandPercent.toFixed(2) }}%</span>
-              </div>
-              <div class="flex gap-1 items-center">
-                <span class="text-[10px] text-gray-400 w-14 shrink-0">Salas</span>
-                <div class="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div class="h-full rounded-full bg-blue-400 transition-all duration-500" :style="{ width: `${m.supplyPercent}%` }"></div>
+                <div class="flex gap-2 items-center">
+                  <span class="text-[9px] font-bold text-gray-400 w-12 shrink-0 uppercase tracking-tighter text-right">Salas</span>
+                  <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                    <div class="h-full rounded-full bg-blue-400 transition-all duration-500 shadow-sm" :style="{ width: `${m.supplyPercent}%` }"></div>
+                  </div>
+                  <span class="text-[10px] font-bold text-gray-600 w-8 text-right">{{ m.supplyPercent.toFixed(0) }}%</span>
                 </div>
-                <span class="text-[10px] text-gray-500 w-8 text-right">{{ m.supplyPercent.toFixed(2) }}%</span>
               </div>
             </div>
-          </div>
-
-          <div v-if="stats.distributionMismatchNote" class="px-3 py-2 rounded-lg bg-amber-50 border-l-2 border-amber-400 text-xs text-amber-800 leading-relaxed">
-            {{ stats.distributionMismatchNote }}
           </div>
         </div>
 
         <!-- Diagnostic 4: Fragmentation risk -->
-        <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5 space-y-3">
+        <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5 space-y-4 hover:border-blue-200 transition-colors">
           <div class="flex items-start justify-between gap-3">
-            <div class="flex items-center gap-2">
-              <div class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center shrink-0">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-white flex items-center justify-center shrink-0 border border-gray-100 shadow-sm">
                 <AlertOctagon class="w-4 h-4 text-orange-600" />
               </div>
               <div>
                 <h4 class="text-sm font-bold text-gray-900">Risco de fragmentação</h4>
-                <p class="text-xs text-gray-400 mt-0.5">Turmas próximas do limite das salas disponíveis</p>
+                <p class="text-[11px] text-gray-400 font-medium">Turmas no limite da capacidade das salas</p>
               </div>
             </div>
             <span
-              class="text-[10px] font-bold px-2.5 py-1 rounded-full border shrink-0"
+              class="text-[10px] font-bold px-2.5 py-1 rounded-full border shrink-0 shadow-sm"
               :class="stats.fragmentationRisk.length > 0
                 ? 'bg-amber-50 text-amber-700 border-amber-200'
                 : 'bg-green-50 text-green-700 border-green-200'"
@@ -245,182 +307,116 @@
 
           <div v-if="stats.fragmentationRisk.length > 0" class="space-y-2">
             <div
-              v-for="c in stats.fragmentationRisk"
+              v-for="c in sortedFragmentationRisk"
               :key="c.cohortId"
-              class="flex items-center justify-between text-xs p-2 rounded-md border border-gray-50"
-              :class="c.utilizationPercent >= 95 ? 'bg-red-50/60' : 'bg-amber-50/50'"
+              class="flex items-center justify-between text-[11px] p-2 rounded-lg border border-gray-100 shadow-sm bg-white hover:bg-gray-50 transition-colors"
+              :class="c.utilizationPercent >= 95 ? 'border-l-4 border-l-red-500' : 'border-l-4 border-l-amber-500'"
             >
-              <span class="text-gray-700 truncate pr-2 font-medium">{{ c.cohortName }}</span>
-              <div class="flex items-center gap-2 shrink-0">
-                <span class="text-gray-400">{{ c.headcount }} / {{ c.maxCompatibleCapacity }}</span>
+              <span class="text-gray-900 font-bold truncate pr-2">{{ c.cohortName }}</span>
+              <div class="flex items-center gap-3 shrink-0">
+                <span class="text-gray-500 font-bold">{{ c.headcount }} / {{ c.maxCompatibleCapacity }}</span>
                 <span
-                  class="font-bold text-[10px] px-1.5 py-0.5 rounded"
-                  :class="c.utilizationPercent >= 95 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'"
-                >{{ c.utilizationPercent.toFixed(2) }}%</span>
+                  class="font-bold text-[10px] px-2 py-0.5 rounded-full shadow-sm border border-gray-100"
+                  :class="c.utilizationPercent >= 95 ? 'bg-red-50 text-red-700 border-red-100' : 'bg-amber-50 text-amber-700 border-amber-100'"
+                >{{ c.utilizationPercent.toFixed(1) }}%</span>
               </div>
             </div>
           </div>
-          <div v-else class="px-3 py-2 rounded-lg bg-green-50 border-l-2 border-green-400 text-xs text-green-800">
+          <div v-else class="px-4 py-3 rounded-lg bg-green-50 border-l-4 border-green-400 text-xs text-green-800 shadow-sm font-bold">
             Nenhuma turma está próxima do limite de capacidade máxima.
           </div>
-
-          <p v-if="stats.fragmentationRisk.length > 0" class="text-xs text-gray-400 leading-relaxed">
-            Turmas a ≥ 85% da capacidade máxima disponível — qualquer inscrição adicional pode tornar a atribuição inviável.
-          </p>
         </div>
       </div>
 
-      <!-- ── Row 2: Shift analysis ───────────────────────────────────────── -->
-      <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5 space-y-4">
-        <h4 class="text-sm font-bold text-gray-900">Análise por turno</h4>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- Morning -->
-          <div class="border border-gray-100 rounded-lg p-4 bg-gray-50/40">
-            <h5 class="text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">Manhã</h5>
-            <div class="flex justify-between items-center text-sm mb-2">
-              <span class="text-gray-500">Procura estimada</span>
-              <span class="font-bold text-gray-900">{{ stats.morningDemand }} est.</span>
-            </div>
-            <div class="flex justify-between items-center text-sm mb-3">
-              <span class="text-gray-500">Capacidade (partilhada)</span>
-              <span class="font-bold text-gray-900">{{ stats.totalRoomCapacity }} lug.</span>
-            </div>
-            <div
-              class="px-3 py-1.5 rounded-md text-xs font-bold border inline-flex items-center gap-1.5 w-full justify-center"
-              :class="{
-                'bg-green-50 text-green-700 border-green-200': stats.morningReadiness === 'GREEN',
-                'bg-amber-50 text-amber-700 border-amber-200': stats.morningReadiness === 'YELLOW',
-                'bg-red-50 text-red-700 border-red-200': stats.morningReadiness === 'RED'
-              }"
-            >
-              <CheckCircle v-if="stats.morningReadiness === 'GREEN'" class="w-3.5 h-3.5" />
-              <AlertTriangle v-else-if="stats.morningReadiness === 'YELLOW'" class="w-3.5 h-3.5" />
-              <XCircle v-else class="w-3.5 h-3.5" />
-              {{ shiftLabel(stats.morningReadiness) }}
-            </div>
-            <p v-if="stats.morningReadinessReason" class="text-[10px] text-gray-400 mt-2 text-center">
-              {{ stats.morningReadinessReason }}
-            </p>
-          </div>
-          <!-- Afternoon -->
-          <div class="border border-gray-100 rounded-lg p-4 bg-gray-50/40">
-            <h5 class="text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">Tarde</h5>
-            <div class="flex justify-between items-center text-sm mb-2">
-              <span class="text-gray-500">Procura estimada</span>
-              <span class="font-bold text-gray-900">{{ stats.afternoonDemand }} est.</span>
-            </div>
-            <div class="flex justify-between items-center text-sm mb-3">
-              <span class="text-gray-500">Capacidade (partilhada)</span>
-              <span class="font-bold text-gray-900">{{ stats.totalRoomCapacity }} lug.</span>
-            </div>
-            <div
-              class="px-3 py-1.5 rounded-md text-xs font-bold border inline-flex items-center gap-1.5 w-full justify-center"
-              :class="{
-                'bg-green-50 text-green-700 border-green-200': stats.afternoonReadiness === 'GREEN',
-                'bg-amber-50 text-amber-700 border-amber-200': stats.afternoonReadiness === 'YELLOW',
-                'bg-red-50 text-red-700 border-red-200': stats.afternoonReadiness === 'RED'
-              }"
-            >
-              <CheckCircle v-if="stats.afternoonReadiness === 'GREEN'" class="w-3.5 h-3.5" />
-              <AlertTriangle v-else-if="stats.afternoonReadiness === 'YELLOW'" class="w-3.5 h-3.5" />
-              <XCircle v-else class="w-3.5 h-3.5" />
-              {{ shiftLabel(stats.afternoonReadiness) }}
-            </div>
-            <p v-if="stats.afternoonReadinessReason" class="text-[10px] text-gray-400 mt-2 text-center">
-              {{ stats.afternoonReadinessReason }}
-            </p>
-          </div>
-        </div>
-        <p class="text-[10px] text-gray-400 text-center">Capacidade das salas partilhada entre turnos — análise por sala em desenvolvimento</p>
-      </div>
+      <!-- ── Row 2: Bottom row (3 cols) ────────────────────────────────── -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
-      <!-- ── Row 3: Top courses + teacher workload ───────────────────────── -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-        <!-- Courses with most cohorts -->
-        <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5">
-          <h4 class="text-sm font-bold text-gray-900 mb-4">Cursos com mais turmas</h4>
-          <div class="space-y-3">
-            <div v-for="(course, index) in stats.topCoursesByCohorts" :key="course.courseId" class="flex items-center gap-3">
-              <span class="w-5 h-5 rounded-full bg-blue-50 text-blue-900 text-xs font-bold flex items-center justify-center shrink-0">{{ index + 1 }}</span>
-              <span class="text-sm text-gray-700 truncate flex-1" :title="course.courseName">{{ course.courseName }}</span>
-              <span class="text-sm font-bold text-gray-900 shrink-0">{{ course.cohortCount }}</span>
+        <!-- (1) Mais sobrecarregados -->
+        <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5 flex flex-col hover:border-blue-200 transition-all group">
+          <h4 class="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <div class="p-1.5 rounded-lg bg-white border border-gray-100 shadow-sm group-hover:shadow transition-all">
+              <AlertTriangle class="w-4 h-4 text-amber-500" />
             </div>
-            <div v-if="!stats.topCoursesByCohorts.length" class="text-sm text-gray-400 text-center py-4">Nenhum curso encontrado</div>
+            Mais sobrecarregados
+          </h4>
+          <div class="space-y-2 flex-1">
+            <div
+              v-for="teacher in stats.mostLoadedTeachers"
+              :key="teacher.teacherId"
+              class="flex items-center justify-between text-[11px] p-2 rounded-lg border border-gray-50 bg-gray-50/50 shadow-sm hover:bg-white transition-colors"
+            >
+              <span class="text-gray-700 truncate pr-2 font-medium">{{ teacher.teacherName }}</span>
+              <span class="font-bold flex items-center gap-1.5 shrink-0 px-2 py-0.5 rounded bg-white border border-gray-100" :class="teacher.overloaded ? 'text-red-600 shadow-sm border-red-100' : 'text-gray-900'">
+                {{ teacher.totalSlots }}
+                <AlertTriangle v-if="teacher.overloaded" class="w-3 h-3" />
+              </span>
+            </div>
           </div>
         </div>
 
-        <!-- Teacher workload ranking -->
-        <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5 md:col-span-2">
-          <h4 class="text-sm font-bold text-gray-900 mb-4">Carga docente por professor</h4>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div>
-              <h5 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Mais sobrecarregados</h5>
-              <div class="space-y-2">
-                <div
-                  v-for="teacher in stats.mostLoadedTeachers"
-                  :key="teacher.teacherId"
-                  class="flex items-center justify-between text-sm p-2 rounded-md border border-gray-50"
-                  :class="teacher.overloaded ? 'bg-amber-50/50' : 'bg-gray-50/50'"
-                >
-                  <span class="text-gray-700 truncate pr-2" :class="teacher.overloaded ? 'font-medium' : ''">{{ teacher.teacherName }}</span>
-                  <span class="font-bold flex items-center gap-1 shrink-0" :class="teacher.overloaded ? 'text-amber-600' : 'text-gray-900'">
-                    {{ teacher.totalSlots }}
-                    <AlertTriangle v-if="teacher.overloaded" class="w-3 h-3" />
-                  </span>
-                </div>
-                <div v-if="!stats.mostLoadedTeachers.length" class="text-sm text-gray-400 text-center py-2">Nenhum professor encontrado</div>
+        <!-- (2) Menos ocupados -->
+        <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5 flex flex-col hover:border-blue-200 transition-all group">
+          <h4 class="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <div class="p-1.5 rounded-lg bg-white border border-gray-100 shadow-sm group-hover:shadow transition-all">
+              <Users class="w-4 h-4 text-blue-500" />
+            </div>
+            Menos ocupados
+          </h4>
+          <div class="space-y-2 flex-1">
+            <div
+              v-for="teacher in stats.leastLoadedTeachers"
+              :key="teacher.teacherId"
+              class="flex items-center justify-between text-[11px] p-2 rounded-lg border border-gray-50 bg-gray-50/50 shadow-sm hover:bg-white transition-colors"
+            >
+              <span class="text-gray-700 truncate pr-2 font-medium">{{ teacher.teacherName }}</span>
+              <span class="font-bold text-gray-900 shrink-0 px-2 py-0.5 rounded bg-white shadow-sm border border-gray-100">{{ teacher.totalSlots }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- (3) Cursos + Distribuição Curricular -->
+        <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5 space-y-6 hover:border-blue-200 transition-all group">
+          <div>
+            <h4 class="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <div class="p-1.5 rounded-lg bg-white border border-gray-100 shadow-sm group-hover:shadow transition-all">
+                <BarChart2 class="w-4 h-4 text-indigo-500" />
+              </div>
+              Cursos (top 3)
+            </h4>
+            <div class="space-y-2">
+              <div v-for="(course, index) in stats.topCoursesByCohorts.slice(0, 3)" :key="course.courseId" class="flex items-center gap-3 p-1.5 rounded-lg hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100 shadow-none hover:shadow-sm">
+                <span class="text-[10px] text-indigo-600 font-extrabold font-mono w-5 h-5 rounded-full bg-indigo-50 flex items-center justify-center shrink-0 border border-indigo-100 shadow-inner">{{ index + 1 }}</span>
+                <span class="text-[11px] text-gray-800 font-bold truncate flex-1" :title="course.courseName">{{ course.courseName }}</span>
+                <span class="text-[11px] font-extrabold text-indigo-900 shrink-0 px-2 py-0.5 bg-white border border-indigo-100 rounded-full shadow-sm">{{ course.cohortCount }}</span>
               </div>
             </div>
-            <div>
-              <h5 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Menos ocupados</h5>
-              <div class="space-y-2">
-                <div
-                  v-for="teacher in stats.leastLoadedTeachers"
-                  :key="teacher.teacherId"
-                  class="flex items-center justify-between text-sm p-2 rounded-md border border-gray-50 bg-gray-50/50"
-                >
-                  <span class="text-gray-700 truncate pr-2">{{ teacher.teacherName }}</span>
-                  <span class="font-bold text-gray-900 shrink-0">{{ teacher.totalSlots }}</span>
+          </div>
+
+          <div class="pt-5 border-t border-gray-100">
+            <h4 class="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <div class="p-1.5 rounded-lg bg-white border border-gray-100 shadow-sm group-hover:shadow transition-all">
+                <DoorOpen class="w-4 h-4 text-emerald-500" />
+              </div>
+              Distribuição por ano
+            </h4>
+            <div class="space-y-3.5">
+              <div v-for="year in stats.cohortsByYear" :key="year.year" class="space-y-1.5">
+                <div class="flex justify-between text-[10px]">
+                  <span class="font-bold text-gray-700">{{ year.year }}º Ano Curricular</span>
+                  <span class="text-gray-400 font-bold">{{ year.totalStudents }} est.</span>
                 </div>
-                <div v-if="!stats.leastLoadedTeachers.length" class="text-sm text-gray-400 text-center py-2">Nenhum professor encontrado</div>
+                <div class="h-2.5 bg-gray-100 rounded-full w-full overflow-hidden shadow-inner">
+                  <div
+                    class="h-full rounded-full transition-all duration-500 shadow-sm"
+                    :class="year.year === stats.bottleneckYear ? 'bg-amber-500' : 'bg-emerald-500'"
+                    :style="{ width: `${maxYearStudents ? (year.totalStudents / maxYearStudents * 100) : 0}%` }"
+                  ></div>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- ── Row 4: Cohorts by curricular year ──────────────────────────── -->
-      <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5">
-        <h4 class="text-sm font-bold text-gray-900 mb-4">Distribuição por ano curricular</h4>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm text-left">
-            <thead>
-              <tr class="text-gray-500 border-b border-gray-100">
-                <th class="pb-2 font-medium">Ano</th>
-                <th class="pb-2 font-medium">Turmas</th>
-                <th class="pb-2 font-medium">Estudantes</th>
-                <th class="pb-2 font-medium w-1/3">Proporção</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="year in stats.cohortsByYear" :key="year.year" class="border-b border-gray-50 last:border-0">
-                <td class="py-2 font-bold text-gray-900">{{ year.year }}º Ano</td>
-                <td class="py-2 text-gray-600">{{ year.cohortCount }}</td>
-                <td class="py-2 text-gray-600">{{ year.totalStudents }}</td>
-                <td class="py-2">
-                  <div class="h-2 bg-gray-100 rounded-full w-full overflow-hidden">
-                    <div
-                      class="h-full rounded-full transition-all duration-500"
-                      :class="year.year === stats.bottleneckYear ? 'bg-amber-500' : 'bg-blue-300'"
-                      :style="{ width: `${maxYearStudents ? (year.totalStudents / maxYearStudents * 100) : 0}%` }"
-                    ></div>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
       </div>
 
     </div>
@@ -436,8 +432,9 @@ import {
   DoorOpen,
   BarChart2,
   AlertOctagon,
-  CheckCircle,
-  XCircle,
+  Briefcase,
+  Sun,
+  Moon,
 } from 'lucide-vue-next'
 
 const store = useDashboardStatsStore()
@@ -445,10 +442,14 @@ const stats = computed(() => store.stats)
 
 // ── Derived feasibility computeds ──────────────────────────────────────────
 
-const potentialConflicts = computed(() => {
-  const hardFails = (stats.value?.oversizedCohorts ?? []).filter(c => c.severity === 'RED').length
-  const nearMisses = (stats.value?.fragmentationRisk ?? []).filter(c => c.utilizationPercent >= 95).length
-  return hardFails + nearMisses
+const hardFailsCount = computed(() => (stats.value?.oversizedCohorts ?? []).filter(c => c.severity === 'RED').length)
+const nearMissesCount = computed(() => (stats.value?.fragmentationRisk ?? []).filter(c => c.utilizationPercent >= 95).length)
+
+const potentialConflicts = computed(() => hardFailsCount.value + nearMissesCount.value)
+
+const sortedFragmentationRisk = computed(() => {
+  if (!stats.value?.fragmentationRisk) return []
+  return [...stats.value.fragmentationRisk].sort((a, b) => b.utilizationPercent - a.utilizationPercent)
 })
 
 const roomScarcitySeverity = computed(() => {
@@ -474,9 +475,9 @@ const maxYearStudents = computed(() => {
 
 const shiftLabel = (readiness: 'GREEN' | 'YELLOW' | 'RED') => {
   switch (readiness) {
-    case 'GREEN': return 'Pronto para gerar'
-    case 'YELLOW': return 'Verificar configuração'
-    case 'RED': return 'Inviável'
+    case 'GREEN': return 'OK'
+    case 'YELLOW': return 'LTD'
+    case 'RED': return 'CRIT'
   }
 }
 
