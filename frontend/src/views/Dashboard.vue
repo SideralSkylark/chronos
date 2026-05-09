@@ -17,15 +17,22 @@
             <h2 class="text-xl font-bold text-gray-900">Olá, {{ auth.username }}!</h2>
             <p class="text-gray-500 text-sm">Bem-vindo de volta ao sistema de gestão de horários.</p>
             <div class="flex flex-wrap gap-1.5 mt-2">
-              <span v-for="role in auth.roles" :key="role"
-                class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md text-[10px] font-bold uppercase tracking-wider">
+              <span
+                v-for="role in auth.roles"
+                :key="role"
+                class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md text-[10px] font-bold uppercase tracking-wider"
+              >
                 {{ roleLabel(role) }}
               </span>
             </div>
           </div>
         </div>
         <div class="flex items-center gap-3">
-          <router-link v-if="hasTimetable" to="/dashboard/my-timetable" class="px-4 py-2 bg-blue-900 text-white rounded-lg text-sm font-medium hover:bg-blue-800 transition shadow-sm flex items-center gap-2">
+          <router-link
+            v-if="hasTimetable"
+            to="/dashboard/my-timetable"
+            class="px-4 py-2 bg-blue-900 text-white rounded-lg text-sm font-medium hover:bg-blue-800 transition shadow-sm flex items-center gap-2"
+          >
             <Calendar class="w-4 h-4" />
             Ver o meu horário
           </router-link>
@@ -34,7 +41,11 @@
 
       <!-- Stats Grid (only for staff/admin) -->
       <div v-if="isStaff" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div v-for="stat in stats" :key="stat.label" class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5 hover:shadow-md transition group">
+        <div
+          v-for="stat in stats"
+          :key="stat.label"
+          class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-5 hover:shadow-md transition group"
+        >
           <div class="flex items-start justify-between">
             <div :class="stat.bg" class="p-2.5 rounded-md transition-colors">
               <component :is="stat.icon" :class="stat.text" class="w-5 h-5" />
@@ -44,7 +55,10 @@
           </div>
           <div class="mt-4">
             <p class="text-sm font-medium text-gray-500">{{ stat.label }}</p>
-            <router-link :to="'/dashboard' + stat.link" class="text-xs text-blue-600 hover:text-blue-800 font-medium mt-1 flex items-center gap-1 group-hover:underline">
+            <router-link
+              :to="'/dashboard' + stat.link"
+              class="text-xs text-blue-600 hover:text-blue-800 font-medium mt-1 flex items-center gap-1 group-hover:underline"
+            >
               Gerir {{ stat.label.toLowerCase() }}
               <ArrowRight class="w-3 h-3" />
             </router-link>
@@ -52,6 +66,7 @@
         </div>
       </div>
 
+      <!-- Feasibility diagnostics (staff only) -->
       <DashboardInsights v-if="isStaff" />
 
       <!-- Main Content Grid -->
@@ -60,8 +75,12 @@
         <div class="lg:col-span-2 space-y-4">
           <h3 class="text-[10px] font-bold text-blue-800 uppercase tracking-wider px-1">Acessos Rápidos</h3>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <router-link v-for="action in quickActions" :key="action.title" :to="action.link"
-              class="bg-white p-4 rounded-[10px] border border-gray-100 shadow-sm hover:border-blue-200 hover:shadow-md transition group flex items-start gap-4">
+            <router-link
+              v-for="action in quickActions"
+              :key="action.title"
+              :to="action.link"
+              class="bg-white p-4 rounded-[10px] border border-gray-100 shadow-sm hover:border-blue-200 hover:shadow-md transition group flex items-start gap-4"
+            >
               <div :class="action.color" class="p-3 rounded-md shrink-0">
                 <component :is="action.icon" class="w-6 h-6" />
               </div>
@@ -73,7 +92,7 @@
           </div>
         </div>
 
-        <!-- System Status / Info -->
+        <!-- System Status -->
         <div class="space-y-4">
           <h3 class="text-[10px] font-bold text-blue-800 uppercase tracking-wider px-1">Estado do Sistema</h3>
           <div class="bg-white rounded-[10px] border border-gray-100 shadow-sm p-5 space-y-5">
@@ -144,7 +163,6 @@ import {
   Info,
   ShieldCheck,
   Zap,
-  Clock,
 } from 'lucide-vue-next'
 
 const auth = useAuthStore()
@@ -153,22 +171,20 @@ const roomStore = useRoomStore()
 const courseStore = useCourseStore()
 const cohortStore = useCohortStore()
 
-const isStaff = computed(() => {
-  const roles = auth.roles
-  return roles.some(r => ['ADMIN', 'DIRECTOR', 'ASISTENT', 'COORDINATOR'].includes(r))
-})
+const isStaff = computed(() =>
+  auth.roles.some(r => ['ADMIN', 'DIRECTOR', 'ASISTENT', 'COORDINATOR'].includes(r))
+)
 
-const hasTimetable = computed(() => {
-  const roles = auth.roles
-  return roles.includes('STUDENT') || roles.includes('TEACHER')
-})
+const hasTimetable = computed(() =>
+  auth.roles.includes('STUDENT') || auth.roles.includes('TEACHER')
+)
 
 const statValues = reactive({
   users: 0,
   rooms: 0,
   courses: 0,
   cohorts: 0,
-  loading: true
+  loading: true,
 })
 
 const stats = computed(() => {
@@ -196,7 +212,7 @@ const stats = computed(() => {
       link: '/courses',
       bg: 'bg-indigo-50 group-hover:bg-indigo-100',
       text: 'text-indigo-700',
-      roles: ['ADMIN', 'COORDINATOR']
+      roles: ['ADMIN', 'COORDINATOR'],
     },
     {
       label: 'Turmas',
@@ -207,7 +223,6 @@ const stats = computed(() => {
       text: 'text-amber-700',
     },
   ]
-
   return allStats.filter(s => !s.roles || s.roles.some(r => auth.roles.includes(r)))
 })
 
@@ -220,7 +235,7 @@ const quickActions = computed(() => {
       description: 'Executar o motor de optimização para o próximo período lectivo.',
       icon: Zap,
       link: '/dashboard/timetable',
-      color: 'bg-amber-100 text-amber-700'
+      color: 'bg-amber-100 text-amber-700',
     })
   }
 
@@ -230,7 +245,7 @@ const quickActions = computed(() => {
       description: 'Configurar capacidades e restrições de acesso às salas.',
       icon: DoorOpen,
       link: '/dashboard/rooms',
-      color: 'bg-purple-100 text-purple-700'
+      color: 'bg-purple-100 text-purple-700',
     })
   }
 
@@ -240,7 +255,7 @@ const quickActions = computed(() => {
       description: 'Gerir matrizes curriculares e atribuição de professores.',
       icon: GraduationCap,
       link: '/dashboard/courses',
-      color: 'bg-indigo-100 text-indigo-700'
+      color: 'bg-indigo-100 text-indigo-700',
     })
   }
 
@@ -249,7 +264,7 @@ const quickActions = computed(() => {
     description: 'Consultar horários publicados de turmas, salas e professores.',
     icon: Calendar,
     link: '/dashboard/timetable',
-    color: 'bg-blue-100 text-blue-900'
+    color: 'bg-blue-100 text-blue-900',
   })
 
   return actions
@@ -272,13 +287,12 @@ onMounted(async () => {
   if (isStaff.value) {
     statValues.loading = true
     try {
-      const results = await Promise.allSettled([
+      await Promise.allSettled([
         userStore.fetchUsers(0, 1),
         roomStore.fetchRooms(0, 1),
         courseStore.fetchCourses(0, 1),
-        cohortStore.fetchCohorts(0, 1)
+        cohortStore.fetchCohorts(0, 1),
       ])
-
       statValues.users = userStore.pagedUsers?.page.totalElements ?? 0
       statValues.rooms = roomStore.pagedRooms?.page.totalElements ?? 0
       statValues.courses = courseStore.pagedCourses?.page.totalElements ?? 0

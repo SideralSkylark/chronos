@@ -4,6 +4,10 @@ import com.timetable.timetable.domain.dashboard.dto.CourseRankDTO;
 import com.timetable.timetable.domain.dashboard.dto.DashboardStatsDTO;
 import com.timetable.timetable.domain.dashboard.dto.TeacherWorkloadDTO;
 import com.timetable.timetable.domain.dashboard.dto.YearBreakdownDTO;
+import com.timetable.timetable.domain.dashboard.dto.OversizedCohortDTO;
+import com.timetable.timetable.domain.dashboard.dto.FragmentationRiskCohortDTO;
+import com.timetable.timetable.domain.dashboard.dto.RoomTierDTO;
+import com.timetable.timetable.domain.dashboard.dto.DistributionMismatchDTO;
 import com.timetable.timetable.domain.schedule.entity.Cohort;
 import com.timetable.timetable.domain.schedule.entity.CohortSubject;
 import com.timetable.timetable.domain.schedule.entity.Room;
@@ -17,6 +21,7 @@ import com.timetable.timetable.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -190,6 +195,79 @@ public class DashboardStatsService {
         dto.setTopCoursesByCohorts(topCoursesByCohorts);
         dto.setMostLoadedTeachers(mostLoadedTeachers);
         dto.setLeastLoadedTeachers(leastLoadedTeachers);
+
+        // --- Feasibility Diagnostics ---
+        int maxRoomCapacity = rooms.stream().mapToInt(Room::getCapacity).max().orElse(0);
+
+        List<OversizedCohortDTO> oversizedCohorts = cohorts.stream()
+                .filter(c -> c.getStudentCount() > maxRoomCapacity)
+                .map(c -> {
+                    int compatible = (int) rooms.stream().filter(r -> r.getCapacity() >= c.getStudentCount()).count();
+                    return new OversizedCohortDTO(c.getId(), c.getDisplayName(), c.getStudentCount(), c.getStudentCount(), compatible, "RED");
+                })
+                .toList();
+
+        List<FragmentationRiskCohortDTO> fragmentationRisk = cohorts.stream()
+                .filter(c -> {
+                    int headcount = c.getStudentCount();
+                    if (headcount == 0) return false;
+                    int maxCompCap = rooms.stream()
+                            .mapToInt(Room::getCapacity)
+                            .filter(cap -> cap >= headcount)
+                            .max()
+                            .orElse(0);
+                    
+                    if (maxCompCap == 0) return false;
+                    double utilization = (double) headcount / maxCompCap * 100;
+                    return utilization >= 85;
+                })
+                .map(c -> {
+                    int headcount = c.getStudentCount();
+                    int maxCompCap = rooms.stream()
+                            .mapToInt(Room::getCapacity)
+                            .filter(cap -> cap >= headcount)
+                            .max()
+                            .orElse(0);
+                    double utilization = (double) headcount / maxCompCap * 100;
+                    return new FragmentationRiskCohortDTO(c.getId(), c.getDisplayName(), headcount, maxCompCap, utilization);
+                })
+                .toList();
+
+        // Room Tiers
+        long smallRooms = rooms.stream().filter(r -> r.getCapacity() <= 29).count();
+        long mediumRooms = rooms.stream().filter(r -> r.getCapacity() >= 30 && r.getCapacity() <= 54).count();
+        long largeRooms = rooms.stream().filter(r -> r.getCapacity() >= 55).count();
+
+        long smallCohorts = cohorts.stream().filter(c -> c.getStudentCount() <= 29).count();
+        long mediumCohorts = cohorts.stream().filter(c -> c.getStudentCount() >= 30 && c.getStudentCount() <= 54).count();
+        long largeCohorts = cohorts.stream().filter(c -> c.getStudentCount() >= 55).count();
+
+        List<RoomTierDTO> roomTierDistribution = new ArrayList<>();
+        double totalRoomsCount = (double) rooms.size();
+        double totalCohortsCount = (double) cohorts.size();
+
+        if (totalRoomsCount > 0 && totalCohortsCount > 0) {
+            roomTierDistribution.add(new RoomTierDTO("Pequena (≤29)", smallRooms, (smallRooms / totalRoomsCount) * 100, (smallCohorts / totalCohortsCount) * 100, 
+                (smallRooms < smallCohorts) ? "YELLOW" : "GREEN"));
+            roomTierDistribution.add(new RoomTierDTO("Média (30–54)", mediumRooms, (mediumRooms / totalRoomsCount) * 100, (mediumCohorts / totalCohortsCount) * 100, 
+                (mediumRooms < mediumCohorts) ? "RED" : "GREEN"));
+            roomTierDistribution.add(new RoomTierDTO("Grande (≥55)", largeRooms, (largeRooms / totalRoomsCount) * 100, (largeCohorts / totalCohortsCount) * 100, 
+                (largeRooms < largeCohorts) ? "RED" : "GREEN"));
+        }
+
+        List<DistributionMismatchDTO> distributionMismatches = new ArrayList<>();
+        if (totalRoomsCount > 0 && totalCohortsCount > 0) {
+            distributionMismatches.add(new DistributionMismatchDTO("Pequena dimensão", (smallCohorts / totalCohortsCount) * 100, (smallRooms / totalRoomsCount) * 100));
+            distributionMismatches.add(new DistributionMismatchDTO("Média dimensão", (mediumCohorts / totalCohortsCount) * 100, (mediumRooms / totalRoomsCount) * 100));
+            distributionMismatches.add(new DistributionMismatchDTO("Grande dimensão", (largeCohorts / totalCohortsCount) * 100, (largeRooms / totalRoomsCount) * 100));
+        }
+
+        dto.setOversizedCohorts(oversizedCohorts);
+        dto.setFragmentationRisk(fragmentationRisk);
+        dto.setRoomTierDistribution(roomTierDistribution);
+        dto.setRoomScarcityNote(oversizedCohorts.isEmpty() ? "Não foram detectadas turmas sem sala compatível." : "Existem turmas que excedem a capacidade de todas as salas.");
+        dto.setDistributionMismatches(distributionMismatches);
+        dto.setDistributionMismatchNote(mediumRooms < mediumCohorts || largeRooms < largeCohorts ? "A oferta de salas grandes/médias é inferior à procura das turmas." : "A distribuição de salas parece equilibrada.");
 
         return dto;
     }
