@@ -18,6 +18,7 @@ import com.timetable.timetable.domain.schedule.dto.UpdateCohortRequest;
 import com.timetable.timetable.domain.schedule.entity.Cohort;
 import com.timetable.timetable.domain.schedule.entity.CohortStatus;
 import com.timetable.timetable.domain.schedule.entity.Course;
+import com.timetable.timetable.domain.schedule.exception.CohortAlreadyExistsException;
 import com.timetable.timetable.domain.schedule.exception.CohortNotFoundException;
 import com.timetable.timetable.domain.schedule.repository.CohortRepository;
 import com.timetable.timetable.domain.schedule.repository.RoomRepository;
@@ -59,9 +60,7 @@ public class CohortService {
                     createRequest.semester(),
                     createRequest.academicYear());
 
-            log.warn("Another cohort already exists with specification: {}", cohortIdentifier);
-
-            throw new IllegalStateException(
+            throw new CohortAlreadyExistsException(
                     String.format("Cohort '%s' already exists for the designated course", cohortIdentifier));
         }
 
@@ -171,7 +170,7 @@ public class CohortService {
     public Cohort getById(Long id) {
         log.debug("Looking for cohort {}", id);
         Cohort cohort = cohortRepository.findByIdWithStudentsAndCourse(id)
-            .orElseThrow(() -> new CohortNotFoundException("could not find cohort %d".formatted(id)));
+                .orElseThrow(() -> new CohortNotFoundException("could not find cohort %d".formatted(id)));
         log.info("Cohort {} found: {}", id, cohort.getDisplayName());
         return cohort;
     }
@@ -235,7 +234,8 @@ public class CohortService {
     }
 
     private Set<ApplicationUser> validateAndFetchStudents(List<Long> studentIds) {
-        if (studentIds == null || studentIds.isEmpty()) return new HashSet<>();
+        if (studentIds == null || studentIds.isEmpty())
+            return new HashSet<>();
 
         List<ApplicationUser> users = userRepository.findAllById(studentIds);
 

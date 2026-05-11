@@ -4,7 +4,6 @@ import com.timetable.timetable.auth.exception.InvalidCredentialsException;
 import com.timetable.timetable.auth.exception.InvalidTokenException;
 import com.timetable.timetable.auth.exception.TokenExpiredException;
 import com.timetable.timetable.auth.exception.TokenVerificationException;
-import com.timetable.timetable.auth.exception.UserAlreadyExistsException;
 import com.timetable.timetable.common.response.ErrorResponse;
 import com.timetable.timetable.common.response.ResponseFactory;
 import com.timetable.timetable.domain.user.exception.UserNotAuthorizedException;
@@ -48,7 +47,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
             HttpMessageNotReadableException.class,
             MethodArgumentTypeMismatchException.class,
-            IllegalArgumentException.class
+            IllegalArgumentException.class,
+            IllegalStateException.class
     })
     public ResponseEntity<ErrorResponse> handleBadRequest(Exception ex, HttpServletRequest request) {
         String message;
@@ -66,7 +66,7 @@ public class GlobalExceptionHandler {
     }
 
     // ================================
-    // Auth (400 / 401 / 409)
+    // Auth (400 / 401)
     // ================================
 
     @ExceptionHandler(InvalidCredentialsException.class)
@@ -76,18 +76,11 @@ public class GlobalExceptionHandler {
         return ResponseFactory.error(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
     }
 
-    @ExceptionHandler({TokenVerificationException.class, TokenExpiredException.class, InvalidTokenException.class})
+    @ExceptionHandler({ TokenVerificationException.class, TokenExpiredException.class, InvalidTokenException.class })
     public ResponseEntity<ErrorResponse> handleTokenError(
             RuntimeException ex, HttpServletRequest request) {
         log.warn("Token error on {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
         return ResponseFactory.error(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
-    }
-
-    @ExceptionHandler(UserAlreadyExistsException.class)
-    public ResponseEntity<ErrorResponse> handleUserAlreadyExists(
-            UserAlreadyExistsException ex, HttpServletRequest request) {
-        log.warn("Duplicate user on {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
-        return ResponseFactory.error(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
     // ================================
@@ -117,6 +110,13 @@ public class GlobalExceptionHandler {
             ResourceNotFoundException ex, HttpServletRequest request) {
         log.warn("404 on {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
         return ResponseFactory.error(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(ResourceAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleResourceAlreadyExists(
+            ResourceNotFoundException ex, HttpServletRequest request) {
+        log.warn("409 on {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return ResponseFactory.error(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
     @ExceptionHandler(NoHandlerFoundException.class)
@@ -149,7 +149,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ErrorResponse> handleConstraintViolation(
             ConstraintViolationException ex, HttpServletRequest request) {
-        log.warn("Constraint violation on {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getConstraintName());
+        log.warn("Constraint violation on {} {}: {}", request.getMethod(), request.getRequestURI(),
+                ex.getConstraintName());
         return ResponseFactory.error(HttpStatus.BAD_REQUEST, "Request violates a data constraint", request);
     }
 
@@ -171,7 +172,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(
             Exception ex, HttpServletRequest request) {
-        log.error("500 Unhandled exception on {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage(), ex);
+        log.error("500 Unhandled exception on {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage(),
+                ex);
         return ResponseFactory.internalError(ex, request);
     }
 
