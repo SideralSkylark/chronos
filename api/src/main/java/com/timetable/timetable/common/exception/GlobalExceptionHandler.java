@@ -65,6 +65,13 @@ public class GlobalExceptionHandler {
         return ResponseFactory.error(HttpStatus.BAD_REQUEST, message, request);
     }
 
+    @ExceptionHandler(BusinessValidationException.class)
+    public ResponseEntity<ErrorResponse> handleBusinessValidation(
+            BusinessValidationException ex, HttpServletRequest request) {
+        log.warn("400 on {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return ResponseFactory.error(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
     // ================================
     // Auth (400 / 401)
     // ================================
@@ -114,7 +121,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceAlreadyExistsException.class)
     public ResponseEntity<ErrorResponse> handleResourceAlreadyExists(
-            ResourceNotFoundException ex, HttpServletRequest request) {
+            ResourceAlreadyExistsException ex, HttpServletRequest request) {
         log.warn("409 on {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
         return ResponseFactory.error(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
