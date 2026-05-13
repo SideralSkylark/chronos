@@ -91,31 +91,10 @@ cd api
 mvn test -Dtest="*ServiceTest"
 ```
 
-## Known Issues & Bug Analysis
-
-### 1. Teacher Workload Calculation Bug (Fatal)
-A critical flaw has been identified in how teacher workloads are calculated and displayed across the system.
-
-**The Problem:**
-Currently, teacher workloads are being aggregated globally instead of being isolated by academic period (year/semester) and specific timetable.
-
-- **Dashboard Inaccuracy**: The `DashboardStatsService` uses a global `findAll()` on `CohortSubject`, causing it to sum a teacher's hours from all semesters in the database. If a teacher has 20h in 2026/1 and 20h in 2026/2, the dashboard incorrectly reports 40h of load.
-- **Validation Failure**: The `CohortSubjectService` performs a workload check when manually assigning teachers, but it also uses a global sum. This prevents assigning a teacher to a new subject if their historical total exceeds the limit, even if they are available in the target semester.
-- **Lack of Timetable Isolation**: Workloads are calculated based on `CohortSubject` entities which are currently shared across all timetables for the same period. This prevents independent "what-if" scenarios for the same academic period.
-
-**Root Causes:**
-1. `CohortSubjectRepository.sumCreditsByTeacher` lacks period filtering.
-2. `DashboardStatsService` lacks period filtering in its data aggregation logic.
-3. Hardcoded "Active Period" labels in the frontend mask the underlying data aggregation issues.
-
-**Required Fixes:**
-- [x] Update `CohortSubjectRepository` to include `academicYear` and `semester` in all workload-related queries.
-- [x] Refactor `DashboardStatsService` to accept an academic period and filter all statistics accordingly.
-- [x] Update `CohortSubjectService` validation logic to be period-aware.
-- [ ] (Optional/Future) Link `CohortSubject` assignments to specific `Timetable` IDs to allow multiple independent scenarios for the same period.
-
 TODO:
-- [ ] phantom swap with real teacher
+- [ ] analitics by academicPeriodDto on dashboard
+- [ ] sticky page headers and filters for dashboard course and timetable page.
+- [x] phantom swap with real teacher
 - [ ] refactor backend (proper exception handling, logging, clean code, spring conventions, optimization no N+1s)
 - [x] Dashboard with better info (more usefull ie: teacher workloads room ocupation and so on)
 - [x] Cohort management (improve confirmation it should scale with the room capacity, so i have to be mindfull of how big cohorts can get withouth breaking the system)

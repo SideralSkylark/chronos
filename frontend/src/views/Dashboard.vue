@@ -51,7 +51,7 @@
             <span v-else class="text-2xl font-bold text-gray-900 leading-none">{{ stat.value }}</span>
             <p class="text-xs text-gray-500 mt-1.5 font-medium uppercase tracking-wider">{{ stat.label }}</p>
           </div>
-          
+
           <div class="relative z-10">
             <router-link
               :to="'/dashboard' + stat.link"
@@ -61,9 +61,9 @@
             </router-link>
           </div>
 
-          <component 
-            :is="stat.icon" 
-            class="absolute -right-4 -bottom-4 w-[96px] h-[96px] opacity-[0.05] text-gray-900 group-hover:scale-110 group-hover:opacity-[0.08] transition-all duration-500 transform rotate-6" 
+          <component
+            :is="stat.icon"
+            class="absolute -right-4 -bottom-4 w-[96px] h-[96px] opacity-[0.05] text-gray-900 group-hover:scale-110 group-hover:opacity-[0.08] transition-all duration-500 transform rotate-6"
           />
         </div>
       </div>
