@@ -136,25 +136,21 @@ export const useTimetableStore = defineStore('timetable', () => {
   // Generation
   // ─────────────────────────────────────────────────────────────
 
-  async function generate(onTick?: (attempt: number, elapsedSeconds: number) => void) {
-    if (!currentPeriod.value) return
-
+  async function generate(
+    year: number,
+    semester: number,
+    onTick?: (attempt: number, elapsedSeconds: number) => void,
+  ) {
     generating.value = true
     error.value = null
     solution.value = null
 
     try {
-      const { year, semester } = currentPeriod.value
-
       const { jobId } = await timetableService.generate(year, semester)
 
       await pollUntilReady(jobId, onTick)
 
       solution.value = await timetableService.loadPersisted(year, semester)
-    } catch (e: any) {
-      error.value = e?.response?.data?.message ?? 'Erro ao gerar horário.'
-
-      throw e
     } finally {
       generating.value = false
     }

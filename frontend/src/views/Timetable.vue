@@ -112,14 +112,13 @@
           >
           <div class="relative">
             <select
-              v-model="selectedYear"
+              v-model="timetableStore.selectedYear"
               class="h-8 px-3 pr-8 border border-gray-200 rounded-md text-sm text-gray-800 bg-white appearance-none focus:ring-2 focus:ring-blue-100 focus:border-blue-900 outline-none transition cursor-pointer"
             >
-              <option v-for="y in availableYears" :key="y" :value="y">{{ y }}</option>
+              <option v-for="y in availableYears" :key="y" :value="y">
+                {{ y }}
+              </option>
             </select>
-            <ChevronDown
-              class="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
-            />
           </div>
         </div>
 
@@ -129,15 +128,13 @@
           >
           <div class="relative">
             <select
-              v-model="selectedSemester"
+              v-model="timetableStore.selectedSemester"
               class="h-8 px-3 pr-8 border border-gray-200 rounded-md text-sm text-gray-800 bg-white appearance-none focus:ring-2 focus:ring-blue-100 focus:border-blue-900 outline-none transition cursor-pointer"
             >
-              <option :value="1">1º semestre</option>
-              <option :value="2">2º semestre</option>
+              <option v-for="semester in availableSemesters" :key="semester" :value="semester">
+                {{ semester }}º semestre
+              </option>
             </select>
-            <ChevronDown
-              class="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
-            />
           </div>
         </div>
 
@@ -813,10 +810,25 @@ const canEdit = computed(() => {
   return false
 })
 
-const currentYear = new Date().getFullYear()
-const availableYears = [currentYear - 1, currentYear, currentYear + 1]
-const selectedYear = ref(currentYear)
-const selectedSemester = ref(1)
+const availableYears = computed(() => timetableStore.availablePeriods.map((p) => p.year))
+
+const availableSemesters = computed(() => timetableStore.availableSemesters)
+const selectedYear = computed({
+  get: () => timetableStore.selectedYear,
+  set: (value) => {
+    if (value != null && timetableStore.selectedSemester != null) {
+      timetableStore.setPeriod(value, timetableStore.selectedSemester)
+    }
+  },
+})
+const selectedSemester = computed({
+  get: () => timetableStore.selectedSemester,
+  set: (value) => {
+    if (value != null && timetableStore.selectedYear != null) {
+      timetableStore.setPeriod(timetableStore.selectedYear, value)
+    }
+  },
+})
 const selectedCohort = ref<number | ''>('')
 const showConfirmModal = ref(false)
 const hoveredLesson = ref<LessonAssignment | null>(null)
@@ -999,15 +1011,21 @@ function clearSelection() {
 }
 
 onMounted(async () => {
-  timetableStore.loadForPeriod(selectedYear.value, selectedSemester.value)
-  courseStore.fetchAllCoursesSimple()
+  await timetableStore.initialize()
+  await courseStore.fetchAllCoursesSimple()
 })
-watch([selectedYear, selectedSemester], ([y, s]) => {
+watch([() => timetableStore.selectedYear, () => timetableStore.selectedSemester], () => {
   selectedCohort.value = ''
   clearSelection()
-  timetableStore.loadForPeriod(y, s)
 })
-watch(selectedCohort, () => clearSelection())
+
+function onYearChange(year: number) {
+  timetableStore.setPeriod(year, timetableStore.selectedSemester ?? 1)
+}
+
+function onSemesterChange(semester: number) {
+  timetableStore.setPeriod(timetableStore.selectedYear ?? new Date().getFullYear(), semester)
+}
 
 async function calculateValidSlots() {
   if (!selectedLesson.value) return
@@ -1016,8 +1034,8 @@ async function calculateValidSlots() {
   try {
     validSlots.value = await permutationService.getValidSlots(
       selectedLesson.value.id,
-      selectedYear.value,
-      selectedSemester.value,
+      timetableStore.selectedYear!,
+      timetableStore.selectedSemester!,
     )
     slotsCalculated.value = true
     if (!validSlots.value.length) toast.info('Nenhuma permutação válida encontrada.')
@@ -1034,8 +1052,8 @@ async function calculateCohortSwaps() {
   try {
     cohortSwapCandidates.value = await permutationService.getCohortSwapCandidates(
       selectedLesson.value.id,
-      selectedYear.value,
-      selectedSemester.value,
+      timetableStore.selectedYear!,
+      timetableStore.selectedSemester!,
     )
     cohortSwapsCalculated.value = true
     if (!cohortSwapCandidates.value.length) toast.info('Nenhuma troca válida encontrada.')
@@ -1066,13 +1084,19 @@ async function handleApplySwap() {
     showUndo(isSwap ? 'Troca de aulas efectuada' : 'Aula movida com sucesso', async () => {
       if (originalTimeslotId !== undefined && originalRoomId !== undefined) {
         await permutationService.applySwap(lessonId, originalTimeslotId, originalRoomId, null)
-        await timetableStore.loadForPeriod(selectedYear.value, selectedSemester.value)
+        await timetableStore.loadForPeriod(
+          timetableStore.selectedYear!,
+          timetableStore.selectedSemester!,
+        )
       }
     })
 
     pendingSwap.value = null
     clearSelection()
-    await timetableStore.loadForPeriod(selectedYear.value, selectedSemester.value)
+    await timetableStore.loadForPeriod(
+      timetableStore.selectedYear!,
+      timetableStore.selectedSemester!,
+    )
   } catch {
     toast.error('Erro ao aplicar permutação.')
   } finally {
@@ -1092,12 +1116,18 @@ async function handleApplyCohortSwap() {
 
     showUndo('Troca de aulas efectuada', async () => {
       await permutationService.applyCohortSwap(lessonAId, lessonBId)
-      await timetableStore.loadForPeriod(selectedYear.value, selectedSemester.value)
+      await timetableStore.loadForPeriod(
+        timetableStore.selectedYear!,
+        timetableStore.selectedSemester!,
+      )
     })
 
     pendingCohortSwap.value = null
     clearSelection()
-    await timetableStore.loadForPeriod(selectedYear.value, selectedSemester.value)
+    await timetableStore.loadForPeriod(
+      timetableStore.selectedYear!,
+      timetableStore.selectedSemester!,
+    )
   } catch {
     toast.error('Erro ao aplicar troca.')
   } finally {
@@ -1108,17 +1138,22 @@ async function handleGenerate() {
   showConfirmModal.value = false
   selectedCohort.value = ''
   clearSelection()
+
   pollAttempt.value = 0
   pollElapsed.value = 0
+
   toast.info('A gerar horário, pode demorar até 5 minutos...')
+
   try {
     await timetableStore.generate(
-      selectedYear.value,
-      selectedSemester.value,
+      timetableStore.selectedYear!,
+      timetableStore.selectedSemester!,
       (attempt, elapsed) => {
-        ;((pollAttempt.value = attempt), (pollElapsed.value = elapsed))
+        pollAttempt.value = attempt
+        pollElapsed.value = elapsed
       },
     )
+
     toast.success('Horário gerado com sucesso!')
   } catch {
     toast.error(timetableStore.error ?? 'Erro ao gerar horário.')
@@ -1127,7 +1162,7 @@ async function handleGenerate() {
 
 async function onPhantomReplaced() {
   clearSelection()
-  await timetableStore.loadForPeriod(selectedYear.value, selectedSemester.value)
+  await timetableStore.loadForPeriod(timetableStore.selectedYear!, timetableStore.selectedSemester!)
 }
 </script>
 
