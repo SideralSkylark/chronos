@@ -11,11 +11,13 @@ import com.timetable.timetable.domain.dashboard.dto.DistributionMismatchDTO;
 import com.timetable.timetable.domain.schedule.entity.Cohort;
 import com.timetable.timetable.domain.schedule.entity.CohortSubject;
 import com.timetable.timetable.domain.schedule.entity.Room;
+import com.timetable.timetable.domain.schedule.entity.Timetable;
 import com.timetable.timetable.domain.user.entity.ApplicationUser;
 import com.timetable.timetable.domain.user.entity.UserRole;
 import com.timetable.timetable.domain.schedule.repository.CohortRepository;
 import com.timetable.timetable.domain.schedule.repository.CohortSubjectRepository;
 import com.timetable.timetable.domain.schedule.repository.RoomRepository;
+import com.timetable.timetable.domain.schedule.repository.TimetableRepository;
 import com.timetable.timetable.domain.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -36,13 +38,35 @@ public class DashboardStatsService {
     private final CohortRepository cohortRepository;
     private final UserRepository userRepository;
     private final CohortSubjectRepository cohortSubjectRepository;
+    private final TimetableRepository timetableRepository;
 
-    public DashboardStatsDTO computeStats() {
+    public DashboardStatsDTO computeStats(Integer year, Integer semester) {
+        // Determine period to analyze
+        int targetYear;
+        int targetSemester;
+
+        if (year != null && semester != null) {
+            targetYear = year;
+            targetSemester = semester;
+        } else {
+            Timetable latest = timetableRepository.findFirstByOrderByAcademicYearDescSemesterDesc()
+                    .orElse(null);
+            if (latest != null) {
+                targetYear = latest.getAcademicYear();
+                targetSemester = latest.getSemester();
+            } else {
+                // Fallback to current year if no timetable exists
+                targetYear = java.time.LocalDate.now().getYear();
+                targetSemester = 1;
+            }
+        }
+
         List<Room> rooms = roomRepository.findAll();
         long totalRoomCount = rooms.size();
         long totalRoomCapacity = rooms.stream().mapToLong(Room::getCapacity).sum();
 
-        List<Cohort> cohorts = cohortRepository.findAll();
+        List<Cohort> cohorts = cohortRepository.findByAcademicYearAndSemester(targetYear, targetSemester);
+
         long totalCohortCount = cohorts.size();
         long totalCohortDemand = cohorts.stream().mapToLong(Cohort::getStudentCount).sum();
         long largestCohort = cohorts.stream().mapToLong(Cohort::getStudentCount).max().orElse(0);
@@ -55,7 +79,7 @@ public class DashboardStatsService {
                 .collect(Collectors.groupingBy(Cohort::getYear, Collectors.summingLong(Cohort::getStudentCount)));
 
         List<YearBreakdownDTO> cohortsByYear = cohortsByYearCount.keySet().stream()
-                .map(year -> new YearBreakdownDTO(year, cohortsByYearCount.get(year), studentsByYear.get(year)))
+                .map(y -> new YearBreakdownDTO(y, cohortsByYearCount.get(y), studentsByYear.get(y)))
                 .sorted(Comparator.comparing(YearBreakdownDTO::getYear))
                 .toList();
 
@@ -67,7 +91,7 @@ public class DashboardStatsService {
         List<ApplicationUser> teachers = userRepository.findAllByRole(UserRole.TEACHER);
         long totalTeachers = teachers.size();
 
-        List<CohortSubject> cohortSubjects = cohortSubjectRepository.findAll();
+        List<CohortSubject> cohortSubjects = cohortSubjectRepository.findByAcademicYearAndSemester(targetYear, targetSemester);
         Map<ApplicationUser, Long> slotsPerTeacher = cohortSubjects.stream()
                 .collect(Collectors.groupingBy(CohortSubject::getAssignedTeacher,
                         Collectors.summingLong(CohortSubject::getLessonBlocksPerWeek)));
@@ -168,6 +192,9 @@ public class DashboardStatsService {
                 .toList();
 
         DashboardStatsDTO dto = new DashboardStatsDTO();
+        dto.setAcademicYear(targetYear);
+        dto.setSemester(targetSemester);
+        
         dto.setTotalRoomCapacity(totalRoomCapacity);
         dto.setTotalRoomCount(totalRoomCount);
         dto.setTotalCohortDemand(totalCohortDemand);

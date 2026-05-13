@@ -9,6 +9,9 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DashboardStatsDTO {
+    private int academicYear;
+    private int semester;
+
     private long totalRoomCapacity;
     private long totalRoomCount;
     

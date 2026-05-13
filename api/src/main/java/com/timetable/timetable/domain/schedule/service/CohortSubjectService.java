@@ -43,7 +43,7 @@ public class CohortSubjectService {
 
         validateTeacherIsEligible(teacher, subject);
         validateCohortSubjectCompatibility(cohort, subject);
-        validateTeacherWorkload(teacher, subject.getCredits());
+        validateTeacherWorkload(teacher, subject.getCredits(), cohort.getAcademicYear(), cohort.getSemester());
 
         if (cohortSubjectRepository.existsByCohortAndSubjectAndAcademicYearAndSemester(
                 cohort, subject, cohort.getAcademicYear(), cohort.getSemester())) {
@@ -84,7 +84,9 @@ public class CohortSubjectService {
 
             validateTeacherIsEligible(newTeacher, cohortSubject.getSubject());
             validateTeacherWorkload(newTeacher,
-                    cohortSubject.getSubject().getCredits());
+                    cohortSubject.getSubject().getCredits(),
+                    cohortSubject.getAcademicYear(),
+                    cohortSubject.getSemester());
 
             cohortSubject.setAssignedTeacher(newTeacher);
         }
@@ -120,14 +122,16 @@ public class CohortSubjectService {
         }
     }
 
-    private void validateTeacherWorkload(ApplicationUser teacher, int newCredits) {
-        int currentCredits = cohortSubjectRepository.sumCreditsByTeacher(teacher);
+    private void validateTeacherWorkload(ApplicationUser teacher, int newCredits, int academicYear, int semester) {
+        long currentSubjectCount = cohortSubjectRepository.countByAssignedTeacherAndAcademicYearAndSemester(teacher, academicYear, semester);
 
-        int totalWeeklyHours = AcademicPolicy.calculateWeeklyHours(currentCredits + newCredits);
+        int currentHours = (int) currentSubjectCount * AcademicPolicy.WEEKLY_CONTACT_HOURS;
+        int newHours = AcademicPolicy.calculateWeeklyHours(newCredits);
+        int totalWeeklyHours = currentHours + newHours;
 
-        if (totalWeeklyHours > AcademicPolicy.WEEKLY_TEACHING_HOURS_LIMIT) {
+        if (totalWeeklyHours > AcademicPolicy.getWeeklyHoursLimit(teacher)) {
             throw new IllegalArgumentException(
-                    "Teacher exceeds maximum weekly workload");
+                    "Teacher exceeds maximum weekly workload for period " + academicYear + "/" + semester);
         }
     }
 }

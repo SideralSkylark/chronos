@@ -57,14 +57,24 @@ public interface CohortSubjectRepository extends JpaRepository<CohortSubject, Lo
             @Param("academicYear") int academicYear,
             @Param("semester") int semester);
 
+    long countByAssignedTeacherAndAcademicYearAndSemester(
+            ApplicationUser teacher,
+            int academicYear,
+            int semester);
+
     @Query("""
                 SELECT COALESCE(SUM(s.credits), 0)
                 FROM CohortSubject cs
                 JOIN cs.subject s
                 WHERE cs.assignedTeacher = :teacher
+                  AND cs.academicYear = :academicYear
+                  AND cs.semester = :semester
                   AND cs.isActive = true
             """)
-    int sumCreditsByTeacher(@Param("teacher") ApplicationUser teacher);
+    int sumCreditsByTeacher(
+            @Param("teacher") ApplicationUser teacher,
+            @Param("academicYear") int academicYear,
+            @Param("semester") int semester);
 
     @Modifying
     @Query("DELETE FROM CohortSubject cs WHERE cs.cohort.id = :cohortId")
