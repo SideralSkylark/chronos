@@ -5,12 +5,15 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
+import com.timetable.timetable.domain.schedule.dto.AcademicPeriodDto;
 import com.timetable.timetable.domain.schedule.dto.CandidateTeacherResponse;
 import com.timetable.timetable.domain.schedule.dto.CreateTimetableRequest;
 import com.timetable.timetable.domain.schedule.dto.ReasignTeacherRequest;
@@ -128,6 +131,20 @@ public class TimetableService {
         }
 
         return response;
+    }
+
+    /**
+     * return all {@link AcademicPeriodDto} that have a valid timetable
+     * + the current year
+     */
+    public List<AcademicPeriodDto> getAvaliablePeriods() {
+        Set<Integer> years = new TreeSet<>(timetableRepository.findDistinctAcademicYears());
+        int currentYear = LocalDate.now().getYear();
+        years.add(currentYear);
+
+        return years.stream()
+                .map(year -> new AcademicPeriodDto(year, List.of(1, 2)))
+                .toList();
     }
 
     @Transactional

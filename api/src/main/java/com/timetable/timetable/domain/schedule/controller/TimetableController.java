@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.timetable.timetable.common.response.ApiResponse;
 import com.timetable.timetable.common.response.ResponseFactory;
+import com.timetable.timetable.domain.schedule.dto.AcademicPeriodDto;
 import com.timetable.timetable.domain.schedule.dto.CandidateTeacherResponse;
 import com.timetable.timetable.domain.schedule.dto.CreateTimetableRequest;
 import com.timetable.timetable.domain.schedule.dto.ReasignTeacherRequest;
@@ -63,6 +64,13 @@ public class TimetableController {
         return ResponseFactory.ok(
                 timetableService.getReplacementCandidates(lessonId),
                 "Teachers fetched successfully.");
+    }
+
+    @GetMapping("/periods")
+    public ResponseEntity<ApiResponse<List<AcademicPeriodDto>>> getPeriods() {
+        return ResponseFactory.ok(
+                timetableService.getAvaliablePeriods(),
+                "Periods fetched successfully.");
     }
 
     @PutMapping("/{id}")

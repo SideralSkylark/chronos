@@ -18,7 +18,11 @@ import com.timetable.timetable.domain.schedule.dto.UpdateCohortRequest;
 import com.timetable.timetable.domain.schedule.entity.Cohort;
 import com.timetable.timetable.domain.schedule.entity.CohortStatus;
 import com.timetable.timetable.domain.schedule.entity.Course;
+import com.timetable.timetable.domain.schedule.exception.CohortAlreadyConfirmedException;
+import com.timetable.timetable.domain.schedule.exception.CohortAlreadyExistsException;
+import com.timetable.timetable.domain.schedule.exception.CohortLimitExceededException;
 import com.timetable.timetable.domain.schedule.exception.CohortNotFoundException;
+import com.timetable.timetable.domain.schedule.exception.RoomCapacityExceededException;
 import com.timetable.timetable.domain.schedule.repository.CohortRepository;
 import com.timetable.timetable.domain.schedule.repository.RoomRepository;
 import com.timetable.timetable.domain.schedule.repository.ScheduledClassRepository;
@@ -59,9 +63,7 @@ public class CohortService {
                     createRequest.semester(),
                     createRequest.academicYear());
 
-            log.warn("Another cohort already exists with specification: {}", cohortIdentifier);
-
-            throw new IllegalStateException(
+            throw new CohortAlreadyExistsException(
                     String.format("Cohort '%s' already exists for the designated course", cohortIdentifier));
         }
 
@@ -83,7 +85,7 @@ public class CohortService {
                         createRequest.semester());
 
         if (existingCount >= expectedCohorts) {
-            throw new IllegalStateException(
+            throw new CohortLimitExceededException(
                     String.format(
                             "Maximum number of cohorts (%d) reached for course %d, academic year %d, semester %d",
                             expectedCohorts,
@@ -121,18 +123,17 @@ public class CohortService {
 
     @Transactional
     public CohortResponse confirmCohort(Long id, int studentCount) {
-        log.debug("starting confirmation");
+        log.debug("starting cohort confirmation");
         Cohort cohort = getById(id);
 
         if (cohort.getStatus() == CohortStatus.CONFIRMED) {
-            throw new IllegalStateException("Turma já confirmada");
+            throw new CohortAlreadyConfirmedException("cohort already confirmed");
         }
 
-        // Valida contra capacidade máxima das salas
         int maxCapacity = roomRepository.findMaxCapacity();
         if (studentCount > maxCapacity) {
-            throw new IllegalArgumentException(
-                    "Número de alunos (%d) excede a capacidade máxima das salas (%d). Considere dividir em duas turmas."
+            throw new RoomCapacityExceededException(
+                    "Student count of (%d) exceeds the rooms capacity (%d). Consider spliting the cohort."
                             .formatted(studentCount, maxCapacity));
         }
 
@@ -145,6 +146,7 @@ public class CohortService {
     }
 
     public Page<CohortListResponse> findAll(Pageable pageable, CohortFilterParams filters) {
+        log.debug("fetching all cohorts");
 
         return cohortRepository.findAll(CohortSpecifications.withFilters(filters), pageable)
                 .map(cohort -> new CohortListResponse(
@@ -159,6 +161,12 @@ public class CohortService {
                         cohort.getStatus()));
     }
 
+    /**
+     * returns the number of existing and confirmed cohorts given some
+     * {@link CohortFilterParams}
+     * 
+     * @return CohortSummaryResponse
+     */
     public CohortSummaryResponse getSummary(CohortFilterParams filters) {
         long total = cohortRepository.count(CohortSpecifications.withFilters(filters));
 
@@ -171,7 +179,7 @@ public class CohortService {
     public Cohort getById(Long id) {
         log.debug("Looking for cohort {}", id);
         Cohort cohort = cohortRepository.findByIdWithStudentsAndCourse(id)
-            .orElseThrow(() -> new CohortNotFoundException("could not find cohort %d".formatted(id)));
+                .orElseThrow(() -> new CohortNotFoundException("could not find cohort %d".formatted(id)));
         log.info("Cohort {} found: {}", id, cohort.getDisplayName());
         return cohort;
     }
@@ -184,7 +192,7 @@ public class CohortService {
     public CohortResponse updateCohort(Long id, UpdateCohortRequest updateRequest) {
         log.debug("Updating cohort {}", id);
         Cohort cohort = cohortRepository.findByIdWithCourse(id)
-                .orElseThrow(() -> new CohortNotFoundException("course d% not found".formatted(id)));
+                .orElseThrow(() -> new CohortNotFoundException("cohort d% not found".formatted(id)));
 
         if (cohortRepository.existsAnotherWithSameAttributes(
                 updateRequest.year(),
@@ -193,8 +201,7 @@ public class CohortService {
                 updateRequest.academicYear(),
                 cohort.getCourse().getId(),
                 cohort.getId())) {
-            log.warn("Another cohort with the same data already exists");
-            throw new IllegalArgumentException(
+            throw new CohortAlreadyExistsException(
                     "Another cohort with the same specification already exists");
         }
 
@@ -209,20 +216,28 @@ public class CohortService {
         Cohort updated = cohortRepository.save(cohort);
 
         log.info("Cohort {} updated: {}", updated.getId(), updated.getDisplayName());
+
         return CohortResponse.from(updated);
     }
 
+    /**
+     * update the students of a cohort
+     */
     @Transactional
     public CohortResponse updateStudents(Long cohortId, List<Long> studentIds) {
+        log.debug("updating cohort students");
         Cohort cohort = getById(cohortId);
 
         Set<ApplicationUser> students = validateAndFetchStudents(studentIds);
         cohort.setStudents(students);
+        log.info("updated the students for cohort {}", cohortId);
+
         return CohortResponse.from(cohortRepository.save(cohort));
     }
 
     @Transactional
     public void deleteCohort(Long id) {
+        log.debug("deleting cohort");
         if (!cohortRepository.existsById(id)) {
             throw new CohortNotFoundException(String.format("Cohort with id %d not found", id));
         }
@@ -235,7 +250,8 @@ public class CohortService {
     }
 
     private Set<ApplicationUser> validateAndFetchStudents(List<Long> studentIds) {
-        if (studentIds == null || studentIds.isEmpty()) return new HashSet<>();
+        if (studentIds == null || studentIds.isEmpty())
+            return new HashSet<>();
 
         List<ApplicationUser> users = userRepository.findAllById(studentIds);
 

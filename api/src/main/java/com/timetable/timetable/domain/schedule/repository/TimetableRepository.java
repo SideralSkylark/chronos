@@ -1,5 +1,6 @@
 package com.timetable.timetable.domain.schedule.repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -12,6 +13,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface TimetableRepository extends JpaRepository<Timetable, Long> {
+    Optional<Timetable> findFirstByOrderByAcademicYearDescSemesterDesc();
+
     Optional<Timetable> findByAcademicYearAndSemester(int academicYear, int semester);
 
     boolean existsByAcademicYearAndSemester(int academicYear, int semester);
@@ -32,4 +35,11 @@ public interface TimetableRepository extends JpaRepository<Timetable, Long> {
                 AND c.coordinator IS NOT NULL
             """)
     Set<Long> findCoordinatorIdsByTimetableId(@Param("timetableId") Long timetableId);
+
+    @Query("""
+                SELECT DISTINCT t.academicYear
+                FROM Timetable t
+                ORDER BY t.academicYear DESC
+            """)
+    List<Integer> findDistinctAcademicYears();
 }

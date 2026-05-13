@@ -55,6 +55,8 @@ public interface CohortRepository extends JpaRepository<Cohort, Long>, JpaSpecif
     @EntityGraph(attributePaths = { "course" })
     Page<Cohort> findAll(Specification<Cohort> spec, Pageable pageable);
 
+    List<Cohort> findByAcademicYearAndSemester(int academicYear, int semester);
+
     List<Cohort> findBySemesterAndAcademicYearAndCourseId(int semester, int year, Long courseId);
 
     @Modifying

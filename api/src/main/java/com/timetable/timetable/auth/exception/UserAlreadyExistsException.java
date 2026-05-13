@@ -1,6 +1,8 @@
 package com.timetable.timetable.auth.exception;
 
-public class UserAlreadyExistsException extends RuntimeException {
+import com.timetable.timetable.common.exception.ResourceAlreadyExistsException;
+
+public class UserAlreadyExistsException extends ResourceAlreadyExistsException {
     public UserAlreadyExistsException(String message) {
         super(message);
     }

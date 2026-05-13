@@ -90,8 +90,11 @@ Unit tests are provided for core services. To execute tests:
 cd api
 mvn test -Dtest="*ServiceTest"
 ```
+
 TODO:
-- [ ] phantom swap with real teacher
+- [ ] analitics by academicPeriodDto on dashboard
+- [ ] sticky page headers and filters for dashboard course and timetable page.
+- [x] phantom swap with real teacher
 - [ ] refactor backend (proper exception handling, logging, clean code, spring conventions, optimization no N+1s)
 - [x] Dashboard with better info (more usefull ie: teacher workloads room ocupation and so on)
 - [x] Cohort management (improve confirmation it should scale with the room capacity, so i have to be mindfull of how big cohorts can get withouth breaking the system)

@@ -3,6 +3,11 @@ export interface GenerationStartedResponse {
   message: string
 }
 
+export interface AcademicPeriodDto {
+  year: number
+  semesters: number[]
+}
+
 export interface JobStatusResponse {
   jobId: string
   status: 'SOLVING_ACTIVE' | 'SOLVING_SCHEDULED' | 'NOT_SOLVING'

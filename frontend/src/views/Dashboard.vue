@@ -51,7 +51,7 @@
             <span v-else class="text-2xl font-bold text-gray-900 leading-none">{{ stat.value }}</span>
             <p class="text-xs text-gray-500 mt-1.5 font-medium uppercase tracking-wider">{{ stat.label }}</p>
           </div>
-          
+
           <div class="relative z-10">
             <router-link
               :to="'/dashboard' + stat.link"
@@ -61,9 +61,9 @@
             </router-link>
           </div>
 
-          <component 
-            :is="stat.icon" 
-            class="absolute -right-4 -bottom-4 w-[96px] h-[96px] opacity-[0.05] text-gray-900 group-hover:scale-110 group-hover:opacity-[0.08] transition-all duration-500 transform rotate-6" 
+          <component
+            :is="stat.icon"
+            class="absolute -right-4 -bottom-4 w-[96px] h-[96px] opacity-[0.05] text-gray-900 group-hover:scale-110 group-hover:opacity-[0.08] transition-all duration-500 transform rotate-6"
           />
         </div>
       </div>
@@ -111,7 +111,10 @@
             <div class="space-y-2.5 pt-3 border-t border-gray-50">
               <div class="flex justify-between items-center text-xs">
                 <span class="text-gray-500">Período Activo</span>
-                <span class="font-bold text-gray-900">2025/2026 · 1º Sem.</span>
+                <span v-if="dashboardStatsStore.stats" class="font-bold text-gray-900">
+                  {{ dashboardStatsStore.stats.academicYear }} · {{ dashboardStatsStore.stats.semester }}º Sem.
+                </span>
+                <span v-else class="font-bold text-gray-900">...</span>
               </div>
               <div class="flex justify-between items-center text-xs">
                 <span class="text-gray-500">Segurança</span>
@@ -143,6 +146,7 @@ import { useUserStore } from '@/stores/user'
 import { useRoomStore } from '@/stores/room'
 import { useCourseStore } from '@/stores/course'
 import { useCohortStore } from '@/stores/cohorts'
+import { useDashboardStatsStore } from '@/stores/dashboardStats'
 import DashboardInsights from '@/components/dashboard/DashboardInsights.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import {
@@ -164,6 +168,7 @@ const userStore = useUserStore()
 const roomStore = useRoomStore()
 const courseStore = useCourseStore()
 const cohortStore = useCohortStore()
+const dashboardStatsStore = useDashboardStatsStore()
 
 const isStaff = computed(() =>
   auth.roles.some(r => ['ADMIN', 'DIRECTOR', 'ASISTENT', 'COORDINATOR'].includes(r))

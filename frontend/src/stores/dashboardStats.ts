@@ -71,6 +71,9 @@ export interface DistributionMismatchDTO {
 // ── Main DTO ───────────────────────────────────────────────────────────────
 
 export interface DashboardStatsDTO {
+  academicYear: number
+  semester: number
+
   // Capacity KPIs
   totalRoomCapacity: number
   totalRoomCount: number
@@ -138,10 +141,14 @@ export const useDashboardStatsStore = defineStore('dashboardStats', {
     error: null,
   }),
   actions: {
-    async fetchStats() {
+    async fetchStats(year?: number, semester?: number) {
       this.loading = true
       try {
-        const res = await api.get<ApiResponse<DashboardStatsDTO>>('/v1/dashboard/stats')
+        const params: any = {}
+        if (year) params.academicYear = year
+        if (semester) params.semester = semester
+
+        const res = await api.get<ApiResponse<DashboardStatsDTO>>('/v1/dashboard/stats', { params })
         this.stats = res.data.data
         this.error = null
       } catch (err: any) {

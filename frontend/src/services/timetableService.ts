@@ -1,9 +1,17 @@
 import api from './api'
-import type { TimetableSolution, GenerationStartedResponse, JobStatusResponse } from './dto/timetable'
+import type {
+  TimetableSolution,
+  GenerationStartedResponse,
+  JobStatusResponse,
+  AcademicPeriodDto,
+} from './dto/timetable'
 
 export const timetableService = {
   generate: async (academicYear: number, semester: number): Promise<GenerationStartedResponse> => {
-    const res = await api.post<GenerationStartedResponse>('/v1/solver/generate', { academicYear, semester })
+    const res = await api.post<GenerationStartedResponse>('/v1/solver/generate', {
+      academicYear,
+      semester,
+    })
     return res.data
   },
 
@@ -17,7 +25,10 @@ export const timetableService = {
    * Loads a persisted timetable from the DB by year + semester.
    * Returns null if not yet generated (404).
    */
-  loadPersisted: async (academicYear: number, semester: number): Promise<TimetableSolution | null> => {
+  loadPersisted: async (
+    academicYear: number,
+    semester: number,
+  ): Promise<TimetableSolution | null> => {
     try {
       const res = await api.get(`/v1/timetables/${academicYear}/${semester}`)
       return res.data as TimetableSolution
@@ -27,9 +38,20 @@ export const timetableService = {
     }
   },
 
-  loadMyStudentTimetable: async (academicYear: number, semester: number): Promise<TimetableSolution | null> => {
+  async getAvailablePeriods(): Promise<AcademicPeriodDto[]> {
+    const res = await api.get('/v1/timetables/periods')
+
+    return res.data.data
+  },
+
+  loadMyStudentTimetable: async (
+    academicYear: number,
+    semester: number,
+  ): Promise<TimetableSolution | null> => {
     try {
-      const res = await api.get(`/v1/timetables/me/student`, { params: { year: academicYear, semester } })
+      const res = await api.get(`/v1/timetables/me/student`, {
+        params: { year: academicYear, semester },
+      })
       return res.data as TimetableSolution
     } catch (e: any) {
       if (e?.response?.status === 404) return null
@@ -37,9 +59,14 @@ export const timetableService = {
     }
   },
 
-  loadMyTeacherTimetable: async (academicYear: number, semester: number): Promise<TimetableSolution | null> => {
+  loadMyTeacherTimetable: async (
+    academicYear: number,
+    semester: number,
+  ): Promise<TimetableSolution | null> => {
     try {
-      const res = await api.get(`/v1/timetables/me/teacher`, { params: { year: academicYear, semester } })
+      const res = await api.get(`/v1/timetables/me/teacher`, {
+        params: { year: academicYear, semester },
+      })
       return res.data as TimetableSolution
     } catch (e: any) {
       if (e?.response?.status === 404) return null
