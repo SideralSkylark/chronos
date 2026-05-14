@@ -82,6 +82,33 @@ To ensure long-term maintainability and scalability of the frontend, the followi
 - **Component Testing**: Increase coverage for core UI components (like `CrudTable` and `CrudForm`) using Vitest and Vue Test Utils.
 - **Store Logic**: Add unit tests for Pinia stores to verify complex state transitions (e.g., auth flow, scheduling logic).
 
+## Workload Calculation Analysis
+
+The system calculates teacher workload in different contexts, with some variations in methodology:
+
+### 1. Dashboard Statistics (`DashboardStatsService`)
+- **Metric**: Uses "Lesson Blocks" (slots) via `CohortSubject::getLessonBlocksPerWeek()`.
+- **Logic**: Sums the number of 2-hour sessions assigned to a teacher.
+- **Comparison**: Compares total *blocks* against the teacher's *hourly* limit (e.g., comparing 6 blocks against a 12-hour limit).
+- **Status**: **Inconsistent**. This approach underestimates actual workload and may fail to correctly identify overloaded teachers.
+
+### 2. Timetable Generation (`TeacherAssignmentService`)
+- **Metric**: Uses "Weekly Hours" via `CohortSubject::getWeeklyHours()`.
+- **Logic**: Correctly calculates total contact hours per week.
+- **Comparison**: Compares total hours against the teacher's limit as defined in `AcademicPolicy`.
+- **Status**: **Correct**. Used for greedy assignment and phantom teacher fallback.
+
+### 3. Phantom Teacher Replacement (`TimetableService`)
+- **Metric**: Uses "Weekly Hours" via `CohortSubject::getWeeklyHours()`.
+- **Logic**: Aggregates hours for all active cohort subjects in the period.
+- **Comparison**: Evaluates if a replacement teacher would exceed their hourly limit before suggesting them as a candidate.
+- **Status**: **Correct**. Ensures manual reassignments respect academic policies.
+
+### 4. Subject Assignment (`CohortSubjectService`)
+- **Metric**: Uses "Weekly Hours" via `CohortSubject::getWeeklyHours()`.
+- **Logic**: Real-time validation during CRUD operations.
+- **Status**: **Correct**. Prevents illegal assignments via the API.
+
 ## Testing
 
 Unit tests are provided for core services. To execute tests:
@@ -105,17 +132,3 @@ TODO:
 - [x] Notification tab improvments
 - [ ] frontend refactor (match backend)
 
-## Known Issues & Bug Reports
-
-### 1. Workload Computation Bugs
-Several critical bugs were identified in how teacher workloads are calculated during pre-solver assignment and candidate teacher replacement:
-
-#### Root Causes:
-- **Incorrect Hour Mapping:** `CohortSubject.getWeeklyHours()` and `AcademicPolicy.calculateWeeklyHours()` return a constant `4` hours. However, subjects marked as `fixedDaySession` (e.g., "Simulação Empresarial") actually consist of 3 blocks, which equates to **6 hours/week**, leading to an underestimation of workload for these specific subjects.
-- **Inaccurate Counting Logic:** In `TimetableService.getReplacementCandidates`, workload is computed by counting the number of subjects assigned to a teacher and multiplying by a constant, instead of summing the dynamic `getWeeklyHours()` of each subject.
-- **Inclusion of Inactive Records:** Workload calculations in some parts of the system (like `TimetableService`) failed to filter out inactive `CohortSubject` records, potentially counting legacy or deleted assignments toward a teacher's current load.
-- **Lesson Assignment Replacement Logic:** When evaluating replacement candidates, the system did not accurately account for the specific hourly weight of the lesson being reassigned, using a hardcoded default instead.
-
-#### Impact:
-- Teachers might be over-assigned beyond their institutional limits because the system under-reports the "weight" of simulation-intensive subjects.
-- The "Replacement Candidates" UI might show teachers as available who are actually at their capacity limit.
