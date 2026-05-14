@@ -164,6 +164,8 @@ public class ApplicationUser implements UserDetails {
 
     // ===== Helper ========
     public int getWeeklyHoursLimit() {
+        if (simulationTeam)
+            return 999;
         if (teacherType == null)
             return 0;
         return switch (teacherType) {

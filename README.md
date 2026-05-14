@@ -95,6 +95,7 @@ TODO:
 - [x] analitics by academicPeriodDto on dashboard
 - [x] sticky page headers and filters for dashboard course and timetable page.
 - [ ] Fix workload calculation on solver processing to use year and semester for more acurate calculation.
+- [ ] allow workload overload when used to swap phantom -> teacher
 - [x] phantom swap with real teacher
 - [ ] refactor backend (proper exception handling, logging, clean code, spring conventions, optimization no N+1s)
 - [x] Dashboard with better info (more usefull ie: teacher workloads room ocupation and so on)
@@ -103,3 +104,18 @@ TODO:
 - [ ] Phantom cleanUp(on swap with real teacher)
 - [x] Notification tab improvments
 - [ ] frontend refactor (match backend)
+
+## Known Issues & Bug Reports
+
+### 1. Workload Computation Bugs
+Several critical bugs were identified in how teacher workloads are calculated during pre-solver assignment and candidate teacher replacement:
+
+#### Root Causes:
+- **Incorrect Hour Mapping:** `CohortSubject.getWeeklyHours()` and `AcademicPolicy.calculateWeeklyHours()` return a constant `4` hours. However, subjects marked as `fixedDaySession` (e.g., "Simulação Empresarial") actually consist of 3 blocks, which equates to **6 hours/week**, leading to an underestimation of workload for these specific subjects.
+- **Inaccurate Counting Logic:** In `TimetableService.getReplacementCandidates`, workload is computed by counting the number of subjects assigned to a teacher and multiplying by a constant, instead of summing the dynamic `getWeeklyHours()` of each subject.
+- **Inclusion of Inactive Records:** Workload calculations in some parts of the system (like `TimetableService`) failed to filter out inactive `CohortSubject` records, potentially counting legacy or deleted assignments toward a teacher's current load.
+- **Lesson Assignment Replacement Logic:** When evaluating replacement candidates, the system did not accurately account for the specific hourly weight of the lesson being reassigned, using a hardcoded default instead.
+
+#### Impact:
+- Teachers might be over-assigned beyond their institutional limits because the system under-reports the "weight" of simulation-intensive subjects.
+- The "Replacement Candidates" UI might show teachers as available who are actually at their capacity limit.

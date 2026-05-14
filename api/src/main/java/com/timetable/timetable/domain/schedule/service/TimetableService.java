@@ -105,29 +105,28 @@ public class TimetableService {
 
         int academicYear = scheduledClass.getCohortSubject().getAcademicYear();
         int semester = scheduledClass.getCohortSubject().getSemester();
+        int hoursNeeded = scheduledClass.getCohortSubject().getWeeklyHours();
 
         List<ApplicationUser> allTeachers = userRepository.findAllByRole(UserRole.TEACHER);
 
-        // one query for all cohort subjects in the period — avoids N+1 per teacher
         List<CohortSubject> allCohortSubjects = cohortSubjectRepository
-                .findByAcademicYearAndSemester(academicYear, semester);
+                .findByAcademicYearAndSemesterAndIsActive(academicYear, semester, true);
 
-        Map<Long, Long> countByTeacherId = allCohortSubjects.stream()
+        Map<Long, Integer> workloadByTeacherId = allCohortSubjects.stream()
                 .collect(Collectors.groupingBy(
                         cs -> cs.getAssignedTeacher().getId(),
-                        Collectors.counting()));
+                        Collectors.summingInt(CohortSubject::getWeeklyHours)));
 
         List<CandidateTeacherResponse> response = new ArrayList<>();
 
         for (ApplicationUser teacher : allTeachers) {
-            long count = countByTeacherId.getOrDefault(teacher.getId(), 0L);
-            int weeklyHours = (int) count * AcademicPolicy.WEEKLY_CONTACT_HOURS;
+            int currentWorkload = workloadByTeacherId.getOrDefault(teacher.getId(), 0);
             int limit = AcademicPolicy.getWeeklyHoursLimit(teacher);
-            boolean wouldExceedLimit = weeklyHours + AcademicPolicy.WEEKLY_CONTACT_HOURS > limit;
+            boolean wouldExceedLimit = currentWorkload + hoursNeeded > limit;
             boolean qualified = scheduledClass.getSubject().getEligibleTeachers().contains(teacher);
 
             response.add(CandidateTeacherResponse.from(
-                    teacher, weeklyHours, limit, wouldExceedLimit, qualified));
+                    teacher, currentWorkload, limit, wouldExceedLimit, qualified));
         }
 
         return response;

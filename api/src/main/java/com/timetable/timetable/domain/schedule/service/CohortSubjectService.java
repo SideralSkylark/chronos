@@ -43,7 +43,7 @@ public class CohortSubjectService {
 
         validateTeacherIsEligible(teacher, subject);
         validateCohortSubjectCompatibility(cohort, subject);
-        validateTeacherWorkload(teacher, subject.getCredits(), cohort.getAcademicYear(), cohort.getSemester());
+        validateTeacherWorkload(teacher, subject, cohort.getAcademicYear(), cohort.getSemester());
 
         if (cohortSubjectRepository.existsByCohortAndSubjectAndAcademicYearAndSemester(
                 cohort, subject, cohort.getAcademicYear(), cohort.getSemester())) {
@@ -84,7 +84,7 @@ public class CohortSubjectService {
 
             validateTeacherIsEligible(newTeacher, cohortSubject.getSubject());
             validateTeacherWorkload(newTeacher,
-                    cohortSubject.getSubject().getCredits(),
+                    cohortSubject.getSubject(),
                     cohortSubject.getAcademicYear(),
                     cohortSubject.getSemester());
 
@@ -122,11 +122,13 @@ public class CohortSubjectService {
         }
     }
 
-    private void validateTeacherWorkload(ApplicationUser teacher, int newCredits, int academicYear, int semester) {
-        long currentSubjectCount = cohortSubjectRepository.countByAssignedTeacherAndAcademicYearAndSemester(teacher, academicYear, semester);
+    private void validateTeacherWorkload(ApplicationUser teacher, Subject subject, int academicYear, int semester) {
+        int currentHours = cohortSubjectRepository.findByAssignedTeacherAndAcademicYearAndSemesterAndIsActive(teacher, academicYear, semester, true)
+                .stream()
+                .mapToInt(CohortSubject::getWeeklyHours)
+                .sum();
 
-        int currentHours = (int) currentSubjectCount * AcademicPolicy.WEEKLY_CONTACT_HOURS;
-        int newHours = AcademicPolicy.calculateWeeklyHours(newCredits);
+        int newHours = AcademicPolicy.calculateWeeklyHours(subject);
         int totalWeeklyHours = currentHours + newHours;
 
         if (totalWeeklyHours > AcademicPolicy.getWeeklyHoursLimit(teacher)) {

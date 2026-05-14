@@ -59,7 +59,8 @@ public class CohortSubject {
 
     /** 4h/week of contact — used to calculate a teachers workload*/
     public int getWeeklyHours() {
-        return AcademicPolicy.WEEKLY_CONTACT_HOURS;
+        int hoursPerBlock = AcademicPolicy.WEEKLY_CONTACT_HOURS / AcademicPolicy.SESSIONS_PER_WEEK;
+        return getLessonBlocksPerWeek() * hoursPerBlock;
     }
 
     public String getDisplayName() {
