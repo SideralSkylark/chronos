@@ -1,11 +1,17 @@
 <template>
-  <div>
-
+  <div
+    ref="scrollContainer"
+    class="h-full overflow-y-auto -mx-6 -mt-6 px-6 py-6"
+    @scroll="onScroll"
+  >
     <!-- Header -->
     <PageHeader
       :icon="GraduationCap"
       title="Gestão de cursos"
       subtitle="Gerir cursos e suas disciplinas"
+      :sticky="true"
+      :collapsed="headerCollapsed"
+      :mergedFilter="true"
     >
       <template #actions>
         <button v-if="isAdmin" @click="openCreateModal"
@@ -17,11 +23,21 @@
     </PageHeader>
 
     <!-- Filters -->
-    <FilterBar :activeFilterCount="activeFilterCount" @clear="clearFilters">
-      <template #filters>
+    <FilterBar
+      :activeFilterCount="activeFilterCount"
+      :collapsed="headerCollapsed"
+      :mergedHeader="true"
+      @clear="clearFilters"
+    >
+      <template #filters="{ collapsed }">
         <!-- Course name -->
         <div class="flex flex-col gap-1">
-          <label class="text-[10px] font-bold text-blue-800 uppercase tracking-wider">Nome</label>
+          <label
+            v-show="!collapsed"
+            class="text-[10px] font-bold text-blue-800 uppercase tracking-wider"
+          >
+            Nome
+          </label>
           <div class="relative">
             <input
               v-model="filters.name"
@@ -36,7 +52,12 @@
 
         <!-- Coordinator -->
         <div class="flex flex-col gap-1">
-          <label class="text-[10px] font-bold text-blue-800 uppercase tracking-wider">Coordenador</label>
+          <label
+            v-show="!collapsed"
+            class="text-[10px] font-bold text-blue-800 uppercase tracking-wider"
+          >
+            Coordenador
+          </label>
           <div class="relative">
             <select
               v-model="filters.coordinatorId"
@@ -52,7 +73,12 @@
 
         <!-- Duration -->
         <div class="flex flex-col gap-1">
-          <label class="text-[10px] font-bold text-blue-800 uppercase tracking-wider">Duração</label>
+          <label
+            v-show="!collapsed"
+            class="text-[10px] font-bold text-blue-800 uppercase tracking-wider"
+          >
+            Duração
+          </label>
           <div class="relative">
             <select
               v-model="filters.years"
@@ -67,7 +93,12 @@
 
         <!-- Business simulation toggle chips -->
         <div class="flex flex-col gap-1">
-          <label class="text-[10px] font-bold text-blue-800 uppercase tracking-wider">Sim. empresarial</label>
+          <label
+            v-show="!collapsed"
+            class="text-[10px] font-bold text-blue-800 uppercase tracking-wider"
+          >
+            Sim. empresarial
+          </label>
           <div class="flex items-center gap-1 h-8">
             <button
               v-for="opt in bizSimOptions" :key="String(opt.value)"
@@ -612,6 +643,13 @@ const confirmDeleteCourseId = ref<number | null>(null)
 const confirmDeleteSubjectId = ref<number | null>(null)
 const confirmDeleteSubjectCourse = ref<any>(null)
 const cohortRows = ref<{ year: number; count: number }[]>([])
+
+const headerCollapsed = ref(false)
+const scrollContainer = ref<HTMLElement | null>(null)
+
+function onScroll() {
+  headerCollapsed.value = (scrollContainer.value?.scrollTop ?? 0) > 60
+}
 
 // ── Filters ───────────────────────────────────────────────────────
 const filters = reactive({

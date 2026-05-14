@@ -1,12 +1,62 @@
 <template>
-  <div>
+  <div
+    ref="scrollContainer"
+    class="h-full overflow-y-auto -mx-6 -mt-6 px-6 py-6"
+    @scroll="onScroll"
+  >
     <PageHeader
       :icon="LayoutDashboard"
       title="Painel de controlo"
       subtitle="Resumo geral do sistema e acessos rápidos"
-    />
+      :sticky="true"
+      :collapsed="headerCollapsed"
+    >
+      <template #actions>
+        <div class="flex items-center gap-2">
+          <Loader2
+            v-if="timetableStore.loadingPeriods"
+            class="w-3.5 h-3.5 animate-spin text-gray-400"
+          />
 
-    <div class="space-y-4">
+          <template v-else>
+            <!-- Year selector -->
+            <div class="relative">
+              <select
+                :value="timetableStore.selectedYear"
+                @change="timetableStore.setPeriod(+($event.target as HTMLSelectElement).value, timetableStore.selectedSemester!)"
+                class="h-8 pl-3 pr-7 border border-gray-200 rounded-md text-xs font-medium text-gray-800 bg-white appearance-none focus:ring-2 focus:ring-blue-100 focus:border-blue-900 outline-none transition cursor-pointer"
+              >
+                <option
+                  v-for="period in timetableStore.availablePeriods"
+                  :key="period.year"
+                  :value="period.year"
+                >
+                  {{ period.year }}
+                </option>
+              </select>
+              <ChevronDown class="w-3 h-3 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+
+            <!-- Semester segmented control -->
+            <div class="flex border border-gray-200 rounded-md overflow-hidden">
+              <button
+                v-for="sem in timetableStore.availableSemesters"
+                :key="sem"
+                @click="timetableStore.setPeriod(timetableStore.selectedYear!, sem)"
+                class="h-8 px-3 text-xs font-medium transition"
+                :class="timetableStore.selectedSemester === sem
+                  ? 'bg-blue-900 text-white'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'"
+              >
+                {{ sem }}º Sem.
+              </button>
+            </div>
+          </template>
+        </div>
+      </template>
+    </PageHeader>
+
+    <div class="space-y-4 pt-4">
       <!-- Welcome Card -->
       <div class="bg-white rounded-[10px] shadow-sm border border-gray-100 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="flex items-center gap-4">
@@ -69,7 +119,16 @@
       </div>
 
       <!-- Feasibility diagnostics (staff only) -->
-      <DashboardInsights v-if="isStaff" />
+      <DashboardInsights v-if="isStaff">
+        <template #section-label>
+          <div class="text-[10px] font-bold text-blue-800 uppercase tracking-wider px-1">
+            Diagnóstico de viabilidade
+            <span v-if="timetableStore.selectedYear && timetableStore.selectedSemester" class="text-gray-400 ml-1">
+              · {{ timetableStore.selectedYear }} · {{ timetableStore.selectedSemester }}º Semestre
+            </span>
+          </div>
+        </template>
+      </DashboardInsights>
 
       <!-- Main Content Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -111,8 +170,8 @@
             <div class="space-y-2.5 pt-3 border-t border-gray-50">
               <div class="flex justify-between items-center text-xs">
                 <span class="text-gray-500">Período Activo</span>
-                <span v-if="dashboardStatsStore.stats" class="font-bold text-gray-900">
-                  {{ dashboardStatsStore.stats.academicYear }} · {{ dashboardStatsStore.stats.semester }}º Sem.
+                <span v-if="timetableStore.selectedYear && timetableStore.selectedSemester" class="font-bold text-gray-900">
+                  {{ timetableStore.selectedYear }} · {{ timetableStore.selectedSemester }}º Sem.
                 </span>
                 <span v-else class="font-bold text-gray-900">...</span>
               </div>
@@ -140,13 +199,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, reactive } from 'vue'
+import { ref, onMounted, computed, reactive, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useUserStore } from '@/stores/user'
 import { useRoomStore } from '@/stores/room'
 import { useCourseStore } from '@/stores/course'
 import { useCohortStore } from '@/stores/cohorts'
 import { useDashboardStatsStore } from '@/stores/dashboardStats'
+import { useTimetableStore } from '@/stores/timetable'
 import DashboardInsights from '@/components/dashboard/DashboardInsights.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import {
@@ -157,10 +217,9 @@ import {
   BookOpen,
   GraduationCap,
   Calendar,
-  ArrowRight,
-  Info,
-  ShieldCheck,
   Zap,
+  Loader2,
+  ChevronDown,
 } from 'lucide-vue-next'
 
 const auth = useAuthStore()
@@ -169,6 +228,7 @@ const roomStore = useRoomStore()
 const courseStore = useCourseStore()
 const cohortStore = useCohortStore()
 const dashboardStatsStore = useDashboardStatsStore()
+const timetableStore = useTimetableStore()
 
 const isStaff = computed(() =>
   auth.roles.some(r => ['ADMIN', 'DIRECTOR', 'ASISTENT', 'COORDINATOR'].includes(r))
@@ -282,7 +342,25 @@ const roleLabel = (role: string) => {
   return labels[role] ?? role
 }
 
+const headerCollapsed = ref(false)
+const scrollContainer = ref<HTMLElement | null>(null)
+
+function onScroll() {
+  headerCollapsed.value = (scrollContainer.value?.scrollTop ?? 0) > 60
+}
+
+watch(
+  [() => timetableStore.selectedYear, () => timetableStore.selectedSemester],
+  ([year, semester]) => {
+    if (year && semester) {
+      dashboardStatsStore.fetchStats(year, semester)
+    }
+  }
+)
+
 onMounted(async () => {
+  await timetableStore.initialize()
+  
   if (isStaff.value) {
     statValues.loading = true
     try {
@@ -304,6 +382,15 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style scoped>
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+</style>
 
 <style scoped>
 .line-clamp-1 {

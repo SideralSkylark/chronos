@@ -1,10 +1,17 @@
 <template>
-  <div>
+  <div
+    ref="scrollContainer"
+    class="h-full overflow-y-auto -mx-6 -mt-6 px-6 py-6"
+    @scroll="onScroll"
+  >
     <!-- Header -->
     <PageHeader
       :icon="CalendarDays"
       title="Horários"
       subtitle="Visualizar e gerir horários da instituição"
+      :sticky="true"
+      :collapsed="headerCollapsed"
+      :mergedFilter="true"
     >
       <template #actions>
         <div
@@ -104,12 +111,19 @@
     </PageHeader>
 
     <!-- Filters -->
-    <FilterBar :activeFilterCount="0">
-      <template #filters>
+    <FilterBar
+      :activeFilterCount="0"
+      :collapsed="headerCollapsed"
+      :mergedHeader="true"
+    >
+      <template #filters="{ collapsed }">
         <div class="flex flex-col gap-1">
-          <label class="text-[10px] font-bold text-blue-800 uppercase tracking-wider"
-            >Ano lectivo</label
+          <label
+            v-show="!collapsed"
+            class="text-[10px] font-bold text-blue-800 uppercase tracking-wider"
           >
+            Ano lectivo
+          </label>
           <div class="relative">
             <select
               v-model="timetableStore.selectedYear"
@@ -119,13 +133,19 @@
                 {{ y }}
               </option>
             </select>
+            <ChevronDown
+              class="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+            />
           </div>
         </div>
 
         <div class="flex flex-col gap-1">
-          <label class="text-[10px] font-bold text-blue-800 uppercase tracking-wider"
-            >Semestre</label
+          <label
+            v-show="!collapsed"
+            class="text-[10px] font-bold text-blue-800 uppercase tracking-wider"
           >
+            Semestre
+          </label>
           <div class="relative">
             <select
               v-model="timetableStore.selectedSemester"
@@ -135,11 +155,19 @@
                 {{ semester }}º semestre
               </option>
             </select>
+            <ChevronDown
+              class="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+            />
           </div>
         </div>
 
         <div class="flex flex-col gap-1">
-          <label class="text-[10px] font-bold text-blue-800 uppercase tracking-wider">Turma</label>
+          <label
+            v-show="!collapsed"
+            class="text-[10px] font-bold text-blue-800 uppercase tracking-wider"
+          >
+            Turma
+          </label>
           <div class="relative">
             <select
               v-model="selectedCohort"
@@ -157,8 +185,8 @@
         </div>
       </template>
 
-      <template #actions>
-        <div v-if="hasLessons" class="flex items-center justify-end gap-4 h-8">
+      <template #actions="{ collapsed }">
+        <div v-show="!collapsed" v-if="hasLessons" class="flex items-center justify-end gap-4 h-8">
           <div v-for="item in yearLegend" :key="item.year" class="flex items-center gap-1.5">
             <div class="w-2.5 h-2.5 rounded-sm" :class="item.dot"></div>
             <span class="text-xs text-gray-400">{{ item.label }}</span>
@@ -834,6 +862,13 @@ const showConfirmModal = ref(false)
 const hoveredLesson = ref<LessonAssignment | null>(null)
 const pollAttempt = ref(0)
 const pollElapsed = ref(0)
+
+const headerCollapsed = ref(false)
+const scrollContainer = ref<HTMLElement | null>(null)
+
+function onScroll() {
+  headerCollapsed.value = (scrollContainer.value?.scrollTop ?? 0) > 60
+}
 
 const selectedLesson = ref<LessonAssignment | null>(null)
 const validSlots = ref<ValidSlot[]>([])

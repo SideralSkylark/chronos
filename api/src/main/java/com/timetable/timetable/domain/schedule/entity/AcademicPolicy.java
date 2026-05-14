@@ -30,10 +30,11 @@ public final class AcademicPolicy {
     public static final int ESTIMATED_STUDENT_COUNT = 30;
 
     public static int getWeeklyHoursLimit(ApplicationUser teacher) {
-        if (teacher.getTeacherType() == null) {
-            return WEEKLY_TEACHING_HOURS_LIMIT; //legacy fallback
+        int limit = teacher.getWeeklyHoursLimit();
+        if (limit > 0) {
+            return limit;
         }
-        return teacher.getWeeklyHoursLimit();
+        return WEEKLY_TEACHING_HOURS_LIMIT;
     }
 
     public static int calculateLessonBlocksPerWeek(int credits) {
@@ -44,8 +45,14 @@ public final class AcademicPolicy {
         return WEEKLY_CONTACT_HOURS;
     }
 
-    public static boolean areCreditsValid(int credits) {
-        return credits >= 3 && credits <= 12;
+    public static int calculateWeeklyHours(Subject subject) {
+        int blocks = subject.isFixedDaySession() ? 3 : SESSIONS_PER_WEEK;
+        int hoursPerBlock = WEEKLY_CONTACT_HOURS / SESSIONS_PER_WEEK;
+        return blocks * hoursPerBlock;
+    }
+
+    public static int calculateLessonBlocksPerWeek(Subject subject) {
+        return subject.isFixedDaySession() ? 3 : SESSIONS_PER_WEEK;
     }
 
     private AcademicPolicy() {

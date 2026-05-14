@@ -33,7 +33,7 @@ public class TeacherAssignmentService {
             List<CohortSubject> existingInSemester,
             PhantomTeacherPolicy policy) {
 
-        int hoursNeeded = AcademicPolicy.calculateWeeklyHours(subject.getCredits());
+        int hoursNeeded = AcademicPolicy.calculateWeeklyHours(subject);
         Set<ApplicationUser> eligible = subject.getEligibleTeachers();
 
         if (eligible == null || eligible.isEmpty()) {

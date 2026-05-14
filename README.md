@@ -82,6 +82,33 @@ To ensure long-term maintainability and scalability of the frontend, the followi
 - **Component Testing**: Increase coverage for core UI components (like `CrudTable` and `CrudForm`) using Vitest and Vue Test Utils.
 - **Store Logic**: Add unit tests for Pinia stores to verify complex state transitions (e.g., auth flow, scheduling logic).
 
+## Workload Calculation Analysis
+
+The system calculates teacher workload in different contexts, with some variations in methodology:
+
+### 1. Dashboard Statistics (`DashboardStatsService`)
+- **Metric**: Uses "Lesson Blocks" (slots) via `CohortSubject::getLessonBlocksPerWeek()`.
+- **Logic**: Sums the number of 2-hour sessions assigned to a teacher.
+- **Comparison**: Compares total *blocks* against the teacher's *hourly* limit (e.g., comparing 6 blocks against a 12-hour limit).
+- **Status**: **Inconsistent**. This approach underestimates actual workload and may fail to correctly identify overloaded teachers.
+
+### 2. Timetable Generation (`TeacherAssignmentService`)
+- **Metric**: Uses "Weekly Hours" via `CohortSubject::getWeeklyHours()`.
+- **Logic**: Correctly calculates total contact hours per week.
+- **Comparison**: Compares total hours against the teacher's limit as defined in `AcademicPolicy`.
+- **Status**: **Correct**. Used for greedy assignment and phantom teacher fallback.
+
+### 3. Phantom Teacher Replacement (`TimetableService`)
+- **Metric**: Uses "Weekly Hours" via `CohortSubject::getWeeklyHours()`.
+- **Logic**: Aggregates hours for all active cohort subjects in the period.
+- **Comparison**: Evaluates if a replacement teacher would exceed their hourly limit before suggesting them as a candidate.
+- **Status**: **Correct**. Ensures manual reassignments respect academic policies.
+
+### 4. Subject Assignment (`CohortSubjectService`)
+- **Metric**: Uses "Weekly Hours" via `CohortSubject::getWeeklyHours()`.
+- **Logic**: Real-time validation during CRUD operations.
+- **Status**: **Correct**. Prevents illegal assignments via the API.
+
 ## Testing
 
 Unit tests are provided for core services. To execute tests:
@@ -92,8 +119,10 @@ mvn test -Dtest="*ServiceTest"
 ```
 
 TODO:
-- [ ] analitics by academicPeriodDto on dashboard
-- [ ] sticky page headers and filters for dashboard course and timetable page.
+- [x] analitics by academicPeriodDto on dashboard
+- [x] sticky page headers and filters for dashboard course and timetable page.
+- [ ] Fix workload calculation on solver processing to use year and semester for more acurate calculation.
+- [ ] allow workload overload when used to swap phantom -> teacher
 - [x] phantom swap with real teacher
 - [ ] refactor backend (proper exception handling, logging, clean code, spring conventions, optimization no N+1s)
 - [x] Dashboard with better info (more usefull ie: teacher workloads room ocupation and so on)
@@ -102,3 +131,4 @@ TODO:
 - [ ] Phantom cleanUp(on swap with real teacher)
 - [x] Notification tab improvments
 - [ ] frontend refactor (match backend)
+
