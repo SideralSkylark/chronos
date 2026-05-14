@@ -92,7 +92,7 @@ mvn test -Dtest="*ServiceTest"
 ```
 
 TODO:
-- [ ] analitics by academicPeriodDto on dashboard
+- [x] analitics by academicPeriodDto on dashboard
 - [ ] sticky page headers and filters for dashboard course and timetable page.
 - [x] phantom swap with real teacher
 - [ ] refactor backend (proper exception handling, logging, clean code, spring conventions, optimization no N+1s)

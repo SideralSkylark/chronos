@@ -1,6 +1,8 @@
 <template>
   <div class="space-y-4">
-    <h3 class="text-[10px] font-bold text-blue-800 uppercase tracking-wider px-1">Diagnóstico de viabilidade</h3>
+    <slot name="section-label">
+      <h3 class="text-[10px] font-bold text-blue-800 uppercase tracking-wider px-1">Diagnóstico de viabilidade</h3>
+    </slot>
 
     <!-- Loading skeleton -->
     <div v-if="store.loading" class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -467,21 +469,31 @@ const distributionMismatchSeverity = computed(() => {
 })
 
 const maxYearStudents = computed(() => {
+
   if (!stats.value?.cohortsByYear?.length) return 0
+
   return Math.max(...stats.value.cohortsByYear.map(y => y.totalStudents))
+
 })
+
+
 
 // ── Labels ─────────────────────────────────────────────────────────────────
 
+
+
 const shiftLabel = (readiness: 'GREEN' | 'YELLOW' | 'RED') => {
+
   switch (readiness) {
+
     case 'GREEN': return 'OK'
+
     case 'YELLOW': return 'LTD'
+
     case 'RED': return 'CRIT'
+
   }
+
 }
 
-onMounted(() => {
-  store.fetchStats()
-})
 </script>

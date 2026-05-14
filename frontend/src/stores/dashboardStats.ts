@@ -141,12 +141,13 @@ export const useDashboardStatsStore = defineStore('dashboardStats', {
     error: null,
   }),
   actions: {
-    async fetchStats(year?: number, semester?: number) {
+    async fetchStats(year: number, semester: number) {
       this.loading = true
       try {
-        const params: any = {}
-        if (year) params.academicYear = year
-        if (semester) params.semester = semester
+        const params = {
+          academicYear: year,
+          semester: semester
+        }
 
         const res = await api.get<ApiResponse<DashboardStatsDTO>>('/v1/dashboard/stats', { params })
         this.stats = res.data.data
