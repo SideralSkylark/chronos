@@ -1,20 +1,25 @@
 <template>
   <div
     :class="[
-      sticky ? 'sticky top-0 z-20 bg-transparent' : 'mb-6'
+      sticky ? 'sticky top-0 z-20 bg-transparent' : 'mb-6',
+      (sticky && !collapsed) ? 'mb-6' : ''
     ]"
   >
     <div
       class="page-header-card bg-white border-l-[3px] border-l-blue-800"
       :class="[
-        collapsed
-          ? 'rounded-none border-b border-b-black/5 shadow-[0_1px_0_0_rgba(0,0,0,0.06)]'
-          : 'rounded-[10px] border border-slate-200'
+        !collapsed
+          ? 'rounded-[10px] border border-slate-200 shadow-sm'
+          : 'rounded-none'
       ]"
     >
       <div
         class="flex items-center justify-between transition-all duration-200"
-        :class="collapsed ? 'py-2 px-5' : 'p-5'"
+        :class="[
+          collapsed ? 'py-2 px-5' : 'p-5',
+          (collapsed && mergedFilter) ? 'border-b border-slate-200' : '',
+          (collapsed && !mergedFilter) ? 'border-b border-black/5 shadow-[0_1px_0_0_rgba(0,0,0,0.06)]' : ''
+        ]"
       >
         <div class="flex items-center gap-3">
           <div
@@ -63,6 +68,7 @@ defineProps<{
   subtitle: string
   sticky?: boolean
   collapsed?: boolean
+  mergedFilter?: boolean
 }>()
 </script>
 

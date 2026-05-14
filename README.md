@@ -93,7 +93,8 @@ mvn test -Dtest="*ServiceTest"
 
 TODO:
 - [x] analitics by academicPeriodDto on dashboard
-- [ ] sticky page headers and filters for dashboard course and timetable page.
+- [x] sticky page headers and filters for dashboard course and timetable page.
+- [ ] Fix workload calculation on solver processing to use year and semester for more acurate calculation.
 - [x] phantom swap with real teacher
 - [ ] refactor backend (proper exception handling, logging, clean code, spring conventions, optimization no N+1s)
 - [x] Dashboard with better info (more usefull ie: teacher workloads room ocupation and so on)
