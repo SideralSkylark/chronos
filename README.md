@@ -87,15 +87,15 @@ To ensure long-term maintainability and scalability of the frontend, the followi
 The system calculates teacher workload in different contexts, with some variations in methodology:
 
 ### 1. Dashboard Statistics (`DashboardStatsService`)
-- **Metric**: Uses "Lesson Blocks" (slots) via `CohortSubject::getLessonBlocksPerWeek()`.
-- **Logic**: Sums the number of 2-hour sessions assigned to a teacher.
-- **Comparison**: Compares total *blocks* against the teacher's *hourly* limit (e.g., comparing 6 blocks against a 12-hour limit).
-- **Status**: **Inconsistent**. This approach underestimates actual workload and may fail to correctly identify overloaded teachers.
+- **Metric**: Uses "Weekly Hours" via `CohortSubject::getWeeklyHours()`.
+- **Logic**: Sums the total contact hours assigned to a teacher.
+- **Comparison**: Compares total hours against the teacher's limit derived from contract type (via `AcademicPolicy`).
+- **Status**: **Correct**. Consistent with other services.
 
 ### 2. Timetable Generation (`TeacherAssignmentService`)
 - **Metric**: Uses "Weekly Hours" via `CohortSubject::getWeeklyHours()`.
 - **Logic**: Correctly calculates total contact hours per week.
-- **Comparison**: Compares total hours against the teacher's limit as defined in `AcademicPolicy`.
+- **Comparison**: Compares total hours against the teacher's specific limit (full-time, part-time, or phantom fallback).
 - **Status**: **Correct**. Used for greedy assignment and phantom teacher fallback.
 
 ### 3. Phantom Teacher Replacement (`TimetableService`)

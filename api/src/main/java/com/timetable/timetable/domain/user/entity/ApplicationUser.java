@@ -166,8 +166,15 @@ public class ApplicationUser implements UserDetails {
     public int getWeeklyHoursLimit() {
         if (simulationTeam)
             return 999;
+            
+        // Phantoms are typically temporary/placeholder teachers
+        if (username != null && username.startsWith("PHANTOM_")) {
+            return 8; // Default to PART_TIME limit
+        }
+
         if (teacherType == null)
             return 0;
+            
         return switch (teacherType) {
             case FULL_TIME -> 24;
             case PART_TIME -> 8;

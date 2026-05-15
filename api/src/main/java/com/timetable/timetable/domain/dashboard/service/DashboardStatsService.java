@@ -8,6 +8,7 @@ import com.timetable.timetable.domain.dashboard.dto.OversizedCohortDTO;
 import com.timetable.timetable.domain.dashboard.dto.FragmentationRiskCohortDTO;
 import com.timetable.timetable.domain.dashboard.dto.RoomTierDTO;
 import com.timetable.timetable.domain.dashboard.dto.DistributionMismatchDTO;
+import com.timetable.timetable.domain.schedule.entity.AcademicPolicy;
 import com.timetable.timetable.domain.schedule.entity.Cohort;
 import com.timetable.timetable.domain.schedule.entity.CohortSubject;
 import com.timetable.timetable.domain.schedule.entity.Room;
@@ -91,14 +92,15 @@ public class DashboardStatsService {
         List<ApplicationUser> teachers = userRepository.findAllByRole(UserRole.TEACHER);
         long totalTeachers = teachers.size();
 
-        List<CohortSubject> cohortSubjects = cohortSubjectRepository.findByAcademicYearAndSemester(targetYear, targetSemester);
+        List<CohortSubject> cohortSubjects = cohortSubjectRepository.findByAcademicYearAndSemester(targetYear,
+                targetSemester);
         Map<ApplicationUser, Long> hoursPerTeacher = cohortSubjects.stream()
                 .collect(Collectors.groupingBy(CohortSubject::getAssignedTeacher,
                         Collectors.summingLong(CohortSubject::getWeeklyHours)));
 
         long teachersOverloaded = teachers.stream().filter(t -> {
             long hours = hoursPerTeacher.getOrDefault(t, 0L);
-            long max = t.getWeeklyHoursLimit() > 0 ? t.getWeeklyHoursLimit() : 20;
+            long max = AcademicPolicy.getWeeklyHoursLimit(t);
             return hours > max;
         }).count();
 
@@ -165,7 +167,8 @@ public class DashboardStatsService {
                 .filter(c -> c.getCourse() != null)
                 .collect(Collectors.groupingBy(c -> c.getCourse()))
                 .entrySet().stream()
-                .map(entry -> new CourseRankDTO(entry.getKey().getId(), entry.getKey().getName(), entry.getValue().size()))
+                .map(entry -> new CourseRankDTO(entry.getKey().getId(), entry.getKey().getName(),
+                        entry.getValue().size()))
                 .sorted(Comparator.comparing(CourseRankDTO::getCohortCount).reversed())
                 .limit(5)
                 .toList();
@@ -174,7 +177,7 @@ public class DashboardStatsService {
         List<TeacherWorkloadDTO> allTeacherWorkloads = teachers.stream()
                 .map(t -> {
                     long hours = hoursPerTeacher.getOrDefault(t, 0L);
-                    long max = t.getWeeklyHoursLimit() > 0 ? t.getWeeklyHoursLimit() : 20;
+                    long max = AcademicPolicy.getWeeklyHoursLimit(t);
                     boolean overloaded = hours > max;
                     return new TeacherWorkloadDTO(t.getId(), t.getUsername(), hours, max, overloaded);
                 })
@@ -194,7 +197,7 @@ public class DashboardStatsService {
         DashboardStatsDTO dto = new DashboardStatsDTO();
         dto.setAcademicYear(targetYear);
         dto.setSemester(targetSemester);
-        
+
         dto.setTotalRoomCapacity(totalRoomCapacity);
         dto.setTotalRoomCount(totalRoomCount);
         dto.setTotalCohortDemand(totalCohortDemand);
@@ -211,7 +214,7 @@ public class DashboardStatsService {
         dto.setSolverReadiness(solverReadiness);
         dto.setSolverReadinessReason(solverReadinessReason);
         dto.setCapacityMargin(capacityMargin);
-        
+
         dto.setMorningDemand(morningDemand);
         dto.setAfternoonDemand(afternoonDemand);
         dto.setMorningReadiness(morningReadiness);
@@ -230,21 +233,24 @@ public class DashboardStatsService {
                 .filter(c -> c.getStudentCount() > maxRoomCapacity)
                 .map(c -> {
                     int compatible = (int) rooms.stream().filter(r -> r.getCapacity() >= c.getStudentCount()).count();
-                    return new OversizedCohortDTO(c.getId(), c.getDisplayName(), c.getStudentCount(), c.getStudentCount(), compatible, "RED");
+                    return new OversizedCohortDTO(c.getId(), c.getDisplayName(), c.getStudentCount(),
+                            c.getStudentCount(), compatible, "RED");
                 })
                 .toList();
 
         List<FragmentationRiskCohortDTO> fragmentationRisk = cohorts.stream()
                 .filter(c -> {
                     int headcount = c.getStudentCount();
-                    if (headcount == 0) return false;
+                    if (headcount == 0)
+                        return false;
                     int maxCompCap = rooms.stream()
                             .mapToInt(Room::getCapacity)
                             .filter(cap -> cap >= headcount)
                             .max()
                             .orElse(0);
-                    
-                    if (maxCompCap == 0) return false;
+
+                    if (maxCompCap == 0)
+                        return false;
                     double utilization = (double) headcount / maxCompCap * 100;
                     return utilization >= 85;
                 })
@@ -256,7 +262,8 @@ public class DashboardStatsService {
                             .max()
                             .orElse(0);
                     double utilization = (double) headcount / maxCompCap * 100;
-                    return new FragmentationRiskCohortDTO(c.getId(), c.getDisplayName(), headcount, maxCompCap, utilization);
+                    return new FragmentationRiskCohortDTO(c.getId(), c.getDisplayName(), headcount, maxCompCap,
+                            utilization);
                 })
                 .toList();
 
@@ -266,7 +273,8 @@ public class DashboardStatsService {
         long largeRooms = rooms.stream().filter(r -> r.getCapacity() >= 55).count();
 
         long smallCohorts = cohorts.stream().filter(c -> c.getStudentCount() <= 29).count();
-        long mediumCohorts = cohorts.stream().filter(c -> c.getStudentCount() >= 30 && c.getStudentCount() <= 54).count();
+        long mediumCohorts = cohorts.stream().filter(c -> c.getStudentCount() >= 30 && c.getStudentCount() <= 54)
+                .count();
         long largeCohorts = cohorts.stream().filter(c -> c.getStudentCount() >= 55).count();
 
         List<RoomTierDTO> roomTierDistribution = new ArrayList<>();
@@ -274,27 +282,36 @@ public class DashboardStatsService {
         double totalCohortsCount = (double) cohorts.size();
 
         if (totalRoomsCount > 0 && totalCohortsCount > 0) {
-            roomTierDistribution.add(new RoomTierDTO("Pequena (≤29)", smallRooms, (smallRooms / totalRoomsCount) * 100, (smallCohorts / totalCohortsCount) * 100, 
-                (smallRooms < smallCohorts) ? "YELLOW" : "GREEN"));
-            roomTierDistribution.add(new RoomTierDTO("Média (30–54)", mediumRooms, (mediumRooms / totalRoomsCount) * 100, (mediumCohorts / totalCohortsCount) * 100, 
-                (mediumRooms < mediumCohorts) ? "RED" : "GREEN"));
-            roomTierDistribution.add(new RoomTierDTO("Grande (≥55)", largeRooms, (largeRooms / totalRoomsCount) * 100, (largeCohorts / totalCohortsCount) * 100, 
-                (largeRooms < largeCohorts) ? "RED" : "GREEN"));
+            roomTierDistribution.add(new RoomTierDTO("Pequena (≤29)", smallRooms, (smallRooms / totalRoomsCount) * 100,
+                    (smallCohorts / totalCohortsCount) * 100,
+                    (smallRooms < smallCohorts) ? "YELLOW" : "GREEN"));
+            roomTierDistribution.add(new RoomTierDTO("Média (30–54)", mediumRooms,
+                    (mediumRooms / totalRoomsCount) * 100, (mediumCohorts / totalCohortsCount) * 100,
+                    (mediumRooms < mediumCohorts) ? "RED" : "GREEN"));
+            roomTierDistribution.add(new RoomTierDTO("Grande (≥55)", largeRooms, (largeRooms / totalRoomsCount) * 100,
+                    (largeCohorts / totalCohortsCount) * 100,
+                    (largeRooms < largeCohorts) ? "RED" : "GREEN"));
         }
 
         List<DistributionMismatchDTO> distributionMismatches = new ArrayList<>();
         if (totalRoomsCount > 0 && totalCohortsCount > 0) {
-            distributionMismatches.add(new DistributionMismatchDTO("Pequena dimensão", (smallCohorts / totalCohortsCount) * 100, (smallRooms / totalRoomsCount) * 100));
-            distributionMismatches.add(new DistributionMismatchDTO("Média dimensão", (mediumCohorts / totalCohortsCount) * 100, (mediumRooms / totalRoomsCount) * 100));
-            distributionMismatches.add(new DistributionMismatchDTO("Grande dimensão", (largeCohorts / totalCohortsCount) * 100, (largeRooms / totalRoomsCount) * 100));
+            distributionMismatches.add(new DistributionMismatchDTO("Pequena dimensão",
+                    (smallCohorts / totalCohortsCount) * 100, (smallRooms / totalRoomsCount) * 100));
+            distributionMismatches.add(new DistributionMismatchDTO("Média dimensão",
+                    (mediumCohorts / totalCohortsCount) * 100, (mediumRooms / totalRoomsCount) * 100));
+            distributionMismatches.add(new DistributionMismatchDTO("Grande dimensão",
+                    (largeCohorts / totalCohortsCount) * 100, (largeRooms / totalRoomsCount) * 100));
         }
 
         dto.setOversizedCohorts(oversizedCohorts);
         dto.setFragmentationRisk(fragmentationRisk);
         dto.setRoomTierDistribution(roomTierDistribution);
-        dto.setRoomScarcityNote(oversizedCohorts.isEmpty() ? "Não foram detectadas turmas sem sala compatível." : "Existem turmas que excedem a capacidade de todas as salas.");
+        dto.setRoomScarcityNote(oversizedCohorts.isEmpty() ? "Não foram detectadas turmas sem sala compatível."
+                : "Existem turmas que excedem a capacidade de todas as salas.");
         dto.setDistributionMismatches(distributionMismatches);
-        dto.setDistributionMismatchNote(mediumRooms < mediumCohorts || largeRooms < largeCohorts ? "A oferta de salas grandes/médias é inferior à procura das turmas." : "A distribuição de salas parece equilibrada.");
+        dto.setDistributionMismatchNote(mediumRooms < mediumCohorts || largeRooms < largeCohorts
+                ? "A oferta de salas grandes/médias é inferior à procura das turmas."
+                : "A distribuição de salas parece equilibrada.");
 
         return dto;
     }
