@@ -19,7 +19,7 @@ export interface CourseRankDTO {
 export interface TeacherWorkloadDTO {
   teacherId: number
   teacherName: string
-  totalSlots: number
+  totalHours: number
   weeklyHoursLimit: number
   overloaded: boolean
 }
@@ -99,8 +99,8 @@ export interface DashboardStatsDTO {
   // Teacher KPIs
   totalTeachers: number
   teachersOverloaded: number
-  totalAssignedSlots: number
-  avgSlotsPerTeacher: number
+  totalAssignedHours: number
+  avgHoursPerTeacher: number
 
   // Year distribution
   bottleneckYear: number

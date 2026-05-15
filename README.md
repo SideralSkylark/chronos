@@ -121,8 +121,12 @@ mvn test -Dtest="*ServiceTest"
 TODO:
 - [x] analitics by academicPeriodDto on dashboard
 - [x] sticky page headers and filters for dashboard course and timetable page.
-- [ ] Fix workload calculation on solver processing to use year and semester for more acurate calculation.
-- [ ] allow workload overload when used to swap phantom -> teacher
+- [x] Fix workload calculation on dashboard
+- [ ] granular workloads (hh && mm)
+- [ ] Swap phantom -> teacher should allow going over contract limits
+- [ ] Fix dashboard insight not loading on page entering
+- [ ] Fix timetable generation (should not stop when i leave the page)
+- [ ] smooth sticky component animations to they dont block scrolling
 - [x] phantom swap with real teacher
 - [ ] refactor backend (proper exception handling, logging, clean code, spring conventions, optimization no N+1s)
 - [x] Dashboard with better info (more usefull ie: teacher workloads room ocupation and so on)

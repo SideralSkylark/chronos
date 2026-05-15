@@ -60,8 +60,8 @@
                 <span class="font-bold" :class="stats.teachersOverloaded > 0 ? 'text-amber-600' : 'text-gray-400'">{{ stats.teachersOverloaded }} prof.</span>
               </div>
               <div class="flex justify-between items-center text-[10px] leading-none">
-                <span class="text-gray-400 font-medium uppercase tracking-tighter">Média sessões</span>
-                <span class="font-bold text-gray-400">{{ stats.avgSlotsPerTeacher.toFixed(1) }}</span>
+                <span class="text-gray-400 font-medium uppercase tracking-tighter">Média horas</span>
+                <span class="font-bold text-gray-400">{{ stats.avgHoursPerTeacher.toFixed(1) }}h</span>
               </div>
             </div>
           </div>
@@ -349,7 +349,7 @@
             >
               <span class="text-gray-700 truncate pr-2 font-medium">{{ teacher.teacherName }}</span>
               <span class="font-bold flex items-center gap-1.5 shrink-0 px-2 py-0.5 rounded bg-white border border-gray-100" :class="teacher.overloaded ? 'text-red-600 shadow-sm border-red-100' : 'text-gray-900'">
-                {{ teacher.totalSlots }}
+                {{ teacher.totalHours }}h
                 <AlertTriangle v-if="teacher.overloaded" class="w-3 h-3" />
               </span>
             </div>
@@ -371,7 +371,7 @@
               class="flex items-center justify-between text-[11px] p-2 rounded-lg border border-gray-50 bg-gray-50/50 shadow-sm hover:bg-white transition-colors"
             >
               <span class="text-gray-700 truncate pr-2 font-medium">{{ teacher.teacherName }}</span>
-              <span class="font-bold text-gray-900 shrink-0 px-2 py-0.5 rounded bg-white shadow-sm border border-gray-100">{{ teacher.totalSlots }}</span>
+              <span class="font-bold text-gray-900 shrink-0 px-2 py-0.5 rounded bg-white shadow-sm border border-gray-100">{{ teacher.totalHours }}h</span>
             </div>
           </div>
         </div>

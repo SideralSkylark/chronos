@@ -92,18 +92,18 @@ public class DashboardStatsService {
         long totalTeachers = teachers.size();
 
         List<CohortSubject> cohortSubjects = cohortSubjectRepository.findByAcademicYearAndSemester(targetYear, targetSemester);
-        Map<ApplicationUser, Long> slotsPerTeacher = cohortSubjects.stream()
+        Map<ApplicationUser, Long> hoursPerTeacher = cohortSubjects.stream()
                 .collect(Collectors.groupingBy(CohortSubject::getAssignedTeacher,
-                        Collectors.summingLong(CohortSubject::getLessonBlocksPerWeek)));
+                        Collectors.summingLong(CohortSubject::getWeeklyHours)));
 
         long teachersOverloaded = teachers.stream().filter(t -> {
-            long slots = slotsPerTeacher.getOrDefault(t, 0L);
+            long hours = hoursPerTeacher.getOrDefault(t, 0L);
             long max = t.getWeeklyHoursLimit() > 0 ? t.getWeeklyHoursLimit() : 20;
-            return slots > max;
+            return hours > max;
         }).count();
 
-        long totalAssignedSlots = slotsPerTeacher.values().stream().mapToLong(Long::longValue).sum();
-        double avgSlotsPerTeacher = totalTeachers > 0 ? (double) totalAssignedSlots / totalTeachers : 0.0;
+        long totalAssignedHours = hoursPerTeacher.values().stream().mapToLong(Long::longValue).sum();
+        double avgHoursPerTeacher = totalTeachers > 0 ? (double) totalAssignedHours / totalTeachers : 0.0;
 
         long capacityMargin = totalRoomCapacity - totalCohortDemand;
         String solverReadiness;
@@ -173,21 +173,21 @@ public class DashboardStatsService {
         // Teacher workload rankings
         List<TeacherWorkloadDTO> allTeacherWorkloads = teachers.stream()
                 .map(t -> {
-                    long slots = slotsPerTeacher.getOrDefault(t, 0L);
+                    long hours = hoursPerTeacher.getOrDefault(t, 0L);
                     long max = t.getWeeklyHoursLimit() > 0 ? t.getWeeklyHoursLimit() : 20;
-                    boolean overloaded = slots > max;
-                    return new TeacherWorkloadDTO(t.getId(), t.getUsername(), slots, max, overloaded);
+                    boolean overloaded = hours > max;
+                    return new TeacherWorkloadDTO(t.getId(), t.getUsername(), hours, max, overloaded);
                 })
                 .toList();
 
         List<TeacherWorkloadDTO> mostLoadedTeachers = allTeacherWorkloads.stream()
-                .sorted(Comparator.comparing(TeacherWorkloadDTO::getTotalSlots).reversed())
+                .sorted(Comparator.comparing(TeacherWorkloadDTO::getTotalHours).reversed())
                 .limit(5)
                 .toList();
 
         List<TeacherWorkloadDTO> leastLoadedTeachers = allTeacherWorkloads.stream()
-                .filter(tw -> tw.getTotalSlots() > 0)
-                .sorted(Comparator.comparing(TeacherWorkloadDTO::getTotalSlots))
+                .filter(tw -> tw.getTotalHours() > 0)
+                .sorted(Comparator.comparing(TeacherWorkloadDTO::getTotalHours))
                 .limit(5)
                 .toList();
 
@@ -206,8 +206,8 @@ public class DashboardStatsService {
         dto.setCohortsByYear(cohortsByYear);
         dto.setTotalTeachers(totalTeachers);
         dto.setTeachersOverloaded(teachersOverloaded);
-        dto.setTotalAssignedSlots(totalAssignedSlots);
-        dto.setAvgSlotsPerTeacher(avgSlotsPerTeacher);
+        dto.setTotalAssignedHours(totalAssignedHours);
+        dto.setAvgHoursPerTeacher(avgHoursPerTeacher);
         dto.setSolverReadiness(solverReadiness);
         dto.setSolverReadinessReason(solverReadinessReason);
         dto.setCapacityMargin(capacityMargin);
