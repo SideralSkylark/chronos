@@ -87,15 +87,15 @@ To ensure long-term maintainability and scalability of the frontend, the followi
 The system calculates teacher workload in different contexts, with some variations in methodology:
 
 ### 1. Dashboard Statistics (`DashboardStatsService`)
-- **Metric**: Uses "Lesson Blocks" (slots) via `CohortSubject::getLessonBlocksPerWeek()`.
-- **Logic**: Sums the number of 2-hour sessions assigned to a teacher.
-- **Comparison**: Compares total *blocks* against the teacher's *hourly* limit (e.g., comparing 6 blocks against a 12-hour limit).
-- **Status**: **Inconsistent**. This approach underestimates actual workload and may fail to correctly identify overloaded teachers.
+- **Metric**: Uses "Weekly Hours" via `CohortSubject::getWeeklyHours()`.
+- **Logic**: Sums the total contact hours assigned to a teacher.
+- **Comparison**: Compares total hours against the teacher's limit derived from contract type (via `AcademicPolicy`).
+- **Status**: **Correct**. Consistent with other services.
 
 ### 2. Timetable Generation (`TeacherAssignmentService`)
 - **Metric**: Uses "Weekly Hours" via `CohortSubject::getWeeklyHours()`.
 - **Logic**: Correctly calculates total contact hours per week.
-- **Comparison**: Compares total hours against the teacher's limit as defined in `AcademicPolicy`.
+- **Comparison**: Compares total hours against the teacher's specific limit (full-time, part-time, or phantom fallback).
 - **Status**: **Correct**. Used for greedy assignment and phantom teacher fallback.
 
 ### 3. Phantom Teacher Replacement (`TimetableService`)
@@ -121,8 +121,13 @@ mvn test -Dtest="*ServiceTest"
 TODO:
 - [x] analitics by academicPeriodDto on dashboard
 - [x] sticky page headers and filters for dashboard course and timetable page.
-- [ ] Fix workload calculation on solver processing to use year and semester for more acurate calculation.
-- [ ] allow workload overload when used to swap phantom -> teacher
+- [x] Fix workload calculation on dashboard
+- [ ] granular workloads (hh && mm)
+- [x] Swap phantom -> teacher should allow going over contract limits
+- [x] Fix dashboard insight not loading on page entering
+- [ ] if a teacher is overloaded i should be able to swap him for another one (use same component and indicators as phantom ones)
+- [ ] Fix timetable generation (should not stop when i leave the page)
+- [ ] smooth sticky component animations to they dont block scrolling
 - [x] phantom swap with real teacher
 - [ ] refactor backend (proper exception handling, logging, clean code, spring conventions, optimization no N+1s)
 - [x] Dashboard with better info (more usefull ie: teacher workloads room ocupation and so on)

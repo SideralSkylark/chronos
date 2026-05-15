@@ -26,7 +26,7 @@ public class TeacherAssignmentService {
     /**
      * Assigns the least-loaded eligible teacher to a subject.
      * Falls back to a phantom teacher if all eligible teachers would exceed
-     * {@link AcademicPolicy#WEEKLY_TEACHING_HOURS_LIMIT}.
+     * their contract limits.
      */
     public TeacherAssignmentResult assignTeacher(
             Subject subject,
@@ -42,8 +42,7 @@ public class TeacherAssignmentService {
 
         return findBestEligibleTeacher(subject, eligible, existingInSemester, hoursNeeded)
                 .orElseGet(() -> {
-                    log.warn("All eligible teachers would exceed {}h/week for subject: {}",
-                            AcademicPolicy.WEEKLY_TEACHING_HOURS_LIMIT, subject.getName());
+                    log.warn("All eligible teachers are at capacity for subject: {}", subject.getName());
                     return assignPhantom(subject, hoursNeeded, existingInSemester);
                 });
     }
@@ -82,8 +81,9 @@ public class TeacherAssignmentService {
             String username = slot == 1 ? baseUsername : baseUsername + "_" + slot;
             ApplicationUser candidate = findOrCreatePhantom(username);
             int currentLoad = phantomLoad(username, existingInSemester);
+            int limit = AcademicPolicy.getWeeklyHoursLimit(candidate);
 
-            if (currentLoad + hoursNeeded <= AcademicPolicy.WEEKLY_TEACHING_HOURS_LIMIT) {
+            if (currentLoad + hoursNeeded <= limit) {
                 log.warn("Using phantom teacher {} for subject {} ({}h + {}h)",
                         username, subject.getName(), currentLoad, hoursNeeded);
                 return new TeacherAssignmentResult(candidate, true,
@@ -92,8 +92,8 @@ public class TeacherAssignmentService {
         }
 
         throw new IllegalStateException(
-                "Subject '%s' requires %dh/week but no phantom slot is available within the %dh/week limit."
-                        .formatted(subject.getName(), hoursNeeded, AcademicPolicy.WEEKLY_TEACHING_HOURS_LIMIT));
+                "Subject '%s' requires %dh/week but no phantom slot is available within institutional limits."
+                        .formatted(subject.getName(), hoursNeeded));
     }
 
     private ApplicationUser findOrCreatePhantom(String username) {

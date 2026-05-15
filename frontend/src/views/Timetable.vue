@@ -352,6 +352,9 @@
                     <div v-if="isPhantomTeacher(lesson)" class="absolute top-1 left-1">
                       <div class="w-2 h-2 rounded-full bg-red-400 ring-1 ring-white"></div>
                     </div>
+                    <div v-else-if="isOverloadedTeacher(lesson)" class="absolute top-1 left-1">
+                      <div class="w-2 h-2 rounded-full bg-amber-400 ring-1 ring-white"></div>
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -404,7 +407,7 @@
               </div>
 
               <PhantomTeacherPanel
-                v-if="isPhantomTeacher(selectedLesson)"
+                v-if="isPhantomTeacher(selectedLesson) || isOverloadedTeacher(selectedLesson)"
                 :lesson="selectedLesson"
                 @replaced="onPhantomReplaced"
               />
@@ -1021,7 +1024,13 @@ function dayLabel(day?: string) {
 }
 
 function isPhantomTeacher(lesson: LessonAssignment): boolean {
-  return (lesson.teacher?.fullName ?? '').toUpperCase().includes('PHANTOM')
+  const name = (lesson.teacher?.name ?? '').toUpperCase()
+  const fullName = (lesson.teacher?.fullName ?? '').toUpperCase()
+  return name.includes('PHANTOM') || fullName.includes('PHANTOM')
+}
+
+function isOverloadedTeacher(lesson: LessonAssignment): boolean {
+  return !!lesson.teacher?.overloaded
 }
 
 const canSelectLesson = computed(() => canEdit.value && !!selectedCohort.value)

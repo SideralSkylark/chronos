@@ -34,6 +34,8 @@ public class TeacherInfo {
     private String email;
 
     private boolean simulationTeam;
+
+    private boolean overloaded;
     
     @Override
     public boolean equals(Object o) {

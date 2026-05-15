@@ -355,7 +355,8 @@ watch(
     if (year && semester) {
       dashboardStatsStore.fetchStats(year, semester)
     }
-  }
+  },
+  { immediate: true }
 )
 
 onMounted(async () => {

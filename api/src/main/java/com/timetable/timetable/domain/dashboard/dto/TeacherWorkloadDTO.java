@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 public class TeacherWorkloadDTO {
     private long teacherId;
     private String teacherName;
-    private long totalSlots;
+    private long totalHours;
     private long weeklyHoursLimit;
     private boolean overloaded;
 }

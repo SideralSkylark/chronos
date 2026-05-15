@@ -81,12 +81,19 @@ public class CohortSubjectService {
                 .equals(request.assignedTeacherId())) {
 
             ApplicationUser newTeacher = userService.findOrThrow(request.assignedTeacherId());
+            boolean isPhantomSwap = cohortSubject.getAssignedTeacher().getUsername().startsWith("PHANTOM_");
 
             validateTeacherIsEligible(newTeacher, cohortSubject.getSubject());
-            validateTeacherWorkload(newTeacher,
-                    cohortSubject.getSubject(),
-                    cohortSubject.getAcademicYear(),
-                    cohortSubject.getSemester());
+            
+            if (!isPhantomSwap) {
+                validateTeacherWorkload(newTeacher,
+                        cohortSubject.getSubject(),
+                        cohortSubject.getAcademicYear(),
+                        cohortSubject.getSemester());
+            } else {
+                log.info("Bypassing workload validation for phantom teacher swap: {} -> {}", 
+                    cohortSubject.getAssignedTeacher().getUsername(), newTeacher.getUsername());
+            }
 
             cohortSubject.setAssignedTeacher(newTeacher);
         }

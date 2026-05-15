@@ -14,8 +14,9 @@ public final class AcademicPolicy {
     public static final int SESSIONS_PER_WEEK = 2;
 
     /**
-     * Deprecated. Maximum weekly teaching hours per teacher (3 disciplines max).
+     * @deprecated Use teacher contract type to determine limit.
      */
+    @Deprecated
     public static final int WEEKLY_TEACHING_HOURS_LIMIT = 12;
 
     /** Weekly contact hours per discipline for teacher workload calculation. */
@@ -34,7 +35,8 @@ public final class AcademicPolicy {
         if (limit > 0) {
             return limit;
         }
-        return WEEKLY_TEACHING_HOURS_LIMIT;
+        // Fallback for edge cases, but should be derived from teacher contract
+        return 8; 
     }
 
     public static int calculateLessonBlocksPerWeek(int credits) {

@@ -1,5 +1,6 @@
 package com.timetable.timetable.domain.schedule.controller;
 
+import com.timetable.timetable.domain.schedule.entity.CohortSubject;
 import com.timetable.timetable.domain.schedule.entity.ScheduledClass;
 import com.timetable.timetable.domain.schedule.entity.Timetable;
 import com.timetable.timetable.domain.schedule.repository.ScheduledClassRepository;
@@ -15,6 +16,7 @@ import jakarta.transaction.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Serves the persisted timetable to the frontend.
@@ -48,8 +50,16 @@ public class TimetableLoadController {
         List<ScheduledClass> classes = scheduledClassRepository
                 .findAllWithDetailsByPeriod(year, semester);
 
+        // Calculate workloads to determine overloaded status
+        Map<Long, Integer> hoursPerTeacher = classes.stream()
+                .map(ScheduledClass::getCohortSubject)
+                .distinct()
+                .collect(Collectors.groupingBy(
+                        cs -> cs.getAssignedTeacher().getId(),
+                        Collectors.summingInt(CohortSubject::getWeeklyHours)));
+
         List<Map<String, Object>> lessonAssignments = classes.stream()
-                .map(TimetableLoadController::toLessonAssignment)
+                .map(sc -> toLessonAssignment(sc, hoursPerTeacher))
                 .toList();
 
         return ResponseEntity.ok(Map.of(
@@ -64,7 +74,12 @@ public class TimetableLoadController {
                 "lessonAssignments", lessonAssignments));
     }
 
-    private static Map<String, Object> toLessonAssignment(ScheduledClass sc) {
+    private static Map<String, Object> toLessonAssignment(ScheduledClass sc, Map<Long, Integer> workloadMap) {
+        ApplicationUser teacher = sc.getTeacher();
+        int totalHours = workloadMap.getOrDefault(teacher.getId(), 0);
+        boolean overloaded = totalHours > com.timetable.timetable.domain.schedule.entity.AcademicPolicy
+                .getWeeklyHoursLimit(teacher);
+
         return Map.of(
                 "id", sc.getId(),
                 "blockNumber", 0,
@@ -94,10 +109,11 @@ public class TimetableLoadController {
                         "targetYear", sc.getSubject().getTargetYear(),
                         "targetSemester", sc.getSubject().getTargetSemester()),
                 "teacher", Map.of(
-                        "id", sc.getTeacher().getId(),
-                        "name", sc.getTeacher().getUsername(),
-                        "fullName", sc.getTeacher().getUsername(),
-                        "email", sc.getTeacher().getEmail()),
+                        "id", teacher.getId(),
+                        "name", teacher.getUsername(),
+                        "fullName", teacher.getUsername(),
+                        "email", teacher.getEmail(),
+                        "overloaded", overloaded),
                 "studentCount", sc.getCohort().getStudentCount(),
                 "courseId", sc.getCohort().getCourse().getId());
     }
@@ -110,10 +126,11 @@ public class TimetableLoadController {
 
         ApplicationUser user = userService.getAuthenticatedUser();
 
+        List<ScheduledClass> allPeriodClasses = scheduledClassRepository
+                .findAllWithDetailsByPeriod(year, semester);
+
         // Encontra a turma do estudante para o período
-        List<ScheduledClass> classes = scheduledClassRepository
-                .findAllWithDetailsByPeriod(year, semester)
-                .stream()
+        List<ScheduledClass> classes = allPeriodClasses.stream()
                 .filter(sc -> sc.getCohort().getStudents().contains(user))
                 .toList();
 
@@ -126,6 +143,13 @@ public class TimetableLoadController {
                     "totalLessons", 0,
                     "unassignedLessons", 0));
 
+        Map<Long, Integer> hoursPerTeacher = allPeriodClasses.stream()
+                .map(ScheduledClass::getCohortSubject)
+                .distinct()
+                .collect(Collectors.groupingBy(
+                        cs -> cs.getAssignedTeacher().getId(),
+                        Collectors.summingInt(CohortSubject::getWeeklyHours)));
+
         Timetable timetable = timetableRepository
                 .findByAcademicYearAndSemester(year, semester)
                 .orElseThrow();
@@ -140,7 +164,7 @@ public class TimetableLoadController {
                 "totalLessons", classes.size(),
                 "unassignedLessons", 0,
                 "lessonAssignments", classes.stream()
-                        .map(TimetableLoadController::toLessonAssignment)
+                        .map(sc -> toLessonAssignment(sc, hoursPerTeacher))
                         .toList()));
     }
 
@@ -152,9 +176,10 @@ public class TimetableLoadController {
 
         ApplicationUser user = userService.getAuthenticatedUser();
 
-        List<ScheduledClass> classes = scheduledClassRepository
-                .findAllWithDetailsByPeriod(year, semester)
-                .stream()
+        List<ScheduledClass> allPeriodClasses = scheduledClassRepository
+                .findAllWithDetailsByPeriod(year, semester);
+
+        List<ScheduledClass> classes = allPeriodClasses.stream()
                 .filter(sc -> sc.getTeacher().getId().equals(user.getId()))
                 .toList();
 
@@ -167,6 +192,13 @@ public class TimetableLoadController {
                     "totalLessons", 0,
                     "unassignedLessons", 0));
 
+        Map<Long, Integer> hoursPerTeacher = allPeriodClasses.stream()
+                .map(ScheduledClass::getCohortSubject)
+                .distinct()
+                .collect(Collectors.groupingBy(
+                        cs -> cs.getAssignedTeacher().getId(),
+                        Collectors.summingInt(CohortSubject::getWeeklyHours)));
+
         Timetable timetable = timetableRepository
                 .findByAcademicYearAndSemester(year, semester)
                 .orElseThrow();
@@ -181,7 +213,7 @@ public class TimetableLoadController {
                 "totalLessons", classes.size(),
                 "unassignedLessons", 0,
                 "lessonAssignments", classes.stream()
-                        .map(TimetableLoadController::toLessonAssignment)
+                        .map(sc -> toLessonAssignment(sc, hoursPerTeacher))
                         .toList()));
     }
 }

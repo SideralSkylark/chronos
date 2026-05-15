@@ -13,6 +13,9 @@ const emit = defineEmits<{
   'replaced': []
 }>()
 
+const isPhantom = computed(() => (props.lesson.teacher?.fullName ?? '').toUpperCase().includes('PHANTOM'))
+const isOverloaded = computed(() => !!props.lesson.teacher?.overloaded)
+
 const toast = useToast()
 const expanded = ref(false)
 const candidates = ref<CandidateTeacher[]>([])
@@ -99,20 +102,37 @@ function handleConfirm() {
 </script>
 
 <template>
-  <div class="border border-red-200 rounded-md overflow-hidden">
+  <div 
+    class="border rounded-md overflow-hidden transition-colors"
+    :class="isPhantom ? 'border-red-200' : 'border-amber-200'"
+  >
 
     <!-- Header / toggle -->
     <button
       @click="toggle"
-      class="w-full flex items-center justify-between px-3 py-2.5 bg-red-50 hover:bg-red-100 transition text-left"
+      class="w-full flex items-center justify-between px-3 py-2.5 transition text-left"
+      :class="isPhantom ? 'bg-red-50 hover:bg-red-100' : 'bg-amber-50 hover:bg-amber-100'"
     >
       <div class="flex items-center gap-2">
-        <div class="w-2 h-2 rounded-full bg-red-400 ring-1 ring-white shrink-0" />
-        <span class="text-xs font-semibold text-red-700">Professor fantasma</span>
-        <span class="text-[10px] text-red-400">— substitua antes ou depois de permutar</span>
+        <div 
+          class="w-2 h-2 rounded-full ring-1 ring-white shrink-0" 
+          :class="isPhantom ? 'bg-red-400' : 'bg-amber-400'"
+        />
+        <span 
+          class="text-xs font-semibold"
+          :class="isPhantom ? 'text-red-700' : 'text-amber-700'"
+        >
+          {{ isPhantom ? 'Professor fantasma' : 'Professor sobrecarregado' }}
+        </span>
+        <span 
+          class="text-[10px]"
+          :class="isPhantom ? 'text-red-400' : 'text-amber-400'"
+        >
+          — {{ isPhantom ? 'substitua antes ou depois de permutar' : 'considere redistribuir a carga' }}
+        </span>
       </div>
-      <ChevronDown v-if="!expanded" class="w-3.5 h-3.5 text-red-400 shrink-0" />
-      <ChevronUp v-else class="w-3.5 h-3.5 text-red-400 shrink-0" />
+      <ChevronDown v-if="!expanded" class="w-3.5 h-3.5 shrink-0" :class="isPhantom ? 'text-red-400' : 'text-amber-400'" />
+      <ChevronUp v-else class="w-3.5 h-3.5 shrink-0" :class="isPhantom ? 'text-red-400' : 'text-amber-400'" />
     </button>
 
     <!-- Expanded body -->

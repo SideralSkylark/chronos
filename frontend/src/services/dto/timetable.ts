@@ -80,6 +80,7 @@ export interface TeacherInfo {
   fullName: string
   email: string
   username?: string
+  overloaded?: boolean
 }
 
 export interface CandidateTeacher {
