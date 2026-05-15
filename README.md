@@ -123,7 +123,7 @@ TODO:
 - [x] sticky page headers and filters for dashboard course and timetable page.
 - [x] Fix workload calculation on dashboard
 - [ ] granular workloads (hh && mm)
-- [ ] Swap phantom -> teacher should allow going over contract limits
+- [x] Swap phantom -> teacher should allow going over contract limits
 - [ ] Fix dashboard insight not loading on page entering
 - [ ] Fix timetable generation (should not stop when i leave the page)
 - [ ] smooth sticky component animations to they dont block scrolling
