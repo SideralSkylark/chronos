@@ -56,6 +56,12 @@ public class TimetableSolutionMapper {
         log.info("Converting {} CohortSubjects, {} timeslots, {} rooms to planning problem",
                 cohortSubjects.size(), timeslots.size(), rooms.size());
 
+        // Pre-calculate workloads to mark overloaded teachers
+        Map<Long, Integer> hoursPerTeacher = cohortSubjects.stream()
+                .collect(Collectors.groupingBy(
+                        cs -> cs.getAssignedTeacher().getId(),
+                        Collectors.summingInt(CohortSubject::getWeeklyHours)));
+
         // Convert problem facts (resources)
         List<TimeslotInfo> timeslotInfos = timeslots.stream()
                 .map(this::toTimeslotInfo)
@@ -71,7 +77,7 @@ public class TimetableSolutionMapper {
 
         for (CohortSubject cs : cohortSubjects) {
             int blocksNeeded = cs.getLessonBlocksPerWeek();
-            CohortSubjectInfo csInfo = toCohortSubjectInfo(cs);
+            CohortSubjectInfo csInfo = toCohortSubjectInfo(cs, hoursPerTeacher);
 
             log.debug("CohortSubject #{}: {} needs {} blocks/week",
                     cs.getId(), csInfo.getDisplayName(), blocksNeeded);
@@ -201,6 +207,14 @@ public class TimetableSolutionMapper {
                 .map(this::toRoomInfo)
                 .collect(Collectors.toList());
 
+        // Pre-calculate workloads
+        Map<Long, Integer> hoursPerTeacher = scheduledClasses.stream()
+                .map(ScheduledClass::getCohortSubject)
+                .distinct()
+                .collect(Collectors.groupingBy(
+                        cs -> cs.getAssignedTeacher().getId(),
+                        Collectors.summingInt(CohortSubject::getWeeklyHours)));
+
         // Build a lookup so we can set TimeslotInfo/RoomInfo instances from the
         // value-range lists.
         // ScoreManager requires the planning variable values to be the SAME object
@@ -216,7 +230,7 @@ public class TimetableSolutionMapper {
         List<LessonAssignment> lessons = new ArrayList<>();
 
         for (ScheduledClass sc : scheduledClasses) {
-            CohortSubjectInfo csInfo = toCohortSubjectInfo(sc.getCohortSubject());
+            CohortSubjectInfo csInfo = toCohortSubjectInfo(sc.getCohortSubject(), hoursPerTeacher);
 
             // Use the value-range instance (same object reference) — critical for
             // ScoreManager
@@ -257,11 +271,15 @@ public class TimetableSolutionMapper {
     // ========================================
 
     public CohortSubjectInfo toCohortSubjectInfo(CohortSubject cs) {
+        return toCohortSubjectInfo(cs, null);
+    }
+
+    public CohortSubjectInfo toCohortSubjectInfo(CohortSubject cs, Map<Long, Integer> workloadMap) {
         return CohortSubjectInfo.builder()
                 .id(cs.getId())
                 .cohort(toCohortInfo(cs.getCohort()))
                 .subject(toSubjectInfo(cs.getSubject()))
-                .teacher(toTeacherInfo(cs.getAssignedTeacher()))
+                .teacher(toTeacherInfo(cs.getAssignedTeacher(), workloadMap))
                 .lessonBlocksPerWeek(cs.getLessonBlocksPerWeek())
                 .build();
     }
@@ -289,12 +307,20 @@ public class TimetableSolutionMapper {
     }
 
     private TeacherInfo toTeacherInfo(com.timetable.timetable.domain.user.entity.ApplicationUser teacher) {
+        return toTeacherInfo(teacher, null);
+    }
+
+    private TeacherInfo toTeacherInfo(com.timetable.timetable.domain.user.entity.ApplicationUser teacher, Map<Long, Integer> workloadMap) {
+        int totalHours = workloadMap != null ? workloadMap.getOrDefault(teacher.getId(), 0) : 0;
+        boolean overloaded = totalHours > AcademicPolicy.getWeeklyHoursLimit(teacher);
+
         return TeacherInfo.builder()
                 .id(teacher.getId())
                 .name(teacher.getUsername())
                 .fullName(teacher.getUsername())
                 .email(teacher.getEmail())
                 .simulationTeam(teacher.isSimulationTeam())
+                .overloaded(overloaded)
                 .build();
     }
 

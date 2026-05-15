@@ -125,7 +125,7 @@ TODO:
 - [ ] granular workloads (hh && mm)
 - [x] Swap phantom -> teacher should allow going over contract limits
 - [x] Fix dashboard insight not loading on page entering
-- [ ] i a teacher is overloaded i should be able to swap him for another one (use same component and indicators as phantom ones)
+- [ ] if a teacher is overloaded i should be able to swap him for another one (use same component and indicators as phantom ones)
 - [ ] Fix timetable generation (should not stop when i leave the page)
 - [ ] smooth sticky component animations to they dont block scrolling
 - [x] phantom swap with real teacher
