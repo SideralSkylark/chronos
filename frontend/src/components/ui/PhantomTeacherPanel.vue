@@ -4,6 +4,7 @@ import { X, Loader2, UserX, AlertTriangle, ChevronDown, ChevronUp } from 'lucide
 import { useToast } from '@/composables/useToast'
 import { permutationService } from '@/services/permutationService'
 import type { LessonAssignment, CandidateTeacher } from '@/services/dto/timetable'
+import { formatHours } from '@/utils/formatters'
 
 const props = defineProps<{
   lesson: LessonAssignment
@@ -168,7 +169,11 @@ function handleConfirm() {
               </div>
               <div class="flex-1 min-w-0">
                 <p class="font-medium text-gray-800 truncate">{{ c.username }}</p>
-                <p class="text-[10px] text-gray-400">{{ c.currentWeeklyHours }}h / {{ c.weeklyLimit }}h</p>
+                <p class="text-[10px] text-gray-400">
+                  {{ c.weeklySessionCount }} sessões · ~{{ formatHours(c.estimatedDisplayHours) }}
+                  <span class="text-gray-300 mx-0.5">·</span>
+                  contrato: {{ c.weeklyLimit }}h/sem
+                </p>
               </div>
               <div class="w-12 shrink-0">
                 <div class="h-1.5 bg-gray-200 rounded-full overflow-hidden">
@@ -193,7 +198,11 @@ function handleConfirm() {
               </div>
               <div class="flex-1 min-w-0">
                 <p class="font-medium text-gray-800 truncate">{{ c.username }}</p>
-                <p class="text-[10px] text-gray-400">{{ c.currentWeeklyHours }}h / {{ c.weeklyLimit }}h</p>
+                <p class="text-[10px] text-gray-400">
+                  {{ c.weeklySessionCount }} sessões · ~{{ formatHours(c.estimatedDisplayHours) }}
+                  <span class="text-gray-300 mx-0.5">·</span>
+                  contrato: {{ c.weeklyLimit }}h/sem
+                </p>
               </div>
               <div class="w-12 shrink-0">
                 <div class="h-1.5 bg-gray-200 rounded-full overflow-hidden">
@@ -218,7 +227,11 @@ function handleConfirm() {
               </div>
               <div class="flex-1 min-w-0">
                 <p class="font-medium text-gray-800 truncate">{{ c.username }}</p>
-                <p class="text-[10px] text-gray-400">{{ c.currentWeeklyHours }}h / {{ c.weeklyLimit }}h</p>
+                <p class="text-[10px] text-gray-400">
+                  {{ c.weeklySessionCount }} sessões · ~{{ formatHours(c.estimatedDisplayHours) }}
+                  <span class="text-gray-300 mx-0.5">·</span>
+                  contrato: {{ c.weeklyLimit }}h/sem
+                </p>
               </div>
               <div class="w-12 shrink-0">
                 <div class="h-1.5 bg-gray-200 rounded-full overflow-hidden">
@@ -232,6 +245,10 @@ function handleConfirm() {
             Nenhum candidato encontrado.
           </p>
         </div>
+
+        <p class="text-[10px] text-gray-300 text-center pt-1">
+          ~horas estimadas a 1h45m por sessão
+        </p>
 
         <button
           @click="handleConfirm"
@@ -258,7 +275,11 @@ function handleConfirm() {
 
         <div class="bg-gray-50 rounded-md p-2.5 text-xs">
           <p class="font-medium text-gray-800">{{ selectedCandidate.username }}</p>
-          <p class="text-gray-400 mt-0.5">{{ selectedCandidate.currentWeeklyHours }}h / {{ selectedCandidate.weeklyLimit }}h semanais</p>
+          <p class="text-gray-400 mt-0.5">
+            {{ selectedCandidate.weeklySessionCount }} sessões · ~{{ formatHours(selectedCandidate.estimatedDisplayHours) }}
+            <span class="text-gray-300 mx-0.5">·</span>
+            contrato: {{ selectedCandidate.weeklyLimit }}h/sem
+          </p>
         </div>
 
         <div v-if="selectedCandidate.wouldExceed" class="bg-amber-50 border border-amber-100 rounded-md p-2.5 text-xs text-amber-700 leading-relaxed">

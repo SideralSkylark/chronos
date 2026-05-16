@@ -22,6 +22,8 @@ export interface TeacherWorkloadDTO {
   totalHours: number
   weeklyHoursLimit: number
   overloaded: boolean
+  weeklySessionCount: number
+  estimatedDisplayHours: number
 }
 
 // ── New feasibility diagnostic DTOs ───────────────────────────────────────
@@ -101,6 +103,7 @@ export interface DashboardStatsDTO {
   teachersOverloaded: number
   totalAssignedHours: number
   avgHoursPerTeacher: number
+  avgEstimatedHours: number
 
   // Year distribution
   bottleneckYear: number

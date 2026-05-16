@@ -22,6 +22,12 @@ public final class AcademicPolicy {
     /** Weekly contact hours per discipline for teacher workload calculation. */
     public static final int WEEKLY_CONTACT_HOURS = 4;
 
+    /** Real block duration in minutes. Institutional blocks are 1h45m. */
+    public static final int BLOCK_DURATION_MINUTES = 105;
+
+    /** Decimal hours per block for display purposes only. Never use for solver constraints. */
+    public static final double BLOCK_DURATION_HOURS = 1.75;
+
     /**
      * Default generated cohort size used during preprocessing.
      *
@@ -37,6 +43,15 @@ public final class AcademicPolicy {
         }
         // Fallback for edge cases, but should be derived from teacher contract
         return 8; 
+    }
+
+    /**
+     * Estimates weekly contact hours for display purposes only.
+     * Uses real block duration (1h45m) rather than the rounded 2h assumption.
+     * Do NOT use this for solver constraints or limit comparisons.
+     */
+    public static double estimateDisplayHours(int weeklySessionCount) {
+        return weeklySessionCount * BLOCK_DURATION_HOURS;
     }
 
     public static int calculateLessonBlocksPerWeek(int credits) {

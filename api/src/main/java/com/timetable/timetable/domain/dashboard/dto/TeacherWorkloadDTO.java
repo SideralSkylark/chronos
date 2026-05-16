@@ -13,4 +13,6 @@ public class TeacherWorkloadDTO {
     private long totalHours;
     private long weeklyHoursLimit;
     private boolean overloaded;
+    private int weeklySessionCount;
+    private double estimatedDisplayHours;
 }

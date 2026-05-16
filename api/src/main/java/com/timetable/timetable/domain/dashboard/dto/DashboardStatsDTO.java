@@ -27,6 +27,7 @@ public class DashboardStatsDTO {
     private long teachersOverloaded;
     private long totalAssignedHours;
     private double avgHoursPerTeacher;
+    private double avgEstimatedHours;
     
     private String solverReadiness;
     private String solverReadinessReason;

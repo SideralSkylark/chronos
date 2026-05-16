@@ -8,16 +8,21 @@ public record CandidateTeacherResponse(
         int currentWeeklyHours,
         int weeklyLimit,
         boolean wouldExceed,
-        boolean isEligible) {
+        boolean isEligible,
+        int weeklySessionCount,
+        double estimatedDisplayHours) {
     public static CandidateTeacherResponse from(
-            ApplicationUser teacher, int currentWeeklyHours, int weeklyLimit, boolean wouldExceed, boolean isEligible) {
+            ApplicationUser teacher, int currentWeeklyHours, int weeklyLimit, boolean wouldExceed, boolean isEligible,
+            int weeklySessionCount, double estimatedDisplayHours) {
         return new CandidateTeacherResponse(
             teacher.getId(),
             teacher.getUsername(),
             currentWeeklyHours,
             weeklyLimit,
             wouldExceed,
-            isEligible
+            isEligible,
+            weeklySessionCount,
+            estimatedDisplayHours
         );
     }
 }

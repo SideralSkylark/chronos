@@ -90,4 +90,6 @@ export interface CandidateTeacher {
   weeklyLimit: number
   wouldExceed: boolean
   isEligible: boolean
+  weeklySessionCount: number
+  estimatedDisplayHours: number
 }
