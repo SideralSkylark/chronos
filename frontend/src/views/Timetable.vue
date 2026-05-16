@@ -1058,9 +1058,24 @@ function clearSelection() {
 }
 
 onMounted(async () => {
-  await timetableStore.initialize()
+  if (!timetableStore.generating) {
+    await timetableStore.initialize()
+  }
   await courseStore.fetchAllCoursesSimple()
 })
+
+watch(
+  () => timetableStore.generating,
+  async (isGenerating, wasGenerating) => {
+    if (wasGenerating && !isGenerating) {
+      await timetableStore.loadForPeriod(
+        timetableStore.selectedYear!,
+        timetableStore.selectedSemester!,
+      )
+    }
+  }
+)
+
 watch([() => timetableStore.selectedYear, () => timetableStore.selectedSemester], () => {
   selectedCohort.value = ''
   clearSelection()
