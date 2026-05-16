@@ -127,7 +127,8 @@
           <div class="relative">
             <select
               v-model="timetableStore.selectedYear"
-              class="h-8 px-3 pr-8 border border-gray-200 rounded-md text-sm text-gray-800 bg-white appearance-none focus:ring-2 focus:ring-blue-100 focus:border-blue-900 outline-none transition cursor-pointer"
+              :disabled="timetableStore.generating"
+              class="h-8 px-3 pr-8 border border-gray-200 rounded-md text-sm text-gray-800 bg-white appearance-none focus:ring-2 focus:ring-blue-100 focus:border-blue-900 outline-none transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option v-for="y in availableYears" :key="y" :value="y">
                 {{ y }}
@@ -149,7 +150,8 @@
           <div class="relative">
             <select
               v-model="timetableStore.selectedSemester"
-              class="h-8 px-3 pr-8 border border-gray-200 rounded-md text-sm text-gray-800 bg-white appearance-none focus:ring-2 focus:ring-blue-100 focus:border-blue-900 outline-none transition cursor-pointer"
+              :disabled="timetableStore.generating"
+              class="h-8 px-3 pr-8 border border-gray-200 rounded-md text-sm text-gray-800 bg-white appearance-none focus:ring-2 focus:ring-blue-100 focus:border-blue-900 outline-none transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option v-for="semester in availableSemesters" :key="semester" :value="semester">
                 {{ semester }}º semestre
@@ -171,7 +173,8 @@
           <div class="relative">
             <select
               v-model="selectedCohort"
-              class="h-8 px-3 pr-8 border border-gray-200 rounded-md text-sm text-gray-800 bg-white appearance-none focus:ring-2 focus:ring-blue-100 focus:border-blue-900 outline-none transition cursor-pointer"
+              :disabled="timetableStore.generating"
+              class="h-8 px-3 pr-8 border border-gray-200 rounded-md text-sm text-gray-800 bg-white appearance-none focus:ring-2 focus:ring-blue-100 focus:border-blue-900 outline-none transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option value="">Todas as turmas</option>
               <option v-for="c in availableCohorts" :key="c.id" :value="c.id">
