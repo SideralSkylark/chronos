@@ -61,7 +61,7 @@
               </div>
               <div class="flex justify-between items-center text-[10px] leading-none">
                 <span class="text-gray-400 font-medium uppercase tracking-tighter">Média horas</span>
-                <span class="font-bold text-gray-400">{{ stats.avgHoursPerTeacher.toFixed(1) }}h</span>
+                <span class="font-bold text-gray-400">~{{ formatHours(stats.avgEstimatedHours) }}</span>
               </div>
             </div>
           </div>
@@ -349,11 +349,17 @@
             >
               <span class="text-gray-700 truncate pr-2 font-medium">{{ teacher.teacherName }}</span>
               <span class="font-bold flex items-center gap-1.5 shrink-0 px-2 py-0.5 rounded bg-white border border-gray-100" :class="teacher.overloaded ? 'text-red-600 shadow-sm border-red-100' : 'text-gray-900'">
-                {{ teacher.totalHours }}h
+                {{ teacher.weeklySessionCount }} sess.
+                <span class="text-[10px] font-normal opacity-60">
+                  · ~{{ formatHours(teacher.estimatedDisplayHours) }}
+                </span>
                 <AlertTriangle v-if="teacher.overloaded" class="w-3 h-3" />
               </span>
             </div>
           </div>
+          <p class="text-[10px] text-gray-300 text-center pt-2">
+            ~horas estimadas a 1h45m por sessão
+          </p>
         </div>
 
         <!-- (2) Menos ocupados -->
@@ -371,9 +377,17 @@
               class="flex items-center justify-between text-[11px] p-2 rounded-lg border border-gray-50 bg-gray-50/50 shadow-sm hover:bg-white transition-colors"
             >
               <span class="text-gray-700 truncate pr-2 font-medium">{{ teacher.teacherName }}</span>
-              <span class="font-bold text-gray-900 shrink-0 px-2 py-0.5 rounded bg-white shadow-sm border border-gray-100">{{ teacher.totalHours }}h</span>
+              <span class="font-bold text-gray-900 shrink-0 px-2 py-0.5 rounded bg-white shadow-sm border border-gray-100 flex items-center gap-1.5">
+                {{ teacher.weeklySessionCount }} sess.
+                <span class="text-[10px] font-normal opacity-60">
+                  · ~{{ formatHours(teacher.estimatedDisplayHours) }}
+                </span>
+              </span>
             </div>
           </div>
+          <p class="text-[10px] text-gray-300 text-center pt-2">
+            ~horas estimadas a 1h45m por sessão
+          </p>
         </div>
 
         <!-- (3) Cursos + Distribuição Curricular -->
@@ -428,6 +442,7 @@
 <script setup lang="ts">
 import { onMounted, computed } from 'vue'
 import { useDashboardStatsStore } from '@/stores/dashboardStats'
+import { formatHours } from '@/utils/formatters'
 import {
   AlertTriangle,
   Users,

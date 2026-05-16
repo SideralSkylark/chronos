@@ -117,16 +117,24 @@ public class TimetableService {
                         cs -> cs.getAssignedTeacher().getId(),
                         Collectors.summingInt(CohortSubject::getWeeklyHours)));
 
+        Map<Long, Integer> sessionsByTeacherId = allCohortSubjects.stream()
+                .collect(Collectors.groupingBy(
+                        cs -> cs.getAssignedTeacher().getId(),
+                        Collectors.summingInt(CohortSubject::getLessonBlocksPerWeek)));
+
         List<CandidateTeacherResponse> response = new ArrayList<>();
 
         for (ApplicationUser teacher : allTeachers) {
             int currentWorkload = workloadByTeacherId.getOrDefault(teacher.getId(), 0);
+            int currentSessions = sessionsByTeacherId.getOrDefault(teacher.getId(), 0);
             int limit = AcademicPolicy.getWeeklyHoursLimit(teacher);
             boolean wouldExceedLimit = currentWorkload + hoursNeeded > limit;
             boolean qualified = scheduledClass.getSubject().getEligibleTeachers().contains(teacher);
 
+            double estimatedHours = AcademicPolicy.estimateDisplayHours(currentSessions);
+
             response.add(CandidateTeacherResponse.from(
-                    teacher, currentWorkload, limit, wouldExceedLimit, qualified));
+                    teacher, currentWorkload, limit, wouldExceedLimit, qualified, currentSessions, estimatedHours));
         }
 
         return response;

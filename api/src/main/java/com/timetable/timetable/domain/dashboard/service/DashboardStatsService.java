@@ -98,6 +98,10 @@ public class DashboardStatsService {
                 .collect(Collectors.groupingBy(CohortSubject::getAssignedTeacher,
                         Collectors.summingLong(CohortSubject::getWeeklyHours)));
 
+        Map<ApplicationUser, Integer> sessionsPerTeacher = cohortSubjects.stream()
+                .collect(Collectors.groupingBy(CohortSubject::getAssignedTeacher,
+                        Collectors.summingInt(CohortSubject::getLessonBlocksPerWeek)));
+
         long teachersOverloaded = teachers.stream().filter(t -> {
             long hours = hoursPerTeacher.getOrDefault(t, 0L);
             long max = AcademicPolicy.getWeeklyHoursLimit(t);
@@ -177,11 +181,19 @@ public class DashboardStatsService {
         List<TeacherWorkloadDTO> allTeacherWorkloads = teachers.stream()
                 .map(t -> {
                     long hours = hoursPerTeacher.getOrDefault(t, 0L);
+                    int sessions = sessionsPerTeacher.getOrDefault(t, 0);
                     long max = AcademicPolicy.getWeeklyHoursLimit(t);
                     boolean overloaded = hours > max;
-                    return new TeacherWorkloadDTO(t.getId(), t.getUsername(), hours, max, overloaded);
+                    double estimatedHours = AcademicPolicy.estimateDisplayHours(sessions);
+                    return new TeacherWorkloadDTO(t.getId(), t.getUsername(), hours, max, overloaded, sessions,
+                            estimatedHours);
                 })
                 .toList();
+
+        double totalEstimatedHours = allTeacherWorkloads.stream()
+                .mapToDouble(TeacherWorkloadDTO::getEstimatedDisplayHours)
+                .sum();
+        double avgEstimatedHours = totalTeachers > 0 ? totalEstimatedHours / totalTeachers : 0.0;
 
         List<TeacherWorkloadDTO> mostLoadedTeachers = allTeacherWorkloads.stream()
                 .sorted(Comparator.comparing(TeacherWorkloadDTO::getTotalHours).reversed())
@@ -211,6 +223,7 @@ public class DashboardStatsService {
         dto.setTeachersOverloaded(teachersOverloaded);
         dto.setTotalAssignedHours(totalAssignedHours);
         dto.setAvgHoursPerTeacher(avgHoursPerTeacher);
+        dto.setAvgEstimatedHours(avgEstimatedHours);
         dto.setSolverReadiness(solverReadiness);
         dto.setSolverReadinessReason(solverReadinessReason);
         dto.setCapacityMargin(capacityMargin);
