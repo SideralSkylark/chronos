@@ -32,10 +32,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
-        @NonNull HttpServletRequest request,
-        @NonNull HttpServletResponse response,
-        @NonNull FilterChain filterChain
-    ) throws ServletException, IOException {
+            @NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain) throws ServletException, IOException {
 
         String jwt = null;
         String username = null;
@@ -74,12 +73,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             username = jwtService.extractUsername(jwt);
         } catch (Exception exception) {
-            log.warn("Failed to extract username from JWT. Reason: {}", exception.getMessage());
+            log.warn("Failed to extract username from JWT. Reason: {}", exception);
             var errorResponse = com.timetable.timetable.common.response.ErrorResponse.of(
-                org.springframework.http.HttpStatus.UNAUTHORIZED,
-                "Unauthorized - Invalid JWT token",
-                request.getRequestURI()
-            );
+                    org.springframework.http.HttpStatus.UNAUTHORIZED,
+                    "Unauthorized - Invalid JWT token",
+                    request.getRequestURI());
             JsonWriter.write(response, errorResponse, HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
@@ -90,21 +88,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (jwtService.isTokenValid(jwt, userDetails)) {
                 var authToken = new UsernamePasswordAuthenticationToken(
-                    userDetails, null, userDetails.getAuthorities()
-                );
+                        userDetails, null, userDetails.getAuthorities());
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
 
-                log.info("Authenticated user '{}' via {}", username,
-                    request.getCookies() != null ? "cookie" : "Authorization header");
+                log.debug("Authenticated user '{}' via {}", username,
+                        request.getCookies() != null ? "cookie" : "Authorization header");
 
             } else {
                 log.warn("JWT token for user '{}' is invalid or expired", username);
                 var errorResponse = com.timetable.timetable.common.response.ErrorResponse.of(
-                    org.springframework.http.HttpStatus.UNAUTHORIZED,
-                    "Unauthorized - Token invalid or expired",
-                    request.getRequestURI()
-                );
+                        org.springframework.http.HttpStatus.UNAUTHORIZED,
+                        "Unauthorized - Token invalid or expired",
+                        request.getRequestURI());
                 JsonWriter.write(response, errorResponse, HttpServletResponse.SC_UNAUTHORIZED);
                 return;
             }

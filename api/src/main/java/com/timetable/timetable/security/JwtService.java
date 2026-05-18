@@ -25,7 +25,6 @@ public class JwtService {
     @Value("${jwt.expiration-ms:86400000}")
     private long jwtExpirationMs;
 
-
     private Key getSigningKey() {
         byte[] keyBytes = Base64.getDecoder().decode(secretKey);
         return Keys.hmacShaKeyFor(keyBytes);
@@ -43,14 +42,14 @@ public class JwtService {
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("roles", userDetails.getAuthorities().stream()
-            .map(GrantedAuthority::getAuthority)
-            .toList());
+                .map(GrantedAuthority::getAuthority)
+                .toList());
         return generateToken(claims, userDetails);
     }
 
     public String generateToken(
-        Map<String, Object> extraClaims,
-        UserDetails userDetails) {
+            Map<String, Object> extraClaims,
+            UserDetails userDetails) {
         return Jwts
                 .builder()
                 .setClaims(extraClaims)
