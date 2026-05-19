@@ -4,6 +4,9 @@ import java.util.Set;
 
 import com.timetable.timetable.domain.schedule.entity.TeacherType;
 
+/**
+ * DTO representing a user's public information.
+ */
 public record UserResponse(
 	Long id,
     String username,

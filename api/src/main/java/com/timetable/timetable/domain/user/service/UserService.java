@@ -259,7 +259,7 @@ public class UserService {
      * Resets a user's password to a random one.
      *
      * @param id the user ID
-     * @return ResetPasswordResponse containing the new encoded password (for legacy reasons/manual delivery)
+     * @return ResetPasswordResponse containing the new raw temporary password
      */
     @Transactional
     public ResetPasswordResponse resetPassword(Long id) {
@@ -270,7 +270,7 @@ public class UserService {
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
         log.info("Password reset for user id={}", id);
-        return new ResetPasswordResponse(user.getPassword());
+        return new ResetPasswordResponse(newPassword);
     }
 
     private String generateRandomPassword(int length) {
