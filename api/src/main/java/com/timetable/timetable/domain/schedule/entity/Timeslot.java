@@ -17,6 +17,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Represents a specific time period on a given day of the week.
+ */
 @Entity
 @Table(name = "timeslots")
 @Getter

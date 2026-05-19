@@ -22,6 +22,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Represents a complete schedule for a specific academic year and semester.
+ */
 @Entity
 @Table(name = "timetables")
 @Getter

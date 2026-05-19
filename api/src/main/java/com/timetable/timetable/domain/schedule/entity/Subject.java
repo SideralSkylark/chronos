@@ -24,6 +24,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Represents an academic subject taught as part of a course, including its target year and semester.
+ */
 @Entity
 @Table(name = "subjects")
 @Getter
