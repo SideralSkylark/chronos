@@ -7,6 +7,9 @@ import com.timetable.timetable.domain.user.entity.UserRole;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Parameters for filtering user searches.
+ */
 @Data
 @NoArgsConstructor
 public class UserFilterParams {

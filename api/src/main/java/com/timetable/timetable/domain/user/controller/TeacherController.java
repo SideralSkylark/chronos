@@ -17,6 +17,13 @@ import org.springframework.data.web.PagedModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * REST controller for teacher-related operations.
+ *
+ * <p>Provides endpoints for listing teachers and retrieving specific teacher details.</p>
+ *
+ * @author Sideral Skylark
+ */
 @RestController
 @RequestMapping("api/v1/teachers")
 @RequiredArgsConstructor
@@ -24,6 +31,16 @@ import org.springframework.web.bind.annotation.*;
 public class TeacherController {
     private final UserService userService;
 
+    /**
+     * Retrieves a paginated list of all teachers with optional filtering.
+     *
+     * @param pageable pagination details
+     * @param username optional username filter
+     * @param email optional email filter
+     * @param status optional account status filter
+     * @param teacherType optional teacher type filter
+     * @return 200 OK with a page of teachers
+     */
     @GetMapping
     public ResponseEntity<ApiResponse<PagedModel<UserResponse>>> getAllTeachers(
         Pageable pageable, 
@@ -42,6 +59,12 @@ public class TeacherController {
         );
     }
 
+    /**
+     * Retrieves a teacher by their ID.
+     *
+     * @param id the teacher's user ID
+     * @return 200 OK with the teacher data
+     */
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<UserResponse>> getById(@PathVariable Long id) {
         return ResponseFactory.ok(

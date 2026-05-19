@@ -40,6 +40,9 @@ import com.timetable.timetable.security.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Service for managing the lifecycle and contents of timetables.
+ */
 @Service
 @Slf4j
 @RequiredArgsConstructor

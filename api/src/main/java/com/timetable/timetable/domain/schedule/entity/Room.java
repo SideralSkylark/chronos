@@ -17,6 +17,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Represents a physical room where classes can be held, including its capacity and access restrictions.
+ */
 @Entity
 @Table(name = "rooms")
 @Getter

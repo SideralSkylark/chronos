@@ -23,6 +23,14 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 
+/**
+ * REST controller for administrative user management.
+ *
+ * <p>Provides endpoints for creating, updating, deleting, and listing users.
+ * Access is restricted to users with ADMIN, ASISTENT, or DIRECTOR roles.</p>
+ *
+ * @author Sideral Skylark
+ */
 @RestController
 @RequestMapping("api/v1/admins")
 @RequiredArgsConstructor
@@ -31,6 +39,12 @@ import jakarta.validation.Valid;
 public class AdminController {
     private final UserService userService;
 
+    /**
+     * Creates a new user.
+     *
+     * @param createUser the user creation data
+     * @return 200 OK with the created user
+     */
     @PostMapping
     public ResponseEntity<ApiResponse<UserResponse>> createUser(
             @Valid @RequestBody CreateUser createUser) {
@@ -39,6 +53,17 @@ public class AdminController {
                 "User created sucessfully.");
     }
 
+    /**
+     * Retrieves a paginated list of all users with optional filtering.
+     *
+     * @param pageable pagination details
+     * @param username optional username filter
+     * @param email optional email filter
+     * @param role optional role filter
+     * @param status optional account status filter
+     * @param teacherType optional teacher type filter
+     * @return 200 OK with a page of users
+     */
     @GetMapping
     public ResponseEntity<ApiResponse<PagedModel<UserResponse>>> getUsers(Pageable pageable,
             @RequestParam(required = false) String username,
@@ -60,6 +85,12 @@ public class AdminController {
                 "Users fetched sucessfully.");
     }
 
+    /**
+     * Retrieves a user by their ID.
+     *
+     * @param id the user ID
+     * @return 200 OK with the user data
+     */
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable Long id) {
         return ResponseFactory.ok(
@@ -67,6 +98,15 @@ public class AdminController {
                 "User fetched sucessfully.");
     }
 
+    /**
+     * Retrieves a paginated list of students.
+     *
+     * @param pageable pagination details
+     * @param username optional username filter
+     * @param email optional email filter
+     * @param status optional account status filter
+     * @return 200 OK with a page of students
+     */
     @GetMapping("/students")
     public ResponseEntity<ApiResponse<PagedModel<UserResponse>>> getStudents(
             Pageable pageable,
@@ -82,6 +122,13 @@ public class AdminController {
                 "Students fetched successfully.");
     }
 
+    /**
+     * Updates a user's information.
+     *
+     * @param id the user ID
+     * @param updateRequest the update data
+     * @return 200 OK with the updated user
+     */
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<UserResponse>> updateUser(
             @PathVariable Long id,
@@ -91,6 +138,12 @@ public class AdminController {
                 "User updated sucessfully.");
     }
 
+    /**
+     * Resets a user's password.
+     *
+     * @param id the user ID
+     * @return 200 OK with the new password
+     */
     @PostMapping("/{id}/reset-password")
     public ResponseEntity<ApiResponse<ResetPasswordResponse>> resetPassword(@PathVariable Long id) {
         return ResponseFactory.ok(
@@ -98,6 +151,12 @@ public class AdminController {
                 "User password reset successfully.");
     }
 
+    /**
+     * Deletes a user account.
+     *
+     * @param id the user ID
+     * @return 204 No Content
+     */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         userService.deleteById(id);

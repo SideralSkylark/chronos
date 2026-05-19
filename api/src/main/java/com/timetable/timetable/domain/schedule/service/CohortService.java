@@ -34,6 +34,10 @@ import com.timetable.timetable.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Service for managing student cohorts, including their creation, 
+ * student assignments, and estimation logic.
+ */
 @Service
 @Slf4j
 @RequiredArgsConstructor

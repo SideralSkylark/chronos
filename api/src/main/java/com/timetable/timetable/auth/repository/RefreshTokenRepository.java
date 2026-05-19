@@ -11,6 +11,9 @@ import org.springframework.data.repository.query.Param;
 
 import com.timetable.timetable.auth.entity.RefreshToken;
 
+/**
+ * Repository interface for {@link RefreshToken} entities.
+ */
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
     Optional<RefreshToken> findByToken(String token);
 
@@ -22,6 +25,8 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
     @Modifying
     @Query("DELETE FROM RefreshToken t WHERE t.user.id = :userId")
     void deleteByUserId(@Param("userId") Long userId);
+
     void deleteByToken(String token);
+
     boolean existsByToken(String token);
 }

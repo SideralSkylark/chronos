@@ -4,17 +4,25 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 /**
- * Utility component for accessing security-related information from the Spring Security context.
+ * Utility component for accessing security-related information from the Spring
+ * Security context.
  * <p>
- * Provides static helper methods to retrieve details about the currently authenticated user.
+ * Provides static helper methods to retrieve details about the currently
+ * authenticated user.
  * </p>
  *
- * <p>Typical usage:</p>
+ * <p>
+ * Typical usage:
+ * </p>
+ * 
  * <pre>
- *   String username = SecurityUtil.getAuthenticatedUsername();
+ * String username = SecurityUtil.getAuthenticatedUsername();
  * </pre>
  *
- * <p>Throws {@link IllegalStateException} if no authenticated user is found in the security context.</p>
+ * <p>
+ * Throws {@link IllegalStateException} if no authenticated user is found in the
+ * security context.
+ * </p>
  *
  * @author Sideral Skylark
  * @since 2025-06-26
@@ -22,10 +30,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class SecurityUtil {
     /**
-     * Retrieves the username of the currently authenticated user from the security context.
+     * Retrieves the username of the currently authenticated user from the security
+     * context.
      *
      * @return the username of the authenticated user
-     * @throws IllegalStateException if no authenticated user is found or the username is blank
+     * @throws IllegalStateException if no authenticated user is found or the
+     *                               username is blank
      */
     public static String getAuthenticatedUsername() {
         var auth = SecurityContextHolder.getContext().getAuthentication();
@@ -42,7 +52,7 @@ public class SecurityUtil {
             throw new IllegalStateException("Authenticated user not found");
         }
 
-        Object principal =auth.getPrincipal();
+        Object principal = auth.getPrincipal();
         if (principal instanceof UserPrincipal userPrincipal) {
             return userPrincipal.getId();
         }

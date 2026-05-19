@@ -26,6 +26,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Represents an academic course (e.g., Computer Science) overseen by a coordinator.
+ */
 @Entity
 @Table(name = "courses")
 @Getter

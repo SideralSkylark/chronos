@@ -14,6 +14,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Service for managing user notifications.
+ *
+ * <p>Handles creating notifications for specific users or roles,
+ * retrieving notifications, and managing their read/delete status.</p>
+ *
+ * @author Sideral Skylark
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -23,6 +31,12 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
 
+    /**
+     * Sends a notification to a specific user.
+     *
+     * @param userId the ID of the user to notify
+     * @param message the notification message
+     */
     @Transactional
     public void notify(Long userId, String message) {
         userRepository.findById(userId).ifPresentOrElse(
@@ -38,6 +52,13 @@ public class NotificationService {
                 () -> log.warn("User {} not found, skipping notification", userId));
     }
 
+    /**
+     * Sends a notification to all users with a specific role.
+     *
+     * @param role the role name
+     * @param message the notification message
+     * @param excludeUserId optional user ID to exclude from the notification
+     */
     @Transactional
     public void notifyAllWithRole(String role, String message, Long excludeUserId) {
         UserRole roleEnum;
@@ -61,6 +82,12 @@ public class NotificationService {
         log.info("sent {} notifications for role {}", notifications.size(), roleEnum);
     }
 
+    /**
+     * Retrieves all notifications for a user, ordered by creation date (newest first).
+     *
+     * @param userId the user ID
+     * @return a list of notification DTOs
+     */
     public List<NotificationDto> getForUser(Long userId) {
         return notificationRepository.findByUserIdOrderByCreatedAtDesc(userId)
                 .stream()
@@ -68,20 +95,44 @@ public class NotificationService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Counts the number of unread notifications for a user.
+     *
+     * @param userId the user ID
+     * @return the unread count
+     */
     public long countUnread(Long userId) {
         return notificationRepository.countByUserIdAndReadFlagFalse(userId);
     }
 
+    /**
+     * Marks all notifications as read for a user.
+     *
+     * @param userId the user ID
+     */
     @Transactional
     public void markAllRead(Long userId) {
         notificationRepository.markAllReadByUserId(userId);
     }
 
+    /**
+     * Marks a specific notification as read.
+     *
+     * @param id the notification ID
+     * @param userId the user ID (for verification)
+     */
     @Transactional
     public void markAsRead(Long id, Long userId) {
         notificationRepository.markAsRead(id, userId);
     }
 
+    /**
+     * Deletes a specific notification.
+     *
+     * @param id the notification ID
+     * @param userId the user ID (for authorization)
+     * @throws UserNotAuthorizedException if the notification does not belong to the user
+     */
     @Transactional
     public void deleteNotification(Long id, Long userId) {
         if (!notificationRepository.existsByIdAndUserId(id, userId)) {
@@ -95,6 +146,11 @@ public class NotificationService {
         notificationRepository.deleteById(id);
     }
 
+    /**
+     * Deletes all read notifications for a user.
+     *
+     * @param userId the user ID
+     */
     @Transactional
     public void clearReadNotifications(Long userId) {
         notificationRepository.deleteReadByUserId(userId);

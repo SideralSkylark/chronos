@@ -17,6 +17,14 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Entity representing a Refresh Token used for maintaining user sessions.
+ *
+ * <p>
+ * Each token is tied to a specific user and contains metadata about the
+ * client session such as IP address and User-Agent.
+ * </p>
+ */
 @Entity
 @Data
 @AllArgsConstructor

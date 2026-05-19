@@ -8,6 +8,9 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+/**
+ * DTO for administrative user updates.
+ */
 public record AdminUpdateUserDTO(
     
 	@NotBlank(message = "Username must not be blank")

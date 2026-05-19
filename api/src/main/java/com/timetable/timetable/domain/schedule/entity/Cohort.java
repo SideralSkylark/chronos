@@ -24,6 +24,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Represents a group of students belonging to a specific course, year, and section.
+ */
 @Entity
 @Table(name = "cohorts")
 @Getter

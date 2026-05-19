@@ -17,6 +17,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Represents a specific class session assigned to a room and timeslot within a timetable.
+ */
 @Entity
 @Table(name = "scheduled_classes")
 @Getter

@@ -1,7 +1,5 @@
 package com.timetable.timetable.auth.service;
 
-import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
@@ -20,11 +18,8 @@ import com.timetable.timetable.auth.mapper.SessionMapper;
 import com.timetable.timetable.auth.util.CookieUtil;
 import com.timetable.timetable.auth.util.CookieUtil.TokenType;
 import com.timetable.timetable.domain.user.entity.ApplicationUser;
-import com.timetable.timetable.domain.user.entity.UserRole;
-import com.timetable.timetable.domain.user.entity.UserRoleEntity;
 import com.timetable.timetable.domain.user.exception.UserNotFoundException;
 import com.timetable.timetable.domain.user.repository.UserRepository;
-import com.timetable.timetable.domain.user.repository.UserRoleRepository;
 import com.timetable.timetable.security.JwtService;
 import com.timetable.timetable.security.SecurityUtil;
 
@@ -36,26 +31,28 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * AuthenticationService
  *
- * <p>This service manages the core authentication flow of the WorkBridge application.
+ * <p>
+ * This service manages the core authentication flow of the
+ * application.
  * It provides functionality for:
  *
  * <ul>
- *   <li>User login (authentication) and token issuance</li>
- *   <li>JWT refresh token lifecycle handling</li>
- *   <li>User logout and session revocation</li>
- *   <li>Session listing and targeted session invalidation</li>
+ * <li>User login (authentication) and token issuance</li>
+ * <li>JWT refresh token lifecycle handling</li>
+ * <li>User logout and session revocation</li>
+ * <li>Session listing and targeted session invalidation</li>
  * </ul>
  *
- * <p>Collaborates with:
+ * <p>
+ * Collaborates with:
  * <ul>
- *   <li>{@link JwtService} – for generating access tokens</li>
- *   <li>{@link RefreshTokenService} – for refresh token lifecycle management</li>
- *   <li>{@link CookieUtil} – for secure cookie handling</li>
- *   <li>{@link SessionMapper} – for transforming session entities to DTOs</li>
+ * <li>{@link JwtService} – for generating access tokens</li>
+ * <li>{@link RefreshTokenService} – for refresh token lifecycle management</li>
+ * <li>{@link CookieUtil} – for secure cookie handling</li>
+ * <li>{@link SessionMapper} – for transforming session entities to DTOs</li>
  * </ul>
  *
  * @author Sideral Skylark
- * @since 2025-06-22
  */
 @Slf4j
 @Service
@@ -66,7 +63,6 @@ public class AuthenticationService {
     private static final String REFRESH_COOKIE = CookieUtil.REFRESH_TOKEN_COOKIE;
 
     private final UserRepository userRepository;
-    private final UserRoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
@@ -76,32 +72,33 @@ public class AuthenticationService {
     /**
      * Authenticates a user and returns a JWT token upon successful login.
      *
-     * <p>The method checks:
+     * <p>
+     * The method checks:
      * <ul>
-     *   <li>That the email exists in the system</li>
-     *   <li>That the password is correct</li>
-     *   <li>That the user account is enabled</li>
+     * <li>That the email exists in the system</li>
+     * <li>That the password is correct</li>
+     * <li>That the user account is enabled</li>
      * </ul>
      *
      * @param loginRequestDTO DTO containing the user's email and password
-     * @param request to extract client data to be persisted
-     * @param response to bind the generated tokens to a cookie
-     * @return an {@link AuthenticationResponseDTO} with the  user details
+     * @param request         to extract client data to be persisted
+     * @param response        to bind the generated tokens to a cookie
+     * @return an {@link AuthenticationResponseDTO} with the user details
      * @throws InvalidCredentialsException if credentials are invalid
-     * @throws UserNotFoundException if the account is not verified
+     * @throws UserNotFoundException       if the account is not verified
      */
     @Transactional
     public AuthenticationResponseDTO login(
-        LoginRequestDTO loginRequestDTO,
-        HttpServletRequest request,
-        HttpServletResponse response) {
+            LoginRequestDTO loginRequestDTO,
+            HttpServletRequest request,
+            HttpServletResponse response) {
         log.debug("User attempting login with email: {}", loginRequestDTO.email());
 
         ApplicationUser user = userRepository.findByEmail(loginRequestDTO.email())
-            .orElseThrow(() -> {
-                log.warn("Login failed: user not found - {}", loginRequestDTO.email());
-                return new InvalidCredentialsException("Invalid credentials");
-            });
+                .orElseThrow(() -> {
+                    log.warn("Login failed: user not found - {}", loginRequestDTO.email());
+                    return new InvalidCredentialsException("Invalid credentials");
+                });
 
         if (!passwordEncoder.matches(loginRequestDTO.password(), user.getPassword())) {
             log.warn("Login failed: invalid password for email - {}", loginRequestDTO.email());
@@ -120,14 +117,18 @@ public class AuthenticationService {
     }
 
     /**
-     * Refreshes the user's access token using a valid refresh token from the HTTP cookie.
+     * Refreshes the user's access token using a valid refresh token from the HTTP
+     * cookie.
      *
-     * <p>If the refresh token is valid and not expired, new tokens (access and refresh)
+     * <p>
+     * If the refresh token is valid and not expired, new tokens (access and
+     * refresh)
      * are issued and stored in cookies.
      *
-     * @param request the HTTP request containing the refresh token cookie
+     * @param request  the HTTP request containing the refresh token cookie
      * @param response the HTTP response where new cookies will be set
-     * @throws InvalidTokenException if the refresh token is missing, invalid, or expired
+     * @throws InvalidTokenException if the refresh token is missing, invalid, or
+     *                               expired
      */
     public void refreshAccessToken(HttpServletRequest request, HttpServletResponse response) {
         log.debug("Refreshing access token");
@@ -147,9 +148,10 @@ public class AuthenticationService {
     }
 
     /**
-     * Logs out the current user by revoking their refresh token and clearing authentication cookies.
+     * Logs out the current user by revoking their refresh token and clearing
+     * authentication cookies.
      *
-     * @param request the HTTP request containing the refresh token cookie
+     * @param request  the HTTP request containing the refresh token cookie
      * @param response the HTTP response used to clear the cookies
      */
     @Transactional
@@ -167,7 +169,8 @@ public class AuthenticationService {
     /**
      * Lists all active sessions for the specified user.
      *
-     * <p>Returns paginated session data using tokens tied to the user.
+     * <p>
+     * Returns paginated session data using tokens tied to the user.
      *
      * @param username the username of the user
      * @param pageable pagination information
@@ -178,22 +181,24 @@ public class AuthenticationService {
         log.debug("Listing active sessions for user {}", username);
         ApplicationUser user = findUserByUsernameOrThrow(username);
         return refreshTokenService.findAllByUserId(user.getId(), pageable)
-            .map(sessionMapper::toSessionDTO);
+                .map(sessionMapper::toSessionDTO);
     }
 
     /**
      * Logs out (invalidates) a single session using the token ID.
      *
-     * <p>Only allows the authenticated user to invalidate their own session token.
+     * <p>
+     * Only allows the authenticated user to invalidate their own session token.
      *
      * @param tokenId the ID of the refresh token to invalidate
-     * @throws InvalidTokenException if the token does not exist or doesn't belong to the user
+     * @throws InvalidTokenException if the token does not exist or doesn't belong
+     *                               to the user
      */
     @Transactional
     public void logoutWithToken(Long tokenId) {
         log.debug("Attempting remote log-out for token-id: {}", tokenId);
         RefreshToken token = refreshTokenService.findByTokenId(tokenId)
-            .orElseThrow(() -> new InvalidTokenException("Refresh token not found"));
+                .orElseThrow(() -> new InvalidTokenException("Refresh token not found"));
 
         String currentUsername = SecurityUtil.getAuthenticatedUsername();
         if (!token.getUser().getUsername().equals(currentUsername)) {
@@ -205,88 +210,68 @@ public class AuthenticationService {
         log.info("Session invalidated for token: {}", tokenId);
     }
 
-
     /**
-     *Resolves a list of role names (as strings) into corresponding {@link UserRoleEntity} objects.
+     * Issues new access and refresh tokens for the given user and stores them in
+     * cookies.
      *
-     * <p>This method:
-     * <ul>
-     *   <li>Converts each role name to uppercase and maps it to the corresponding {@link UserRole} enum</li>
-     *   <li>Fetches the matching {@link UserRoleEntity} from the repository</li>
-     *   <li>Throws an {@link IllegalArgumentException} if any role is invalid or not found</li>
-     * </ul>
-     *
-     * @param roleNames A set of role names provided by the user (e.g., "user", "service_provider")
-     * @return A set of resolved {@link UserRoleEntity} objects
-     * @throws IllegalArgumentException if any role name is not valid or not present in the database
-     */
-    private Set<UserRoleEntity> resolveRoles(List<String> roleNames) {
-        return roleNames.stream()
-            .map(role -> roleRepository.findByRole(UserRole.valueOf(role.toUpperCase()))
-                .orElseThrow(() -> {
-                    log.warn("Invalid role provided: {}", role);
-                    return new IllegalArgumentException("Invalid role: " + role);
-                }))
-            .collect(Collectors.toSet());
-    }
-
-    /**
-     * Issues new access and refresh tokens for the given user and stores them in cookies.
-     *
-     * <p>Uses {@link JwtService} to generate the access token and
+     * <p>
+     * Uses {@link JwtService} to generate the access token and
      * {@link RefreshTokenService} for refresh token generation.
      *
-     * @param user the authenticated user
+     * @param user     the authenticated user
      * @param response the HTTP response used to set cookies
-     * @param request the HTTP request used for IP and user agent info
+     * @param request  the HTTP request used for IP and user agent info
      */
     private void issueTokens(ApplicationUser user, HttpServletResponse response, HttpServletRequest request) {
         log.debug("Issueing tokens for user: {}", user.getId());
         String accessToken = jwtService.generateToken(user);
         String refreshToken = refreshTokenService.createRefreshToken(user, request).getToken();
 
-        cookieUtil.setTokenCookie(response, ACCESS_COOKIE , accessToken, TokenType.ACCESS);
+        cookieUtil.setTokenCookie(response, ACCESS_COOKIE, accessToken, TokenType.ACCESS);
         cookieUtil.setTokenCookie(response, REFRESH_COOKIE, refreshToken, TokenType.REFRESH);
     }
 
     /**
-     * Builds an {@link AuthenticationResponseDTO} from the given user and JWT token.
+     * Builds an {@link AuthenticationResponseDTO} from the given user and JWT
+     * token.
      *
      * @param user the authenticated user
-     * @param token the generated JWT token
      * @return a response DTO containing user information and token
      */
     private AuthenticationResponseDTO buildAuthenticationResponse(ApplicationUser user) {
         log.debug("Building authentication response for user: {}", user.getEmail());
 
-		AuthenticationResponseDTO response = new AuthenticationResponseDTO(
-			user.getId(),
-			user.getUsername(),
-			user.getEmail(),
-			user.getRoles().stream()
-				.map(role -> role.getRole().name())
-                .collect(Collectors.toSet()),
-			user.getUpdatedAt()
-		);
-		return response;
+        AuthenticationResponseDTO response = new AuthenticationResponseDTO(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getRoles().stream()
+                        .map(role -> role.getRole().name())
+                        .collect(Collectors.toSet()),
+                user.getUpdatedAt());
+        return response;
     }
 
     /**
-     * Retrieves a user by their username or throws a {@link UserNotFoundException} if not found.
+     * Retrieves a user by their username or throws a {@link UserNotFoundException}
+     * if not found.
      *
-     * <p>The username is expected to be already normalized (lowercased and trimmed) by the caller.
-     * If the user does not exist, a warning is logged and a {@code UserNotFoundException} is thrown.
+     * <p>
+     * The username is expected to be already normalized (lowercased and trimmed) by
+     * the caller.
+     * If the user does not exist, a warning is logged and a
+     * {@code UserNotFoundException} is thrown.
      *
-     * @param username The normalized username  of the user to retrieve
+     * @param username The normalized username of the user to retrieve
      * @return The {@link ApplicationUser} corresponding to the given username
      * @throws UserNotFoundException if no user is found with the specified username
      */
     private ApplicationUser findUserByUsernameOrThrow(String username) {
         log.debug("Querying user for username: {}", username);
         return userRepository.findByUsername(username)
-            .orElseThrow(() -> {
-                log.warn("User not found for username: {}", username);
-                return new UserNotFoundException("User not found");
-            });
+                .orElseThrow(() -> {
+                    log.warn("User not found for username: {}", username);
+                    return new UserNotFoundException("User not found");
+                });
     }
 }
