@@ -21,23 +21,27 @@ import lombok.RequiredArgsConstructor;
 /**
  * Service responsible for managing refresh tokens, including:
  * <ul>
- *   <li>Creating new refresh tokens during login or token rotation</li>
- *   <li>Validating token existence, expiration, and revocation state</li>
- *   <li>Rotating tokens securely</li>
- *   <li>Revoking or deleting tokens</li>
- *   <li>Querying token-related data (by token, ID, or user)</li>
+ * <li>Creating new refresh tokens during login or token rotation</li>
+ * <li>Validating token existence, expiration, and revocation state</li>
+ * <li>Rotating tokens securely</li>
+ * <li>Revoking or deleting tokens</li>
+ * <li>Querying token-related data (by token, ID, or user)</li>
  * </ul>
  *
- * <p>Refresh tokens are persisted in the database and associated with:
+ * <p>
+ * Refresh tokens are persisted in the database and associated with:
  * <ul>
- *   <li>User ID</li>
- *   <li>Client IP address</li>
- *   <li>User agent (browser/device info)</li>
- *   <li>Expiration date</li>
- *   <li>Revocation status</li>
+ * <li>User ID</li>
+ * <li>Client IP address</li>
+ * <li>User agent (browser/device info)</li>
+ * <li>Expiration date</li>
+ * <li>Revocation status</li>
  * </ul>
  *
- * <p>Default expiration is configurable via the property {@code auth.refresh-token-validity-days} (default = 7).</p>
+ * <p>
+ * Default expiration is configurable via the property
+ * {@code auth.refresh-token-validity-days} (default = 7).
+ * </p>
  *
  * @author Sideral Skylark
  * @since 2025-06-22
@@ -58,8 +62,10 @@ public class RefreshTokenService {
     /**
      * Creates a new refresh token associated with a user and request metadata.
      *
-     * <p>The token includes client IP and user agent, and is set to expire based on
-     * the configured validity period.</p>
+     * <p>
+     * The token includes client IP and user agent, and is set to expire based on
+     * the configured validity period.
+     * </p>
      *
      * @param user    The authenticated user
      * @param request The HTTP request (to extract IP and user-agent)
@@ -68,27 +74,29 @@ public class RefreshTokenService {
     @Transactional
     public RefreshToken createRefreshToken(ApplicationUser user, HttpServletRequest request) {
         RefreshToken token = RefreshToken.builder()
-            .token(UUID.randomUUID().toString())
-            .ip(request.getRemoteAddr())
-            .userAgent(request.getHeader(USER_AGENT_HEADER))
-            .expiresAt(LocalDateTime.now().plusDays(refreshTokenValidityDays))
-            .revoked(false)
-            .user(user)
-            .build();
+                .token(UUID.randomUUID().toString())
+                .ip(request.getRemoteAddr())
+                .userAgent(request.getHeader(USER_AGENT_HEADER))
+                .expiresAt(LocalDateTime.now().plusDays(refreshTokenValidityDays))
+                .revoked(false)
+                .user(user)
+                .build();
 
         return refreshTokenRepository.save(token);
     }
 
     /**
-     * Validates whether the given refresh token is active (exists, not revoked, and not expired).
+     * Validates whether the given refresh token is active (exists, not revoked, and
+     * not expired).
      *
      * @param token The token string
-     * @return {@code true} if the token is valid and usable; {@code false} otherwise
+     * @return {@code true} if the token is valid and usable; {@code false}
+     *         otherwise
      */
     public boolean isTokenValid(String token) {
         return refreshTokenRepository.findByToken(token)
-            .map(this::isTokenUsable)
-            .orElse(false);
+                .map(this::isTokenUsable)
+                .orElse(false);
     }
 
     /**
@@ -106,7 +114,9 @@ public class RefreshTokenService {
     /**
      * Rotates a refresh token by revoking the existing one and issuing a new one.
      *
-     * <p>This is typically done after successful access token renewal.</p>
+     * <p>
+     * This is typically done after successful access token renewal.
+     * </p>
      *
      * @param oldToken The current token string to be revoked
      * @param request  The HTTP request for capturing new IP/user-agent
@@ -177,16 +187,21 @@ public class RefreshTokenService {
     }
 
     /**
-     * Method used to set life expectancy of a token, this method is used to setup unit tests
+     * Sets the life expectancy of a token in days.
      *
-     * @param validityInDays expects the number of days a token should remain active
+     * <p>
+     * Primarily used for testing purposes to simulate token expiration.
+     * </p>
+     *
+     * @param validityInDays The number of days a token should remain active.
      */
     public void setTokenValidity(int validityInDays) {
         this.refreshTokenValidityDays = validityInDays;
     }
 
     /**
-     * Retrieves a valid token or throws an exception if it's missing, expired, or revoked.
+     * Retrieves a valid token or throws an exception if it's missing, expired, or
+     * revoked.
      *
      * @param token The token string
      * @return Valid {@link RefreshToken}
@@ -194,10 +209,9 @@ public class RefreshTokenService {
      */
     private RefreshToken getValidTokenOrThrow(String token) {
         return refreshTokenRepository.findByTokenWithUser(token)
-            .filter(this::isTokenUsable)
-            .orElseThrow(() -> new InvalidTokenException(
-                isTokenExpired(token) ? ERR_TOKEN_EXPIRED_OR_REVOKED : ERR_TOKEN_NOT_FOUND
-            ));
+                .filter(this::isTokenUsable)
+                .orElseThrow(() -> new InvalidTokenException(
+                        isTokenExpired(token) ? ERR_TOKEN_EXPIRED_OR_REVOKED : ERR_TOKEN_NOT_FOUND));
     }
 
     /**
@@ -218,7 +232,7 @@ public class RefreshTokenService {
      */
     private boolean isTokenExpired(String token) {
         return refreshTokenRepository.findByToken(token)
-            .map(t -> t.getExpiresAt().isBefore(LocalDateTime.now()))
-            .orElse(false);
+                .map(t -> t.getExpiresAt().isBefore(LocalDateTime.now()))
+                .orElse(false);
     }
 }

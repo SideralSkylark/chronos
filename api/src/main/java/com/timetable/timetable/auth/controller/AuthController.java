@@ -50,7 +50,7 @@ import jakarta.validation.Valid;
  * </ul>
  *
  * <p>All request DTOs are validated using {@code @Valid}. Exception handling is centralized via
- * {@link com.workbridge.workbridge_app.auth.exception} and custom handlers.</p>
+ * {@link com.timetable.timetable.auth.exception} and custom handlers.</p>
  *
  * @author Sideral Skylark
  * @since 2025-06-22
