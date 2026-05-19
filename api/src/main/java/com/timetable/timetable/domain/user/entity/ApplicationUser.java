@@ -14,6 +14,14 @@ import org.springframework.security.core.userdetails.UserDetails;
 import jakarta.persistence.*;
 import lombok.*;
 
+/**
+ * Entity representing a user in the system.
+ *
+ * <p>Implements {@link UserDetails} for Spring Security integration.
+ * Supports multiple roles, account status management, and teacher-specific attributes.</p>
+ *
+ * @author Sideral Skylark
+ */
 @Entity
 @Getter
 @Setter
@@ -66,30 +74,60 @@ public class ApplicationUser implements UserDetails {
 
     // ====== DOMAIN LOGIC ======
 
+    /**
+     * Adds a role to the user.
+     * @param role the role entity to add
+     * @return true if the role was added, false if already present
+     */
     public boolean addRole(UserRoleEntity role) {
         return roles.add(role);
     }
 
+    /**
+     * Removes a role from the user.
+     * @param role the role entity to remove
+     * @return true if the role was removed
+     */
     public boolean removeRole(UserRoleEntity role) {
         return roles.remove(role);
     }
 
+    /**
+     * Checks if the user has a specific role.
+     * @param role the role to check
+     * @return true if the user has the role
+     */
     public boolean hasRole(UserRole role) {
         return roles.stream().anyMatch(r -> r.getRole() == role);
     }
 
+    /**
+     * Checks if the user lacks a specific role.
+     * @param role the role to check
+     * @return true if the user does not have the role
+     */
     public boolean lacksRole(UserRole role) {
         return roles.stream().noneMatch(r -> r.getRole() == role);
     }
 
+    /**
+     * @return true if the user has the ADMIN role
+     */
     public boolean isAdmin() {
         return hasRole(UserRole.ADMIN);
     }
 
+    /**
+     * @return true if the user only has the USER role
+     */
     public boolean isUser() {
         return roles.size() == 1 && hasRole(UserRole.USER);
     }
 
+    /**
+     * Gets the role with the highest priority.
+     * @return the highest privilege role
+     */
     public UserRole getHighestPrivilegeRole() {
         return roles.stream()
                 .map(UserRoleEntity::getRole)
@@ -97,10 +135,16 @@ public class ApplicationUser implements UserDetails {
                 .orElse(UserRole.USER);
     }
 
+    /**
+     * Activates the user account.
+     */
     public void activate() {
         this.status = AccountStatus.ACTIVE;
     }
 
+    /**
+     * Deactivates the user account.
+     */
     public void deactivate() {
         this.status = AccountStatus.INACTIVE;
     }
@@ -136,6 +180,13 @@ public class ApplicationUser implements UserDetails {
 
     // ====== FACTORY ======
 
+    /**
+     * Creates a new user with INACTIVE status and no roles.
+     * @param username the username
+     * @param email the email
+     * @param password the encoded password
+     * @return a new ApplicationUser instance
+     */
     public static ApplicationUser createUser(String username, String email, String password) {
         return ApplicationUser.builder()
                 .username(username)
@@ -163,6 +214,10 @@ public class ApplicationUser implements UserDetails {
     }
 
     // ===== Helper ========
+    /**
+     * Returns the maximum weekly hours allowed for this user if they are a teacher.
+     * @return the weekly hours limit
+     */
     public int getWeeklyHoursLimit() {
         if (simulationTeam)
             return 999;

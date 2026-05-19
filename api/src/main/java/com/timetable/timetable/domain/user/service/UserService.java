@@ -25,6 +25,14 @@ import com.timetable.timetable.security.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Service for managing user-related operations.
+ *
+ * <p>Handles user creation, profile updates, account status management,
+ * and retrieval with filtering and pagination.</p>
+ *
+ * @author Sideral Skylark
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -36,6 +44,14 @@ public class UserService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
 
+    /**
+     * Creates a new user in the system.
+     *
+     * @param request the user creation data
+     * @return the created ApplicationUser
+     * @throws IllegalArgumentException if teacher type is missing for teachers
+     * @throws UserAlreadyExistsException if username or email is already taken
+     */
     @Transactional
     public ApplicationUser createUser(CreateUser request) {
         log.debug("Creating user");
@@ -64,6 +80,12 @@ public class UserService {
         return user;
     }
 
+    /**
+     * Creates a new user and returns a DTO response.
+     *
+     * @param request the user creation data
+     * @return the UserResponse DTO
+     */
     @Transactional
     public UserResponse createUserResponse(CreateUser request) {
         return userMapper.toDTO(createUser(request));
@@ -73,20 +95,46 @@ public class UserService {
     // READ USERS
     // ============================================================
 
+    /**
+     * Gets the profile of the currently authenticated user.
+     *
+     * @return the UserResponse DTO
+     * @throws UserNotFoundException if authenticated user is not found
+     */
     public UserResponse getAuthenticatedUserProfile() {
         ApplicationUser user = getByUsernameOrThrow(SecurityUtil.getAuthenticatedUsername());
         return userMapper.toDTO(user);
     }
 
+    /**
+     * Gets the currently authenticated user entity.
+     *
+     * @return the ApplicationUser entity
+     */
     public ApplicationUser getAuthenticatedUser() {
         return getByUsernameOrThrow(SecurityUtil.getAuthenticatedUsername());
     }
 
+    /**
+     * Retrieves all users matching the given filters.
+     *
+     * @param pageable pagination details
+     * @param filter filter parameters
+     * @return a page of UserResponse DTOs
+     */
     public Page<UserResponse> getAllUsers(Pageable pageable, UserFilterParams filter) {
         log.info("Filter received: {}", filter);
         return userRepository.findAll(UserSpecifications.withFilters(filter), pageable).map(userMapper::toDTO);
     }
 
+    /**
+     * Retrieves users by role with optional filters.
+     *
+     * @param role the required role
+     * @param pageable pagination details
+     * @param filter filter parameters
+     * @return a page of UserResponse DTOs
+     */
     public Page<UserResponse> getUsersByRole(UserRole role, Pageable pageable, UserFilterParams filter) {
         return userRepository.findAll(
                 UserSpecifications.withFilters(filter)
@@ -95,14 +143,35 @@ public class UserService {
                 .map(userMapper::toDTO);
     }
 
+    /**
+     * Finds a user by ID or throws an exception.
+     *
+     * @param id the user ID
+     * @return the ApplicationUser entity
+     * @throws UserNotFoundException if user not found
+     */
     public ApplicationUser findOrThrow(Long id) {
         return getByIdOrThrow(id);
     }
 
+    /**
+     * Gets a user DTO by ID.
+     *
+     * @param id the user ID
+     * @return the UserResponse DTO
+     */
     public UserResponse getUserById(Long id) {
         return userMapper.toDTO(getByIdOrThrow(id));
     }
 
+    /**
+     * Gets a user by role and ID.
+     *
+     * @param role the required role
+     * @param id the user ID
+     * @return the UserResponse DTO
+     * @throws UserNotFoundException if user with specified role and ID not found
+     */
     public UserResponse getUserByRoleAndId(UserRole role, Long id) {
         ApplicationUser user = userRepository.findByIdAndRole(id, role)
                 .orElseThrow(() -> new UserNotFoundException(
@@ -111,14 +180,32 @@ public class UserService {
         return userMapper.toDTO(user);
     }
 
+    /**
+     * Gets a user entity by username.
+     *
+     * @param username the username
+     * @return the ApplicationUser entity
+     */
     public ApplicationUser getUserByUsername(String username) {
         return getByUsernameOrThrow(username);
     }
 
+    /**
+     * Finds a user by username.
+     *
+     * @param username the username
+     * @return an Optional of ApplicationUser
+     */
     public Optional<ApplicationUser> findByUsername(String username) {
         return userRepository.findByUsername(username);
     }
 
+    /**
+     * Gets a user entity by email.
+     *
+     * @param email the email
+     * @return the ApplicationUser entity
+     */
     public ApplicationUser getUserByEmail(String email) {
         return getByEmailOrThrow(email);
     }
@@ -126,6 +213,12 @@ public class UserService {
     // ============================================================
     // UPDATE USERS
     // ============================================================
+    /**
+     * Updates the profile of the authenticated user.
+     *
+     * @param dto the update data
+     * @return the updated UserResponse DTO
+     */
     @Transactional
     public UserResponse updateAuthenticatedUserProfile(UpdateUserProfileDTO dto) {
         log.debug("Updating user profile");
@@ -135,6 +228,14 @@ public class UserService {
         return userMapper.toDTO(userRepository.save(user));
     }
 
+    /**
+     * Updates a user by ID (Admin operation).
+     *
+     * @param id the user ID
+     * @param payload the update data
+     * @return the updated UserResponse DTO
+     * @throws IllegalArgumentException if attempting to remove the last admin
+     */
     @Transactional
     public UserResponse updateUserById(Long id, AdminUpdateUserDTO payload) {
         log.debug("Updating user {}", id);
@@ -154,6 +255,12 @@ public class UserService {
         return userMapper.toDTO(user);
     }
 
+    /**
+     * Resets a user's password to a random one.
+     *
+     * @param id the user ID
+     * @return ResetPasswordResponse containing the new encoded password (for legacy reasons/manual delivery)
+     */
     @Transactional
     public ResetPasswordResponse resetPassword(Long id) {
         log.debug("Resetting password for user {}", id);
@@ -179,11 +286,18 @@ public class UserService {
     // ============================================================
     // DELETE USERS
     // ============================================================
+    /**
+     * Deletes the profile of the authenticated user.
+     */
     @Transactional
     public void deleteAuthenticatedUserProfile() {
         deleteByUsername(SecurityUtil.getAuthenticatedUsername());
     }
 
+    /**
+     * Deletes a user by username.
+     * @param username the username
+     */
     @Transactional
     public void deleteByUsername(String username) {
         ApplicationUser user = getByUsernameOrThrow(username);
@@ -191,6 +305,10 @@ public class UserService {
         userRepository.delete(user);
     }
 
+    /**
+     * Deletes a user by ID.
+     * @param id the user ID
+     */
     @Transactional
     public void deleteById(Long id) {
         ApplicationUser user = getByIdOrThrow(id);
@@ -201,11 +319,21 @@ public class UserService {
     // ============================================================
     // ACCOUNT STATUS
     // ============================================================
+    /**
+     * Enables a user account.
+     * @param email the user email
+     * @return true if status changed
+     */
     @Transactional
     public boolean enableAccount(String email) {
         return updateAccountStatus(email, true);
     }
 
+    /**
+     * Disables a user account.
+     * @param email the user email
+     * @return true if status changed
+     */
     @Transactional
     public boolean disableAccount(String email) {
         return updateAccountStatus(email, false);
