@@ -29,8 +29,8 @@ public class TimetableConstraintProvider implements ConstraintProvider {
                 roomCapacity(factory),
                 roomCourseRestriction(factory),
                 YearPeriodRestriction(factory),
-                sameSubjectConsecutiveSameDay(factory),
                 massBlockedTimeslot(factory),
+                sameSubjectSameDay(factory),
 
                 // SOFT CONSTRAINTS (preferences to optimize)
                 // minimizeTeacherGaps(factory),
@@ -131,7 +131,7 @@ public class TimetableConstraintProvider implements ConstraintProvider {
      * Prevent two consecutive lessons of the same subject
      * for the same cohort on the same day.
      */
-    private Constraint sameSubjectConsecutiveSameDay(ConstraintFactory factory) {
+    private Constraint sameSubjectSameDay(ConstraintFactory factory) {
         return factory.forEachUniquePair(
                 LessonAssignment.class,
                 Joiners.equal(LessonAssignment::getCohort),
@@ -139,10 +139,9 @@ public class TimetableConstraintProvider implements ConstraintProvider {
                 .filter((l1, l2) -> l1.getTimeslot() != null &&
                         l2.getTimeslot() != null &&
                         !l1.isFixedDaySession() &&
-                        isSameDay(l1, l2) &&
-                        areConsecutive(l1, l2))
+                        isSameDay(l1, l2))
                 .penalize(HardSoftScore.ONE_HARD)
-                .asConstraint("Same subject consecutive lessons same day");
+                .asConstraint("Same subject same day");
     }
 
     /**
@@ -219,19 +218,6 @@ public class TimetableConstraintProvider implements ConstraintProvider {
     private boolean isSameDay(LessonAssignment l1, LessonAssignment l2) {
         return l1.getTimeslot().getDayOfWeek()
                 .equals(l2.getTimeslot().getDayOfWeek());
-    }
-
-    private boolean areConsecutive(LessonAssignment l1, LessonAssignment l2) {
-        LocalTime end1 = l1.getTimeslot().getEndTime();
-        LocalTime start2 = l2.getTimeslot().getStartTime();
-        LocalTime end2 = l2.getTimeslot().getEndTime();
-        LocalTime start1 = l1.getTimeslot().getStartTime();
-
-        // Considera consecutivo se o gap entre blocos for <= 10 minutos
-        long gap1 = java.time.Duration.between(end1, start2).toMinutes();
-        long gap2 = java.time.Duration.between(end2, start1).toMinutes();
-
-        return (gap1 >= 0 && gap1 <= 10) || (gap2 >= 0 && gap2 <= 10);
     }
 
     private boolean overlapsWithMass(LocalTime start, LocalTime end) {
