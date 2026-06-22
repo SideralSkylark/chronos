@@ -1090,7 +1090,11 @@ function onSemesterChange(semester: number) {
 }
 
 async function calculateValidSlots() {
-  if (!selectedLesson.value) return
+  if (!selectedLesson.value || selectedLesson.value.subject.name.includes("Simulação Empresarial"))
+  {
+    toast.error('operação rejeitada');
+    return
+  }
   loadingSlots.value = true
   slotsCalculated.value = false
   try {
@@ -1108,7 +1112,11 @@ async function calculateValidSlots() {
   }
 }
 async function calculateCohortSwaps() {
-  if (!selectedLesson.value) return
+  if (!selectedLesson.value || selectedLesson.value.subject.name.includes("Simulação Empresarial"))
+  {
+    toast.error('operação rejeitada')
+    return
+  }
   loadingCohortSwaps.value = true
   cohortSwapsCalculated.value = false
   try {
