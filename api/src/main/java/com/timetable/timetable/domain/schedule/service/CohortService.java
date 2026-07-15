@@ -1,14 +1,5 @@
 package com.timetable.timetable.domain.schedule.service;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.timetable.timetable.domain.schedule.dto.CohortFilterParams;
 import com.timetable.timetable.domain.schedule.dto.CohortListResponse;
 import com.timetable.timetable.domain.schedule.dto.CohortResponse;
@@ -30,245 +21,258 @@ import com.timetable.timetable.domain.schedule.specification.CohortSpecification
 import com.timetable.timetable.domain.user.entity.ApplicationUser;
 import com.timetable.timetable.domain.user.entity.UserRole;
 import com.timetable.timetable.domain.user.repository.UserRepository;
-
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Service for managing student cohorts, including their creation, 
- * student assignments, and estimation logic.
+ * Service for managing student cohorts, including their creation, student assignments, and
+ * estimation logic.
  */
 @Service
 @Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class CohortService {
-    private final CohortRepository cohortRepository;
-    private final CohortSubjectService cohortSubjectService;
-    private final CourseService courseService;
-    private final UserRepository userRepository;
-    private final RoomRepository roomRepository;
-    private final ScheduledClassRepository scheduledClassRepository;
+  private final CohortRepository cohortRepository;
+  private final CohortSubjectService cohortSubjectService;
+  private final CourseService courseService;
+  private final UserRepository userRepository;
+  private final RoomRepository roomRepository;
+  private final ScheduledClassRepository scheduledClassRepository;
 
-    @Transactional
-    public Cohort createCohort(CreateCohortRequest createRequest) {
-        log.debug("Creating cohort");
+  @Transactional
+  public Cohort createCohort(CreateCohortRequest createRequest) {
+    log.debug("Creating cohort");
 
-        if (cohortRepository.existsByYearAndSectionAndSemesterAndAcademicYearAndCourseId(
-                createRequest.year(),
-                createRequest.section(),
-                createRequest.semester(),
-                createRequest.academicYear(),
-                createRequest.courseId())) {
+    if (cohortRepository.existsByYearAndSectionAndSemesterAndAcademicYearAndCourseId(
+        createRequest.year(),
+        createRequest.section(),
+        createRequest.semester(),
+        createRequest.academicYear(),
+        createRequest.courseId())) {
 
-            String cohortIdentifier = String.format("%d-%s-%d-%d",
-                    createRequest.year(),
-                    createRequest.section(),
-                    createRequest.semester(),
-                    createRequest.academicYear());
+      String cohortIdentifier =
+          String.format(
+              "%d-%s-%d-%d",
+              createRequest.year(),
+              createRequest.section(),
+              createRequest.semester(),
+              createRequest.academicYear());
 
-            throw new CohortAlreadyExistsException(
-                    String.format("Cohort '%s' already exists for the designated course", cohortIdentifier));
-        }
-
-        Course course = courseService.findCourseOrThrow(createRequest.courseId());
-
-        Integer expectedCohorts = course.getExpectedCohortsPerAcademicYear()
-                .get(createRequest.year());
-
-        if (expectedCohorts == null) {
-            throw new IllegalStateException(
-                    "No cohort limit configured for academic year " + createRequest.year());
-        }
-
-        long existingCount = cohortRepository
-                .countByCourseIdAndYearAndAcademicYearAndSemester(
-                        course.getId(),
-                        createRequest.year(),
-                        createRequest.academicYear(),
-                        createRequest.semester());
-
-        if (existingCount >= expectedCohorts) {
-            throw new CohortLimitExceededException(
-                    String.format(
-                            "Maximum number of cohorts (%d) reached for course %d, academic year %d, semester %d",
-                            expectedCohorts,
-                            course.getId(),
-                            createRequest.academicYear(),
-                            createRequest.semester()));
-        }
-
-        Set<ApplicationUser> students = new HashSet<>();
-        if (createRequest.studentIds() != null && !createRequest.studentIds().isEmpty()) {
-            students = validateAndFetchStudents(createRequest.studentIds());
-        }
-
-        Cohort cohort = Cohort.builder()
-                .year(createRequest.year())
-                .section(createRequest.section())
-                .semester(createRequest.semester())
-                .academicYear(createRequest.academicYear())
-                .course(course)
-                .courseNameSnapshot(course.getName())
-                .students(students)
-                .build();
-
-        Cohort saved = cohortRepository.save(cohort);
-
-        log.info("Cohort {} created with identifier: {}", saved.getId(), saved.getDisplayName());
-
-        return saved;
+      throw new CohortAlreadyExistsException(
+          String.format("Cohort '%s' already exists for the designated course", cohortIdentifier));
     }
 
-    @Transactional
-    public CohortResponse createCohortResponse(CreateCohortRequest request) {
-        return CohortResponse.from(createCohort(request));
+    Course course = courseService.findCourseOrThrow(createRequest.courseId());
+
+    Integer expectedCohorts = course.getExpectedCohortsPerAcademicYear().get(createRequest.year());
+
+    if (expectedCohorts == null) {
+      throw new IllegalStateException(
+          "No cohort limit configured for academic year " + createRequest.year());
     }
 
-    @Transactional
-    public CohortResponse confirmCohort(Long id, int studentCount) {
-        log.debug("starting cohort confirmation");
-        Cohort cohort = getById(id);
+    long existingCount =
+        cohortRepository.countByCourseIdAndYearAndAcademicYearAndSemester(
+            course.getId(),
+            createRequest.year(),
+            createRequest.academicYear(),
+            createRequest.semester());
 
-        if (cohort.getStatus() == CohortStatus.CONFIRMED) {
-            throw new CohortAlreadyConfirmedException("cohort already confirmed");
-        }
-
-        int maxCapacity = roomRepository.findMaxCapacity();
-        if (studentCount > maxCapacity) {
-            throw new RoomCapacityExceededException(
-                    "Student count of (%d) exceeds the rooms capacity (%d). Consider spliting the cohort."
-                            .formatted(studentCount, maxCapacity));
-        }
-
-        cohort.setEstimatedStudentCount(studentCount);
-        cohort.setStatus(CohortStatus.CONFIRMED);
-
-        Cohort saved = cohortRepository.save(cohort);
-        log.info("Cohort {} confirmed with {} students", id, studentCount);
-        return CohortResponse.from(saved);
+    if (existingCount >= expectedCohorts) {
+      throw new CohortLimitExceededException(
+          String.format(
+              "Maximum number of cohorts (%d) reached for course %d, academic year %d, semester %d",
+              expectedCohorts,
+              course.getId(),
+              createRequest.academicYear(),
+              createRequest.semester()));
     }
 
-    public Page<CohortListResponse> findAll(Pageable pageable, CohortFilterParams filters) {
-        log.debug("fetching all cohorts");
-
-        return cohortRepository.findAll(CohortSpecifications.withFilters(filters), pageable)
-                .map(cohort -> new CohortListResponse(
-                        cohort.getId(),
-                        cohort.getYear(),
-                        cohort.getSection(),
-                        cohort.getAcademicYear(),
-                        cohort.getSemester(),
-                        cohort.getCourse().getId(),
-                        cohort.getCourseNameSnapshot(),
-                        cohort.getStudentCount(),
-                        cohort.getStatus()));
+    Set<ApplicationUser> students = new HashSet<>();
+    if (createRequest.studentIds() != null && !createRequest.studentIds().isEmpty()) {
+      students = validateAndFetchStudents(createRequest.studentIds());
     }
 
-    /**
-     * returns the number of existing and confirmed cohorts given some
-     * {@link CohortFilterParams}
-     * 
-     * @return CohortSummaryResponse
-     */
-    public CohortSummaryResponse getSummary(CohortFilterParams filters) {
-        long total = cohortRepository.count(CohortSpecifications.withFilters(filters));
+    Cohort cohort =
+        Cohort.builder()
+            .year(createRequest.year())
+            .section(createRequest.section())
+            .semester(createRequest.semester())
+            .academicYear(createRequest.academicYear())
+            .course(course)
+            .courseNameSnapshot(course.getName())
+            .students(students)
+            .build();
 
-        filters.setStatus(CohortStatus.CONFIRMED);
-        long confirmed = cohortRepository.count(CohortSpecifications.withFilters(filters));
+    Cohort saved = cohortRepository.save(cohort);
 
-        return new CohortSummaryResponse(total, confirmed);
+    log.info("Cohort {} created with identifier: {}", saved.getId(), saved.getDisplayName());
+
+    return saved;
+  }
+
+  @Transactional
+  public CohortResponse createCohortResponse(CreateCohortRequest request) {
+    return CohortResponse.from(createCohort(request));
+  }
+
+  @Transactional
+  public CohortResponse confirmCohort(Long id, int studentCount) {
+    log.debug("starting cohort confirmation");
+    Cohort cohort = getById(id);
+
+    if (cohort.getStatus() == CohortStatus.CONFIRMED) {
+      throw new CohortAlreadyConfirmedException("cohort already confirmed");
     }
 
-    public Cohort getById(Long id) {
-        log.debug("Looking for cohort {}", id);
-        Cohort cohort = cohortRepository.findByIdWithStudentsAndCourse(id)
-                .orElseThrow(() -> new CohortNotFoundException("could not find cohort %d".formatted(id)));
-        log.info("Cohort {} found: {}", id, cohort.getDisplayName());
-        return cohort;
+    int maxCapacity = roomRepository.findMaxCapacity();
+    if (studentCount > maxCapacity) {
+      throw new RoomCapacityExceededException(
+          "Student count of (%d) exceeds the rooms capacity (%d). Consider spliting the cohort."
+              .formatted(studentCount, maxCapacity));
     }
 
-    public CohortResponse getResponseById(Long id) {
-        return CohortResponse.from(getById(id));
+    cohort.setEstimatedStudentCount(studentCount);
+    cohort.setStatus(CohortStatus.CONFIRMED);
+
+    Cohort saved = cohortRepository.save(cohort);
+    log.info("Cohort {} confirmed with {} students", id, studentCount);
+    return CohortResponse.from(saved);
+  }
+
+  public Page<CohortListResponse> findAll(Pageable pageable, CohortFilterParams filters) {
+    log.debug("fetching all cohorts");
+
+    return cohortRepository
+        .findAll(CohortSpecifications.withFilters(filters), pageable)
+        .map(
+            cohort ->
+                new CohortListResponse(
+                    cohort.getId(),
+                    cohort.getYear(),
+                    cohort.getSection(),
+                    cohort.getAcademicYear(),
+                    cohort.getSemester(),
+                    cohort.getCourse().getId(),
+                    cohort.getCourseNameSnapshot(),
+                    cohort.getStudentCount(),
+                    cohort.getStatus()));
+  }
+
+  /**
+   * returns the number of existing and confirmed cohorts given some {@link CohortFilterParams}
+   *
+   * @return CohortSummaryResponse
+   */
+  public CohortSummaryResponse getSummary(CohortFilterParams filters) {
+    long total = cohortRepository.count(CohortSpecifications.withFilters(filters));
+
+    filters.setStatus(CohortStatus.CONFIRMED);
+    long confirmed = cohortRepository.count(CohortSpecifications.withFilters(filters));
+
+    return new CohortSummaryResponse(total, confirmed);
+  }
+
+  public Cohort getById(Long id) {
+    log.debug("Looking for cohort {}", id);
+    Cohort cohort =
+        cohortRepository
+            .findByIdWithStudentsAndCourse(id)
+            .orElseThrow(
+                () -> new CohortNotFoundException("could not find cohort %d".formatted(id)));
+    log.info("Cohort {} found: {}", id, cohort.getDisplayName());
+    return cohort;
+  }
+
+  public CohortResponse getResponseById(Long id) {
+    return CohortResponse.from(getById(id));
+  }
+
+  @Transactional
+  public CohortResponse updateCohort(Long id, UpdateCohortRequest updateRequest) {
+    log.debug("Updating cohort {}", id);
+    Cohort cohort =
+        cohortRepository
+            .findByIdWithCourse(id)
+            .orElseThrow(() -> new CohortNotFoundException("cohort d% not found".formatted(id)));
+
+    if (cohortRepository.existsAnotherWithSameAttributes(
+        updateRequest.year(),
+        updateRequest.section(),
+        updateRequest.semester(),
+        updateRequest.academicYear(),
+        cohort.getCourse().getId(),
+        cohort.getId())) {
+      throw new CohortAlreadyExistsException(
+          "Another cohort with the same specification already exists");
     }
 
-    @Transactional
-    public CohortResponse updateCohort(Long id, UpdateCohortRequest updateRequest) {
-        log.debug("Updating cohort {}", id);
-        Cohort cohort = cohortRepository.findByIdWithCourse(id)
-                .orElseThrow(() -> new CohortNotFoundException("cohort d% not found".formatted(id)));
+    Set<ApplicationUser> students = validateAndFetchStudents(updateRequest.studentIds());
 
-        if (cohortRepository.existsAnotherWithSameAttributes(
-                updateRequest.year(),
-                updateRequest.section(),
-                updateRequest.semester(),
-                updateRequest.academicYear(),
-                cohort.getCourse().getId(),
-                cohort.getId())) {
-            throw new CohortAlreadyExistsException(
-                    "Another cohort with the same specification already exists");
-        }
+    cohort.setYear(updateRequest.year());
+    cohort.setSection(updateRequest.section());
+    cohort.setSemester(updateRequest.semester());
+    cohort.setAcademicYear(updateRequest.academicYear());
+    cohort.setStudents(students);
 
-        Set<ApplicationUser> students = validateAndFetchStudents(updateRequest.studentIds());
+    Cohort updated = cohortRepository.save(cohort);
 
-        cohort.setYear(updateRequest.year());
-        cohort.setSection(updateRequest.section());
-        cohort.setSemester(updateRequest.semester());
-        cohort.setAcademicYear(updateRequest.academicYear());
-        cohort.setStudents(students);
+    log.info("Cohort {} updated: {}", updated.getId(), updated.getDisplayName());
 
-        Cohort updated = cohortRepository.save(cohort);
+    return CohortResponse.from(updated);
+  }
 
-        log.info("Cohort {} updated: {}", updated.getId(), updated.getDisplayName());
+  /** update the students of a cohort */
+  @Transactional
+  public CohortResponse updateStudents(Long cohortId, List<Long> studentIds) {
+    log.debug("updating cohort students");
+    Cohort cohort = getById(cohortId);
 
-        return CohortResponse.from(updated);
+    Set<ApplicationUser> students = validateAndFetchStudents(studentIds);
+    cohort.setStudents(students);
+    log.info("updated the students for cohort {}", cohortId);
+
+    return CohortResponse.from(cohortRepository.save(cohort));
+  }
+
+  @Transactional
+  public void deleteCohort(Long id) {
+    log.debug("deleting cohort");
+    if (!cohortRepository.existsById(id)) {
+      throw new CohortNotFoundException(String.format("Cohort with id %d not found", id));
     }
 
-    /**
-     * update the students of a cohort
-     */
-    @Transactional
-    public CohortResponse updateStudents(Long cohortId, List<Long> studentIds) {
-        log.debug("updating cohort students");
-        Cohort cohort = getById(cohortId);
+    scheduledClassRepository.deleteByCohortId(id); // 1. scheduled_classes
+    cohortSubjectService.deleteByCohort(id); // 2. cohort_subjects
+    cohortRepository.deleteById(id); // 3. cohort (cohort_students vai junto)
 
-        Set<ApplicationUser> students = validateAndFetchStudents(studentIds);
-        cohort.setStudents(students);
-        log.info("updated the students for cohort {}", cohortId);
+    log.info("Cohort {} deleted", id);
+  }
 
-        return CohortResponse.from(cohortRepository.save(cohort));
+  private Set<ApplicationUser> validateAndFetchStudents(List<Long> studentIds) {
+    if (studentIds == null || studentIds.isEmpty()) return new HashSet<>();
+
+    List<ApplicationUser> users = userRepository.findAllById(studentIds);
+
+    if (users == null || users.isEmpty()) {
+      throw new IllegalArgumentException("One or more student ids not found");
     }
 
-    @Transactional
-    public void deleteCohort(Long id) {
-        log.debug("deleting cohort");
-        if (!cohortRepository.existsById(id)) {
-            throw new CohortNotFoundException(String.format("Cohort with id %d not found", id));
-        }
-
-        scheduledClassRepository.deleteByCohortId(id); // 1. scheduled_classes
-        cohortSubjectService.deleteByCohort(id); // 2. cohort_subjects
-        cohortRepository.deleteById(id); // 3. cohort (cohort_students vai junto)
-
-        log.info("Cohort {} deleted", id);
-    }
-
-    private Set<ApplicationUser> validateAndFetchStudents(List<Long> studentIds) {
-        if (studentIds == null || studentIds.isEmpty())
-            return new HashSet<>();
-
-        List<ApplicationUser> users = userRepository.findAllById(studentIds);
-
-        if (users == null || users.isEmpty()) {
-            throw new IllegalArgumentException("One or more student ids not found");
-        }
-
-        users.forEach(user -> {
-            if (!user.hasRole(UserRole.STUDENT)) {
-                throw new IllegalArgumentException("user %d is not a student".formatted(user.getId()));
-            }
+    users.forEach(
+        user -> {
+          if (!user.hasRole(UserRole.STUDENT)) {
+            throw new IllegalArgumentException("user %d is not a student".formatted(user.getId()));
+          }
         });
 
-        return new HashSet<>(users);
-    }
+    return new HashSet<>(users);
+  }
 }

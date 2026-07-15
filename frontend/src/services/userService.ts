@@ -27,7 +27,17 @@ export const userService = {
       const res = await api.post<ApiResponse<UserResponse>>('/v1/admins', data)
       return res.data.data
     },
-    getAll: async (page = 0, size = 10, filters?: { username?: string; email?: string; role?: string; status?: string; teacherType?: string}) => {
+    getAll: async (
+      page = 0,
+      size = 10,
+      filters?: {
+        username?: string
+        email?: string
+        role?: string
+        status?: string
+        teacherType?: string
+      },
+    ) => {
       const params: any = { page, size }
       if (filters?.username) params.username = filters.username
       if (filters?.email) params.email = filters.email
@@ -42,7 +52,9 @@ export const userService = {
       return res.data.data
     },
     getStudents: async (page = 0, size = 1000) => {
-      const res = await api.get<ApiResponse<Page<UserResponse>>>('/v1/admins/students', { params: { page, size } })
+      const res = await api.get<ApiResponse<Page<UserResponse>>>('/v1/admins/students', {
+        params: { page, size },
+      })
       return res.data.data
     },
     update: async (id: number, data: UpdateUserRequest) => {
@@ -50,7 +62,9 @@ export const userService = {
       return res.data.data
     },
     resetPassword: async (id: number) => {
-      const res = await api.post<ApiResponse<{ temporaryPassword: string }>>(`/v1/admins/${id}/reset-password`)
+      const res = await api.post<ApiResponse<{ temporaryPassword: string }>>(
+        `/v1/admins/${id}/reset-password`,
+      )
       return res.data.data
     },
     delete: async (id: number) => {
@@ -58,4 +72,3 @@ export const userService = {
     },
   },
 }
-

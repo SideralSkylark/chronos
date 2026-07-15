@@ -7,9 +7,9 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class CohortFilterParams {
-    private String name;
-    private Long courseId;
-    private Integer academicYear;
-    private Integer semester;
-    private CohortStatus status;
+  private String name;
+  private Long courseId;
+  private Integer academicYear;
+  private Integer semester;
+  private CohortStatus status;
 }

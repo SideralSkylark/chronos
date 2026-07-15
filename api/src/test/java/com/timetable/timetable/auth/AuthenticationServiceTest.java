@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -42,8 +43,6 @@ import com.timetable.timetable.security.SecurityUtil;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.util.Collections;
-import java.util.List;
 
 import org.mockito.MockedStatic;
 
@@ -95,7 +94,7 @@ class AuthenticationServiceTest {
         when(userRepository.findByEmail(loginRequest.email())).thenReturn(Optional.of(testUser));
         when(passwordEncoder.matches(loginRequest.password(), testUser.getPassword())).thenReturn(true);
         when(jwtService.generateToken(testUser)).thenReturn("accessToken");
-        
+
         RefreshToken refreshTokenEntity = new RefreshToken();
         refreshTokenEntity.setToken("refreshToken");
         when(refreshTokenService.createRefreshToken(eq(testUser), eq(request))).thenReturn(refreshTokenEntity);
@@ -142,15 +141,17 @@ class AuthenticationServiceTest {
         when(refreshTokenService.isTokenValid(oldRefreshToken)).thenReturn(true);
         when(refreshTokenService.getUserFromToken(oldRefreshToken)).thenReturn(testUser);
         when(jwtService.generateToken(testUser)).thenReturn("newAccessToken");
-        
+
         RefreshToken newRefreshTokenEntity = new RefreshToken();
         newRefreshTokenEntity.setToken("newRefreshToken");
         when(refreshTokenService.createRefreshToken(eq(testUser), eq(request))).thenReturn(newRefreshTokenEntity);
 
         authenticationService.refreshAccessToken(request, response);
 
-        verify(cookieUtil).setTokenCookie(eq(response), eq(CookieUtil.ACCESS_TOKEN_COOKIE), eq("newAccessToken"), any());
-        verify(cookieUtil).setTokenCookie(eq(response), eq(CookieUtil.REFRESH_TOKEN_COOKIE), eq("newRefreshToken"), any());
+        verify(cookieUtil).setTokenCookie(eq(response), eq(CookieUtil.ACCESS_TOKEN_COOKIE), eq("newAccessToken"),
+                any());
+        verify(cookieUtil).setTokenCookie(eq(response), eq(CookieUtil.REFRESH_TOKEN_COOKIE), eq("newRefreshToken"),
+                any());
     }
 
     @Test
@@ -160,7 +161,7 @@ class AuthenticationServiceTest {
 
         assertThatThrownBy(() -> authenticationService.refreshAccessToken(request, response))
                 .isInstanceOf(InvalidTokenException.class);
-        
+
         verify(cookieUtil).clearCookie(eq(response), eq(CookieUtil.ACCESS_TOKEN_COOKIE));
         verify(cookieUtil).clearCookie(eq(response), eq(CookieUtil.REFRESH_TOKEN_COOKIE));
     }
@@ -182,11 +183,11 @@ class AuthenticationServiceTest {
         String username = "testuser";
         Pageable pageable = mock(Pageable.class);
         when(userRepository.findByUsername(username)).thenReturn(Optional.of(testUser));
-        
+
         RefreshToken token = new RefreshToken();
         Page<RefreshToken> tokenPage = new PageImpl<>(List.of(token));
         when(refreshTokenService.findAllByUserId(testUser.getId(), pageable)).thenReturn(tokenPage);
-        
+
         SessionDTO sessionDTO = new SessionDTO(1L, "ip", "device", null, true);
         when(sessionMapper.toSessionDTO(token)).thenReturn(sessionDTO);
 
@@ -202,14 +203,14 @@ class AuthenticationServiceTest {
         RefreshToken tokenEntity = new RefreshToken();
         tokenEntity.setToken("tokenValue");
         tokenEntity.setUser(testUser);
-        
+
         when(refreshTokenService.findByTokenId(tokenId)).thenReturn(Optional.of(tokenEntity));
-        
+
         try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
             mockedSecurityUtil.when(SecurityUtil::getAuthenticatedUsername).thenReturn(testUser.getUsername());
-            
+
             authenticationService.logoutWithToken(tokenId);
-            
+
             verify(refreshTokenService).deleteByToken("tokenValue");
         }
     }
@@ -220,12 +221,12 @@ class AuthenticationServiceTest {
         RefreshToken tokenEntity = new RefreshToken();
         ApplicationUser otherUser = ApplicationUser.builder().username("other").build();
         tokenEntity.setUser(otherUser);
-        
+
         when(refreshTokenService.findByTokenId(tokenId)).thenReturn(Optional.of(tokenEntity));
-        
+
         try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
             mockedSecurityUtil.when(SecurityUtil::getAuthenticatedUsername).thenReturn(testUser.getUsername());
-            
+
             assertThatThrownBy(() -> authenticationService.logoutWithToken(tokenId))
                     .isInstanceOf(InvalidTokenException.class);
         }

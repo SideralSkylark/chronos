@@ -1,11 +1,5 @@
 package com.timetable.timetable.domain.schedule.entity;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -16,15 +10,17 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
-/**
- * Represents a complete schedule for a specific academic year and semester.
- */
+/** Represents a complete schedule for a specific academic year and semester. */
 @Entity
 @Table(name = "timetables")
 @Getter
@@ -33,39 +29,34 @@ import lombok.Setter;
 @NoArgsConstructor
 @Builder
 public class Timetable {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @OneToMany(mappedBy = "timetable", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ScheduledClass> scheduledClasses;
+  @OneToMany(mappedBy = "timetable", cascade = CascadeType.ALL, orphanRemoval = true)
+  private List<ScheduledClass> scheduledClasses;
 
-    @Enumerated(EnumType.STRING)
-    @Builder.Default
-    @Column(nullable = false)
-    private TimetableStatus status = TimetableStatus.DRAFT;
+  @Enumerated(EnumType.STRING)
+  @Builder.Default
+  @Column(nullable = false)
+  private TimetableStatus status = TimetableStatus.DRAFT;
 
-    /**
-     * The timetables respective year,
-     * ie: 2026
-     */
-    @Column(nullable = false)
-    private int academicYear;
+  private String score;
 
-    @Column(nullable = false)
-    private int semester;
+  private boolean feasible;
 
-    @CreationTimestamp
-    private LocalDateTime createdAt;
+  /** The timetables respective year, ie: 2026 */
+  @Column(nullable = false)
+  private int academicYear;
 
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
+  @Column(nullable = false)
+  private int semester;
 
-    private String score;
+  @CreationTimestamp private LocalDateTime createdAt;
 
-    private boolean feasible;
+  @UpdateTimestamp private LocalDateTime updatedAt;
 
-    public String getAcademicPeriod() {
-        return academicYear + "." + semester;
-    }
+  public String getAcademicPeriod() {
+    return academicYear + "." + semester;
+  }
 }

@@ -1,7 +1,6 @@
 package com.timetable.timetable.domain.schedule.entity;
 
 import com.timetable.timetable.domain.user.entity.ApplicationUser;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -17,9 +16,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * Represents a specific class session assigned to a room and timeslot within a timetable.
- */
+/** Represents a specific class session assigned to a room and timeslot within a timetable. */
 @Entity
 @Table(name = "scheduled_classes")
 @Getter
@@ -28,39 +25,39 @@ import lombok.Setter;
 @NoArgsConstructor
 @Builder
 public class ScheduledClass {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "cohort_subject_id", nullable = false)
-    private CohortSubject cohortSubject;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "cohort_subject_id", nullable = false)
+  private CohortSubject cohortSubject;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "timetable_id")
-    private Timetable timetable;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "timetable_id")
+  private Timetable timetable;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "room_id")
-    private Room room;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "room_id")
+  private Room room;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "timeslot_id")
-    private Timeslot timeslot;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "timeslot_id")
+  private Timeslot timeslot;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private boolean pinned = false;
+  @Column(nullable = false)
+  @Builder.Default
+  private boolean pinned = false;
 
-    public Subject getSubject() {
-        return cohortSubject.getSubject();
-    }
+  public Subject getSubject() {
+    return cohortSubject.getSubject();
+  }
 
-    public ApplicationUser getTeacher() {
-        return cohortSubject.getAssignedTeacher();
-    }
+  public ApplicationUser getTeacher() {
+    return cohortSubject.getAssignedTeacher();
+  }
 
-    public Cohort getCohort() {
-        return cohortSubject.getCohort();
-    }
+  public Cohort getCohort() {
+    return cohortSubject.getCohort();
+  }
 }

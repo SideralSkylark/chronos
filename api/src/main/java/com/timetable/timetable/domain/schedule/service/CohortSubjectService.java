@@ -13,12 +13,10 @@ import com.timetable.timetable.domain.schedule.repository.CohortSubjectRepositor
 import com.timetable.timetable.domain.user.entity.ApplicationUser;
 import com.timetable.timetable.domain.user.entity.UserRole;
 import com.timetable.timetable.domain.user.service.UserService;
-
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
@@ -26,121 +24,134 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional(readOnly = true)
 public class CohortSubjectService {
 
-    private final CohortSubjectRepository cohortSubjectRepository;
-    private final CohortRepository cohortRepository;
-    private final SubjectService subjectService;
-    private final UserService userService;
+  private final CohortSubjectRepository cohortSubjectRepository;
+  private final CohortRepository cohortRepository;
+  private final SubjectService subjectService;
+  private final UserService userService;
 
-    @Transactional
-    public CohortSubject createCohortSubject(CreateCohortSubjectRequest request) {
-        log.debug("Creating cohort subject assignment");
+  @Transactional
+  public CohortSubject createCohortSubject(CreateCohortSubjectRequest request) {
+    log.debug("Creating cohort subject assignment");
 
-        Cohort cohort = cohortRepository.findByIdWithCourse(request.cohortId())
-                .orElseThrow(() -> new CohortNotFoundException("Cohort not found: " + request.cohortId()));
+    Cohort cohort =
+        cohortRepository
+            .findByIdWithCourse(request.cohortId())
+            .orElseThrow(
+                () -> new CohortNotFoundException("Cohort not found: " + request.cohortId()));
 
-        Subject subject = subjectService.findOrThrow(request.subjectId());
-        ApplicationUser teacher = userService.findOrThrow(request.assignedTeacherId());
+    Subject subject = subjectService.findOrThrow(request.subjectId());
+    ApplicationUser teacher = userService.findOrThrow(request.assignedTeacherId());
 
-        validateTeacherIsEligible(teacher, subject);
-        validateCohortSubjectCompatibility(cohort, subject);
-        validateTeacherWorkload(teacher, subject, cohort.getAcademicYear(), cohort.getSemester());
+    validateTeacherIsEligible(teacher, subject);
+    validateCohortSubjectCompatibility(cohort, subject);
+    validateTeacherWorkload(teacher, subject, cohort.getAcademicYear(), cohort.getSemester());
 
-        if (cohortSubjectRepository.existsByCohortAndSubjectAndAcademicYearAndSemester(
-                cohort, subject, cohort.getAcademicYear(), cohort.getSemester())) {
+    if (cohortSubjectRepository.existsByCohortAndSubjectAndAcademicYearAndSemester(
+        cohort, subject, cohort.getAcademicYear(), cohort.getSemester())) {
 
-            throw new IllegalStateException(
-                    "This subject is already assigned to this cohort for the same academic period");
-        }
-
-        CohortSubject cohortSubject = CohortSubject.builder()
-                .cohort(cohort)
-                .subject(subject)
-                .assignedTeacher(teacher)
-                .academicYear(cohort.getAcademicYear())
-                .semester(cohort.getSemester())
-                .isActive(true)
-                .build();
-
-        CohortSubject saved = cohortSubjectRepository.save(cohortSubject);
-
-        log.info("Cohort subject {} created", saved.getDisplayName());
-        return saved;
+      throw new IllegalStateException(
+          "This subject is already assigned to this cohort for the same academic period");
     }
 
-    public CohortSubject findWithDetailsOrThrow(Long id) {
-        return cohortSubjectRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new CohortSubjectNotFoundException(
-                        "Cohort subject assignment with id " + id + " not found"));
+    CohortSubject cohortSubject =
+        CohortSubject.builder()
+            .cohort(cohort)
+            .subject(subject)
+            .assignedTeacher(teacher)
+            .academicYear(cohort.getAcademicYear())
+            .semester(cohort.getSemester())
+            .isActive(true)
+            .build();
+
+    CohortSubject saved = cohortSubjectRepository.save(cohortSubject);
+
+    log.info("Cohort subject {} created", saved.getDisplayName());
+    return saved;
+  }
+
+  public CohortSubject findWithDetailsOrThrow(Long id) {
+    return cohortSubjectRepository
+        .findByIdWithDetails(id)
+        .orElseThrow(
+            () ->
+                new CohortSubjectNotFoundException(
+                    "Cohort subject assignment with id " + id + " not found"));
+  }
+
+  @Transactional
+  public CohortSubject updateCohortSubject(Long id, UpdateCohortSubjectRequest request) {
+    CohortSubject cohortSubject = findWithDetailsOrThrow(id);
+
+    if (!cohortSubject.getAssignedTeacher().getId().equals(request.assignedTeacherId())) {
+
+      ApplicationUser newTeacher = userService.findOrThrow(request.assignedTeacherId());
+      boolean isPhantomSwap =
+          cohortSubject.getAssignedTeacher().getUsername().startsWith("PHANTOM_");
+
+      validateTeacherIsEligible(newTeacher, cohortSubject.getSubject());
+
+      if (!isPhantomSwap) {
+        validateTeacherWorkload(
+            newTeacher,
+            cohortSubject.getSubject(),
+            cohortSubject.getAcademicYear(),
+            cohortSubject.getSemester());
+      } else {
+        log.info(
+            "Bypassing workload validation for phantom teacher swap: {} -> {}",
+            cohortSubject.getAssignedTeacher().getUsername(),
+            newTeacher.getUsername());
+      }
+
+      cohortSubject.setAssignedTeacher(newTeacher);
     }
 
-    @Transactional
-    public CohortSubject updateCohortSubject(Long id, UpdateCohortSubjectRequest request) {
-        CohortSubject cohortSubject = findWithDetailsOrThrow(id);
+    cohortSubject.setActive(request.isActive());
 
-        if (!cohortSubject.getAssignedTeacher().getId()
-                .equals(request.assignedTeacherId())) {
+    return cohortSubjectRepository.save(cohortSubject);
+  }
 
-            ApplicationUser newTeacher = userService.findOrThrow(request.assignedTeacherId());
-            boolean isPhantomSwap = cohortSubject.getAssignedTeacher().getUsername().startsWith("PHANTOM_");
+  @Transactional
+  public void deleteByCohort(Long id) {
+    cohortSubjectRepository.deleteByCohortId(id);
+  }
 
-            validateTeacherIsEligible(newTeacher, cohortSubject.getSubject());
-            
-            if (!isPhantomSwap) {
-                validateTeacherWorkload(newTeacher,
-                        cohortSubject.getSubject(),
-                        cohortSubject.getAcademicYear(),
-                        cohortSubject.getSemester());
-            } else {
-                log.info("Bypassing workload validation for phantom teacher swap: {} -> {}", 
-                    cohortSubject.getAssignedTeacher().getUsername(), newTeacher.getUsername());
-            }
-
-            cohortSubject.setAssignedTeacher(newTeacher);
-        }
-
-        cohortSubject.setActive(request.isActive());
-
-        return cohortSubjectRepository.save(cohortSubject);
+  private void validateTeacherIsEligible(ApplicationUser teacher, Subject subject) {
+    if (!teacher.hasRole(UserRole.TEACHER)) {
+      throw new IllegalArgumentException("User is not a teacher");
     }
 
-    @Transactional
-    public void deleteByCohort(Long id) {
-        cohortSubjectRepository.deleteByCohortId(id);
+    if (!subject.getEligibleTeachers().contains(teacher)) {
+      throw new IllegalArgumentException("Teacher is not eligible to teach this subject");
+    }
+  }
+
+  private void validateCohortSubjectCompatibility(Cohort cohort, Subject subject) {
+    if (!cohort.getCourse().equals(subject.getCourse())) {
+      throw new IllegalArgumentException("Course mismatch");
     }
 
-    private void validateTeacherIsEligible(ApplicationUser teacher, Subject subject) {
-        if (!teacher.hasRole(UserRole.TEACHER)) {
-            throw new IllegalArgumentException("User is not a teacher");
-        }
-
-        if (!subject.getEligibleTeachers().contains(teacher)) {
-            throw new IllegalArgumentException(
-                    "Teacher is not eligible to teach this subject");
-        }
+    if (cohort.getSemester() != subject.getTargetSemester()) {
+      throw new IllegalArgumentException("Semester mismatch");
     }
+  }
 
-    private void validateCohortSubjectCompatibility(Cohort cohort, Subject subject) {
-        if (!cohort.getCourse().equals(subject.getCourse())) {
-            throw new IllegalArgumentException("Course mismatch");
-        }
+  private void validateTeacherWorkload(
+      ApplicationUser teacher, Subject subject, int academicYear, int semester) {
+    int currentHours =
+        cohortSubjectRepository
+            .findByAssignedTeacherAndAcademicYearAndSemesterAndIsActive(
+                teacher, academicYear, semester, true)
+            .stream()
+            .mapToInt(CohortSubject::getWeeklyHours)
+            .sum();
 
-        if (cohort.getSemester() != subject.getTargetSemester()) {
-            throw new IllegalArgumentException("Semester mismatch");
-        }
+    int newHours = AcademicPolicy.calculateWeeklyHours(subject);
+    int totalWeeklyHours = currentHours + newHours;
+
+    if (totalWeeklyHours > AcademicPolicy.getWeeklyHoursLimit(teacher)) {
+      throw new IllegalArgumentException(
+          "Teacher exceeds maximum weekly workload for period " + academicYear + "/" + semester);
     }
-
-    private void validateTeacherWorkload(ApplicationUser teacher, Subject subject, int academicYear, int semester) {
-        int currentHours = cohortSubjectRepository.findByAssignedTeacherAndAcademicYearAndSemesterAndIsActive(teacher, academicYear, semester, true)
-                .stream()
-                .mapToInt(CohortSubject::getWeeklyHours)
-                .sum();
-
-        int newHours = AcademicPolicy.calculateWeeklyHours(subject);
-        int totalWeeklyHours = currentHours + newHours;
-
-        if (totalWeeklyHours > AcademicPolicy.getWeeklyHoursLimit(teacher)) {
-            throw new IllegalArgumentException(
-                    "Teacher exceeds maximum weekly workload for period " + academicYear + "/" + semester);
-        }
-    }
+  }
 }

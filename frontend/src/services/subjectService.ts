@@ -5,6 +5,8 @@ import type {
   CreateSubjectRequest,
   UpdateSubjectRequest,
   SubjectDetailResponse,
+  OptionalGroupResponse,
+  CreateOptionalGroupRequest,
 } from './dto/subject'
 
 const BASE_URL = '/v1/subjects'
@@ -15,11 +17,32 @@ export const subjectService = {
     return res.data.data
   },
 
+  async createOptionalGroup(data: CreateOptionalGroupRequest) {
+    const res = await api.post<ApiResponse<OptionalGroupResponse>>(
+      `${BASE_URL}/optional-groups`,
+      data,
+    )
+    return res.data.data
+  },
+
   async getAllByCourse(courseId: number, page = 0, size = 10) {
     const res = await api.get<ApiResponse<Page<SubjectDetailResponse>>>(
-      `${BASE_URL}/course/${courseId}`, {
+      `${BASE_URL}/course/${courseId}`,
+      {
         params: { page, size },
-      })
+      },
+    )
+
+    return res.data.data
+  },
+
+  async getOptionalGroups(page = 0, size = 10) {
+    const res = await api.get<ApiResponse<Page<OptionalGroupResponse>>>(
+      `${BASE_URL}/optional-groups`,
+      {
+        params: { page, size },
+      },
+    )
 
     return res.data.data
   },
@@ -30,16 +53,15 @@ export const subjectService = {
   },
 
   async update(id: number, data: UpdateSubjectRequest) {
-    const res = await api.put<ApiResponse<SubjectDetailResponse>>(
-      `${BASE_URL}/${id}`,
-      data
-    )
+    const res = await api.put<ApiResponse<SubjectDetailResponse>>(`${BASE_URL}/${id}`, data)
     return res.data.data
   },
 
   async delete(id: number) {
     await api.delete(`${BASE_URL}/${id}`)
   },
+
+  async deleteOptionalGroup(id: number) {
+    await api.delete(`${BASE_URL}/optional-groups/${id}`)
+  },
 }
-
-

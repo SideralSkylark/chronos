@@ -1,21 +1,18 @@
 package com.timetable.timetable.domain.schedule.service;
 
-import java.util.List;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.timetable.timetable.domain.schedule.dto.CreateScheduledClassRequest;
 import com.timetable.timetable.domain.schedule.dto.ScheduledClassResponse;
 import com.timetable.timetable.domain.schedule.dto.UpdateScheduledClassRequest;
 import com.timetable.timetable.domain.schedule.entity.*;
 import com.timetable.timetable.domain.schedule.exception.ScheduledClassNotFoundException;
 import com.timetable.timetable.domain.schedule.repository.ScheduledClassRepository;
-
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
@@ -23,174 +20,150 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional(readOnly = true)
 public class ScheduledClassService {
 
-    private final ScheduledClassRepository scheduledClassRepository;
-    private final CohortSubjectService cohortSubjectService;
-    private final TimetableService timetableService;
-    private final RoomService roomService;
-    private final TimeslotService timeslotService;
+  private final ScheduledClassRepository scheduledClassRepository;
+  private final CohortSubjectService cohortSubjectService;
+  private final TimetableService timetableService;
+  private final RoomService roomService;
+  private final TimeslotService timeslotService;
 
-    @Transactional
-    public ScheduledClassResponse createScheduledClass(CreateScheduledClassRequest request) {
-        log.debug("Creating scheduled class");
+  @Transactional
+  public ScheduledClassResponse createScheduledClass(CreateScheduledClassRequest request) {
+    log.debug("Creating scheduled class");
 
-        CohortSubject cohortSubject = cohortSubjectService.findWithDetailsOrThrow(request.cohortSubjectId());
-        Room room = roomService.findOrThrow(request.roomId());
-        Timeslot timeslot = timeslotService.getById(request.timeslotId());
+    CohortSubject cohortSubject =
+        cohortSubjectService.findWithDetailsOrThrow(request.cohortSubjectId());
+    Room room = roomService.findOrThrow(request.roomId());
+    Timeslot timeslot = timeslotService.getById(request.timeslotId());
 
-        Timetable timetable = request.timetableId() != null
-                ? timetableService.findOrThrow(request.timetableId())
-                : null;
+    Timetable timetable =
+        request.timetableId() != null ? timetableService.findOrThrow(request.timetableId()) : null;
 
-        validateCohortSubject(cohortSubject);
+    validateCohortSubject(cohortSubject);
 
-        checkForConflicts(
-                null,
-                cohortSubject,
-                room,
-                timeslot,
-                timetable);
+    checkForConflicts(null, cohortSubject, room, timeslot, timetable);
 
-        ScheduledClass scheduledClass = ScheduledClass.builder()
-                .cohortSubject(cohortSubject)
-                .room(room)
-                .timeslot(timeslot)
-                .timetable(timetable)
-                .build();
+    ScheduledClass scheduledClass =
+        ScheduledClass.builder()
+            .cohortSubject(cohortSubject)
+            .room(room)
+            .timeslot(timeslot)
+            .timetable(timetable)
+            .build();
 
-        ScheduledClass saved = scheduledClassRepository.save(scheduledClass);
+    ScheduledClass saved = scheduledClassRepository.save(scheduledClass);
 
-        log.info(
-                "Scheduled class {} created for {} ({})",
-                saved.getId(),
-                cohortSubject.getDisplayName(),
-                timeslot.getDisplayName());
+    log.info(
+        "Scheduled class {} created for {} ({})",
+        saved.getId(),
+        cohortSubject.getDisplayName(),
+        timeslot.getDisplayName());
 
-        return ScheduledClassResponse.from(saved);
+    return ScheduledClassResponse.from(saved);
+  }
+
+  public Page<ScheduledClassResponse> getAll(Pageable pageable) {
+    return scheduledClassRepository.findAll(pageable).map(ScheduledClassResponse::from);
+  }
+
+  public ScheduledClass findOrThrow(Long id) {
+    return scheduledClassRepository
+        .findByIdWithDetails(id)
+        .orElseThrow(
+            () ->
+                new ScheduledClassNotFoundException(
+                    "Scheduled class with id %d not found".formatted(id)));
+  }
+
+  public ScheduledClassResponse getById(Long id) {
+    return ScheduledClassResponse.from(findOrThrow(id));
+  }
+
+  @Transactional
+  public ScheduledClassResponse updateScheduledClass(Long id, UpdateScheduledClassRequest request) {
+    log.debug("Updating scheduled class {}", id);
+
+    ScheduledClass scheduledClass = findOrThrow(id);
+
+    CohortSubject cohortSubject = resolveCohortSubject(scheduledClass, request.cohortSubjectId());
+    Room room = resolveRoom(scheduledClass, request.roomId());
+    Timeslot timeslot = resolveTimeslot(scheduledClass, request.timeslotId());
+    Timetable timetable = resolveTimetable(scheduledClass, request.timetableId());
+
+    validateCohortSubject(cohortSubject);
+
+    checkForConflicts(id, cohortSubject, room, timeslot, timetable);
+
+    scheduledClass.setCohortSubject(cohortSubject);
+    scheduledClass.setRoom(room);
+    scheduledClass.setTimeslot(timeslot);
+    scheduledClass.setTimetable(timetable);
+
+    ScheduledClass updated = scheduledClassRepository.save(scheduledClass);
+
+    log.info("Scheduled class {} updated", updated.getId());
+    return ScheduledClassResponse.from(updated);
+  }
+
+  @Transactional
+  public void deleteScheduledClass(Long id) {
+    if (!scheduledClassRepository.existsById(id)) {
+      throw new ScheduledClassNotFoundException(
+          "Scheduled class with id %d not found".formatted(id));
     }
+    scheduledClassRepository.deleteById(id);
+    log.info("Scheduled class {} deleted", id);
+  }
 
-    public Page<ScheduledClassResponse> getAll(Pageable pageable) {
-        return scheduledClassRepository.findAll(pageable).map(ScheduledClassResponse::from);
+  private void validateCohortSubject(CohortSubject cohortSubject) {
+    if (!cohortSubject.isActive()) {
+      throw new IllegalStateException("Cannot schedule a class for an inactive cohort subject");
     }
+  }
 
-    public ScheduledClass findOrThrow(Long id) {
-        return scheduledClassRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new ScheduledClassNotFoundException(
-                        "Scheduled class with id %d not found".formatted(id)));
+  private void checkForConflicts(
+      Long excludeId,
+      CohortSubject cohortSubject,
+      Room room,
+      Timeslot timeslot,
+      Timetable timetable) {
+    List<ScheduledClass> conflicts =
+        scheduledClassRepository.findConflicts(
+            cohortSubject.getAssignedTeacher(),
+            cohortSubject.getCohort(),
+            room,
+            timeslot,
+            timetable,
+            excludeId);
+
+    if (!conflicts.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Schedule conflict detected for timeslot " + timeslot.getDisplayName());
     }
+  }
 
-    public ScheduledClassResponse getById(Long id) {
-        return ScheduledClassResponse.from(findOrThrow(id));
+  private CohortSubject resolveCohortSubject(ScheduledClass sc, Long newId) {
+    return newId.equals(sc.getCohortSubject().getId())
+        ? sc.getCohortSubject()
+        : cohortSubjectService.findWithDetailsOrThrow(newId);
+  }
+
+  private Room resolveRoom(ScheduledClass sc, Long newId) {
+    return newId.equals(sc.getRoom().getId()) ? sc.getRoom() : roomService.findOrThrow(newId);
+  }
+
+  private Timeslot resolveTimeslot(ScheduledClass sc, Long newId) {
+    return newId.equals(sc.getTimeslot().getId())
+        ? sc.getTimeslot()
+        : timeslotService.getById(newId);
+  }
+
+  private Timetable resolveTimetable(ScheduledClass sc, Long newId) {
+    if (newId == null) {
+      return null;
     }
-
-   @Transactional
-    public ScheduledClassResponse updateScheduledClass(
-            Long id,
-            UpdateScheduledClassRequest request) {
-        log.debug("Updating scheduled class {}", id);
-
-        ScheduledClass scheduledClass = findOrThrow(id);
-
-        CohortSubject cohortSubject = resolveCohortSubject(
-                scheduledClass, request.cohortSubjectId());
-        Room room = resolveRoom(
-                scheduledClass, request.roomId());
-        Timeslot timeslot = resolveTimeslot(
-                scheduledClass, request.timeslotId());
-        Timetable timetable = resolveTimetable(
-                scheduledClass, request.timetableId());
-
-        validateCohortSubject(cohortSubject);
-
-        checkForConflicts(
-                id,
-                cohortSubject,
-                room,
-                timeslot,
-                timetable);
-
-        scheduledClass.setCohortSubject(cohortSubject);
-        scheduledClass.setRoom(room);
-        scheduledClass.setTimeslot(timeslot);
-        scheduledClass.setTimetable(timetable);
-
-        ScheduledClass updated = scheduledClassRepository.save(scheduledClass);
-
-        log.info("Scheduled class {} updated", updated.getId());
-        return ScheduledClassResponse.from(updated);
+    if (sc.getTimetable() != null && newId.equals(sc.getTimetable().getId())) {
+      return sc.getTimetable();
     }
-
-    @Transactional
-    public void deleteScheduledClass(Long id) {
-        if (!scheduledClassRepository.existsById(id)) {
-            throw new ScheduledClassNotFoundException(
-                    "Scheduled class with id %d not found".formatted(id));
-        }
-        scheduledClassRepository.deleteById(id);
-        log.info("Scheduled class {} deleted", id);
-    }
-
-    private void validateCohortSubject(CohortSubject cohortSubject) {
-        if (!cohortSubject.isActive()) {
-            throw new IllegalStateException(
-                    "Cannot schedule a class for an inactive cohort subject");
-        }
-    }
-
-    private void checkForConflicts(
-            Long excludeId,
-            CohortSubject cohortSubject,
-            Room room,
-            Timeslot timeslot,
-            Timetable timetable) {
-        List<ScheduledClass> conflicts = scheduledClassRepository.findConflicts(
-                cohortSubject.getAssignedTeacher(),
-                cohortSubject.getCohort(),
-                room,
-                timeslot,
-                timetable,
-                excludeId);
-
-        if (!conflicts.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "Schedule conflict detected for timeslot " +
-                            timeslot.getDisplayName());
-        }
-    }
-
-    private CohortSubject resolveCohortSubject(
-            ScheduledClass sc,
-            Long newId) {
-        return newId.equals(sc.getCohortSubject().getId())
-                ? sc.getCohortSubject()
-                : cohortSubjectService.findWithDetailsOrThrow(newId);
-    }
-
-    private Room resolveRoom(
-            ScheduledClass sc,
-            Long newId) {
-        return newId.equals(sc.getRoom().getId())
-                ? sc.getRoom()
-                : roomService.findOrThrow(newId);
-    }
-
-    private Timeslot resolveTimeslot(
-            ScheduledClass sc,
-            Long newId) {
-        return newId.equals(sc.getTimeslot().getId())
-                ? sc.getTimeslot()
-                : timeslotService.getById(newId);
-    }
-
-    private Timetable resolveTimetable(
-            ScheduledClass sc,
-            Long newId) {
-        if (newId == null) {
-            return null;
-        }
-        if (sc.getTimetable() != null &&
-                newId.equals(sc.getTimetable().getId())) {
-            return sc.getTimetable();
-        }
-        return timetableService.findOrThrow(newId);
-    }
+    return timetableService.findOrThrow(newId);
+  }
 }

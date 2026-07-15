@@ -35,3 +35,7 @@ jwt:
 auth:
   refresh-token-validity-days: 7
 
+app:
+  admin:
+    password: ${ADMIN_PASSWORD:admin123}
+

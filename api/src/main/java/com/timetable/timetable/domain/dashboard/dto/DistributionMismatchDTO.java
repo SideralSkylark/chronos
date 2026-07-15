@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DistributionMismatchDTO {
-    private String category;
-    private double demandPercent;
-    private double supplyPercent;
+  private String category;
+  private double demandPercent;
+  private double supplyPercent;
 }

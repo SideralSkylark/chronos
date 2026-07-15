@@ -1,78 +1,89 @@
 package com.timetable.timetable.config.user;
 
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.stereotype.Component;
-import org.springframework.security.crypto.password.PasswordEncoder;
-
 import com.timetable.timetable.domain.user.entity.ApplicationUser;
 import com.timetable.timetable.domain.user.entity.UserRole;
 import com.timetable.timetable.domain.user.entity.UserRoleEntity;
 import com.timetable.timetable.domain.user.repository.UserRepository;
 import com.timetable.timetable.domain.user.repository.UserRoleRepository;
-
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.Set;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class AdminUserInitializer implements CommandLineRunner {
 
-    private final UserRepository userRepository;
-    private final UserRoleRepository roleRepository;
-    private final PasswordEncoder passwordEncoder;
+  private final UserRepository userRepository;
+  private final UserRoleRepository roleRepository;
+  private final PasswordEncoder passwordEncoder;
 
-    @Override
-    public void run(String... args) {
-        String email = "admin@timetable.com";
+  @Value("${app.admin.password}")
+  private String adminPassword;
 
-        if (userRepository.findByEmail(email).isEmpty()) {
-            log.info("Admin user not found — creating default admin...");
+  @Override
+  public void run(String... args) {
+    String email = "admin@timetable.com";
 
-            UserRoleEntity adminRole = roleRepository.findByRole(UserRole.ADMIN)
-                    .orElseGet(() -> {
-                        UserRoleEntity newRole = new UserRoleEntity();
-                        newRole.setRole(UserRole.ADMIN);
-                        return roleRepository.save(newRole);
-                    });
+    if (userRepository.findByEmail(email).isEmpty()) {
+      log.info("Admin user not found — creating default admin...");
 
-            UserRoleEntity userRole = roleRepository.findByRole(UserRole.USER)
-                    .orElseGet(() -> {
-                        UserRoleEntity newRole = new UserRoleEntity();
-                        newRole.setRole(UserRole.USER);
-                        return roleRepository.save(newRole);
-                    });
+      UserRoleEntity adminRole =
+          roleRepository
+              .findByRole(UserRole.ADMIN)
+              .orElseGet(
+                  () -> {
+                    UserRoleEntity newRole = new UserRoleEntity();
+                    newRole.setRole(UserRole.ADMIN);
+                    return roleRepository.save(newRole);
+                  });
 
-            ApplicationUser admin = ApplicationUser.builder()
-                    .username("admin")
-                    .email(email)
-                    .password(passwordEncoder.encode("admin123"))
-                    .roles(Set.of(adminRole, userRole))
-                    .build();
+      UserRoleEntity userRole =
+          roleRepository
+              .findByRole(UserRole.USER)
+              .orElseGet(
+                  () -> {
+                    UserRoleEntity newRole = new UserRoleEntity();
+                    newRole.setRole(UserRole.USER);
+                    return roleRepository.save(newRole);
+                  });
 
-            admin.activate();
-            userRepository.save(admin);
+      ApplicationUser admin =
+          ApplicationUser.builder()
+              .username("admin")
+              .email(email)
+              .password(passwordEncoder.encode(adminPassword))
+              .roles(Set.of(adminRole, userRole))
+              .build();
 
-            log.info("Default admin created: {} / {}", admin.getEmail(), "admin123");
-        } else {
-            log.info("Admin user already exists — checking roles...");
+      admin.activate();
+      userRepository.save(admin);
 
-            ApplicationUser admin = userRepository.findByEmail(email).get();
+      log.info("Default admin created: {}", admin.getEmail());
+    } else {
+      log.info("Admin user already exists — checking roles...");
 
-            UserRoleEntity userRole = roleRepository.findByRole(UserRole.USER)
-                    .orElseGet(() -> {
-                        UserRoleEntity newRole = new UserRoleEntity();
-                        newRole.setRole(UserRole.USER);
-                        return roleRepository.save(newRole);
-                    });
+      ApplicationUser admin = userRepository.findByEmail(email).get();
 
-            if (!admin.getRoles().contains(userRole)) {
-                admin.getRoles().add(userRole);
-                userRepository.save(admin);
-                log.info("Added missing USER role to existing admin.");
-            }
-        }
+      UserRoleEntity userRole =
+          roleRepository
+              .findByRole(UserRole.USER)
+              .orElseGet(
+                  () -> {
+                    UserRoleEntity newRole = new UserRoleEntity();
+                    newRole.setRole(UserRole.USER);
+                    return roleRepository.save(newRole);
+                  });
+
+      if (!admin.getRoles().contains(userRole)) {
+        admin.getRoles().add(userRole);
+        userRepository.save(admin);
+        log.info("Added missing USER role to existing admin.");
+      }
     }
+  }
 }

@@ -8,9 +8,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RoomTierDTO {
-    private String label;
-    private long roomCount;
-    private double supplyPercent;
-    private double demandPercent;
-    private String severity; // "RED" | "YELLOW" | "GREEN"
+  private String label;
+  private long roomCount;
+  private double supplyPercent;
+  private double demandPercent;
+  private String severity; // "RED" | "YELLOW" | "GREEN"
 }

@@ -1,6 +1,7 @@
 import axios, { AxiosError, type AxiosInstance, type AxiosRequestConfig } from 'axios'
 import { useToast } from '@/composables/useToast'
 import type { ErrorResponse } from './responses/errorResponse'
+import { translateErrorMessage } from '@/utils/errorTranslations'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 
@@ -71,23 +72,35 @@ api.interceptors.response.use(
     }
 
     // Global Error Messages
-    const message = error.response.data?.message || 'Ocorreu um erro inesperado.'
-    
+    const rawMessage = error.response.data?.message
+    const message = translateErrorMessage(rawMessage || '')
+
+    // Mutate the message so components using it also get the translation
+    if (error.response.data) {
+      error.response.data.message = message
+    }
+
     switch (error.response.status) {
       case 403:
         toast.error('Não tem permissão para realizar esta ação.')
         break
       case 404:
-        toast.error('O recurso solicitado não foi encontrado.')
+        toast.error(rawMessage ? message : 'O recurso solicitado não foi encontrado.')
         break
       case 500:
         toast.error('Erro interno do servidor. Tente novamente mais tarde.')
         break
       case 400:
-        // Optional: you might want to handle validation errors differently
-        // but showing a generic error toast for 400 is often helpful
-        if (message) toast.error(message)
+      case 401:
+      case 409:
+        if (rawMessage) {
+          toast.error(message)
+        } else {
+          toast.error('Ocorreu um erro ao processar o pedido.')
+        }
         break
+      default:
+        toast.error(message || 'Ocorreu um erro inesperado.')
     }
 
     return Promise.reject(error)

@@ -11,5 +11,4 @@ public record CohortListResponse(
     Long courseId,
     String courseName,
     int studentCount,
-    CohortStatus status
-) { }
+    CohortStatus status) {}

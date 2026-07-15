@@ -25,7 +25,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import com.timetable.timetable.auth.exception.UserAlreadyExistsException;
 import com.timetable.timetable.domain.user.dto.*;
 import com.timetable.timetable.domain.user.entity.*;
-import com.timetable.timetable.domain.user.exception.UserNotFoundException;
 import com.timetable.timetable.domain.user.mapper.UserMapper;
 import com.timetable.timetable.domain.user.repository.UserRepository;
 import com.timetable.timetable.domain.user.repository.UserRoleRepository;
@@ -65,14 +64,14 @@ class UserServiceTest {
     @Test
     void createUser_Success() {
         CreateUser request = new CreateUser("newuser", "new@example.com", "password", List.of("USER"), null);
-        
+
         when(userRepository.existsByUsername("newuser")).thenReturn(false);
         when(userRepository.existsByEmail("new@example.com")).thenReturn(false);
         when(roleRepository.findByRole(UserRole.USER)).thenReturn(Optional.of(userRole));
         when(passwordEncoder.encode("password")).thenReturn("encodedPassword");
-        
+
         ApplicationUser result = userService.createUser(request);
-        
+
         assertThat(result).isNotNull();
         assertThat(result.getUsername()).isEqualTo("newuser");
         verify(userRepository).save(any(ApplicationUser.class));
@@ -82,7 +81,7 @@ class UserServiceTest {
     void createUser_UsernameExists_ThrowsException() {
         CreateUser request = new CreateUser("testuser", "new@example.com", "password", List.of("USER"), null);
         when(userRepository.existsByUsername("testuser")).thenReturn(true);
-        
+
         assertThatThrownBy(() -> userService.createUser(request))
                 .isInstanceOf(UserAlreadyExistsException.class);
     }
@@ -92,12 +91,13 @@ class UserServiceTest {
         try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
             mockedSecurityUtil.when(SecurityUtil::getAuthenticatedUsername).thenReturn("testuser");
             when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
-            
-            UserResponse expectedResponse = new UserResponse(1L, "testuser", "test@example.com", Set.of("USER"), true, null);
+
+            UserResponse expectedResponse = new UserResponse(1L, "testuser", "test@example.com", Set.of("USER"), true,
+                    null);
             when(userMapper.toDTO(testUser)).thenReturn(expectedResponse);
-            
+
             UserResponse result = userService.getAuthenticatedUserProfile();
-            
+
             assertThat(result).isEqualTo(expectedResponse);
         }
     }
@@ -107,11 +107,11 @@ class UserServiceTest {
         Pageable pageable = mock(Pageable.class);
         UserFilterParams filter = new UserFilterParams();
         Page<ApplicationUser> userPage = new PageImpl<>(List.of(testUser));
-        
+
         when(userRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(userPage);
-        
+
         Page<UserResponse> result = userService.getAllUsers(pageable, filter);
-        
+
         assertThat(result.getContent()).hasSize(1);
         verify(userMapper).toDTO(testUser);
     }
@@ -123,9 +123,9 @@ class UserServiceTest {
         when(userRepository.existsByUsernameAndIdNot("updated", 1L)).thenReturn(false);
         when(userRepository.existsByEmailAndIdNot("updated@example.com", 1L)).thenReturn(false);
         when(roleRepository.findByRole(UserRole.USER)).thenReturn(Optional.of(userRole));
-        
+
         userService.updateUserById(1L, payload);
-        
+
         assertThat(testUser.getUsername()).isEqualTo("updated");
         assertThat(testUser.getEmail()).isEqualTo("updated@example.com");
         verify(userRepository).save(testUser);
@@ -134,9 +134,9 @@ class UserServiceTest {
     @Test
     void deleteById_Success() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
-        
+
         userService.deleteById(1L);
-        
+
         verify(userRepository).delete(testUser);
     }
 
@@ -144,9 +144,9 @@ class UserServiceTest {
     void enableAccount_Success() {
         testUser.setStatus(AccountStatus.INACTIVE);
         when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
-        
+
         boolean changed = userService.enableAccount("test@example.com");
-        
+
         assertThat(changed).isTrue();
         assertThat(testUser.isEnabled()).isTrue();
         verify(userRepository).save(testUser);
@@ -156,9 +156,9 @@ class UserServiceTest {
     void resetPassword_Success() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(passwordEncoder.encode(anyString())).thenReturn("newEncodedPassword");
-        
+
         ResetPasswordResponse response = userService.resetPassword(1L);
-        
+
         assertThat(response.temporaryPassword()).isNotNull().hasSize(12);
         assertThat(testUser.getPassword()).isEqualTo("newEncodedPassword");
         verify(userRepository).save(testUser);

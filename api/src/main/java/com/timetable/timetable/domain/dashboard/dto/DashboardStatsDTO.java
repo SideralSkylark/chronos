@@ -1,54 +1,54 @@
 package com.timetable.timetable.domain.dashboard.dto;
 
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.util.List;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class DashboardStatsDTO {
-    private int academicYear;
-    private int semester;
+  private int academicYear;
+  private int semester;
 
-    private long totalRoomCapacity;
-    private long totalRoomCount;
-    
-    private long totalCohortDemand;
-    private long totalCohortCount;
-    private long largestCohort;
-    private long smallestCohort;
-    private double averageCohortSize;
-    private int bottleneckYear;
-    private List<YearBreakdownDTO> cohortsByYear;
-    
-    private long totalTeachers;
-    private long teachersOverloaded;
-    private long totalAssignedHours;
-    private double avgHoursPerTeacher;
-    private double avgEstimatedHours;
-    
-    private String solverReadiness;
-    private String solverReadinessReason;
-    private long capacityMargin;
+  private long totalRoomCapacity;
+  private long totalRoomCount;
 
-    private long morningDemand;
-    private long afternoonDemand;
-    private String morningReadiness;
-    private String afternoonReadiness;
-    private String morningReadinessReason;
-    private String afternoonReadinessReason;
+  private long totalCohortDemand;
+  private long totalCohortCount;
+  private long largestCohort;
+  private long smallestCohort;
+  private double averageCohortSize;
+  private int bottleneckYear;
+  private List<YearBreakdownDTO> cohortsByYear;
 
-    private List<CourseRankDTO> topCoursesByCohorts;
-    private List<TeacherWorkloadDTO> mostLoadedTeachers;
-    private List<TeacherWorkloadDTO> leastLoadedTeachers;
+  private long totalTeachers;
+  private long teachersOverloaded;
+  private long totalAssignedHours;
+  private double avgHoursPerTeacher;
+  private double avgEstimatedHours;
 
-    // Feasibility diagnostics
-    private List<OversizedCohortDTO> oversizedCohorts;
-    private List<FragmentationRiskCohortDTO> fragmentationRisk;
-    private List<RoomTierDTO> roomTierDistribution;
-    private String roomScarcityNote;
-    private List<DistributionMismatchDTO> distributionMismatches;
-    private String distributionMismatchNote;
+  private String solverReadiness;
+  private String solverReadinessReason;
+  private long capacityMargin;
+
+  private long morningDemand;
+  private long afternoonDemand;
+  private String morningReadiness;
+  private String afternoonReadiness;
+  private String morningReadinessReason;
+  private String afternoonReadinessReason;
+
+  private List<CourseRankDTO> topCoursesByCohorts;
+  private List<TeacherWorkloadDTO> mostLoadedTeachers;
+  private List<TeacherWorkloadDTO> leastLoadedTeachers;
+
+  // Feasibility diagnostics
+  private List<OversizedCohortDTO> oversizedCohorts;
+  private List<FragmentationRiskCohortDTO> fragmentationRisk;
+  private List<RoomTierDTO> roomTierDistribution;
+  private String roomScarcityNote;
+  private List<DistributionMismatchDTO> distributionMismatches;
+  private String distributionMismatchNote;
 }

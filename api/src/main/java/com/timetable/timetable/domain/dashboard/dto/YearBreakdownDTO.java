@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class YearBreakdownDTO {
-    private int year;
-    private long cohortCount;
-    private long totalStudents;
+  private int year;
+  private long cohortCount;
+  private long totalStudents;
 }

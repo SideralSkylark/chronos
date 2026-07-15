@@ -912,10 +912,7 @@ async function triggerUndo() {
 
 const timetableStatus = computed(() => timetableStore.solution?.status)
 const canSubmit = computed(
-  () =>
-    (isAdmin.value || isAssistant.value) &&
-    timetableStatus.value === 'DRAFT' &&
-    timetableStore.solution?.feasible,
+  () => (isAdmin.value || isAssistant.value) && timetableStatus.value === 'DRAFT',
 )
 const canApprove = computed(
   () => (isAdmin.value || isDirector.value) && timetableStatus.value === 'PENDING_APPROVAL',
@@ -1093,7 +1090,7 @@ async function calculateValidSlots() {
     !selectedLesson.value ||
     selectedLesson.value.subject.name.includes('Simulação Empresarial')
   ) {
-    toast.error('operação rejeitada')
+    toast.error('Operação rejeitada')
     return
   }
   loadingSlots.value = true
@@ -1117,7 +1114,7 @@ async function calculateCohortSwaps() {
     !selectedLesson.value ||
     selectedLesson.value.subject.name.includes('Simulação Empresarial')
   ) {
-    toast.error('operação rejeitada')
+    toast.error('Operação rejeitada')
     return
   }
   loadingCohortSwaps.value = true

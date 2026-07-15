@@ -2,7 +2,12 @@ import { defineStore } from 'pinia'
 import { authService } from '@/services/authService'
 import { userService } from '@/services/userService'
 import { useAuthStore } from './auth'
-import type { UserResponse, CreateUserRequest, UpdateUserProfileRequest, UpdateUserRequest } from '@/services/dto/user'
+import type {
+  UserResponse,
+  CreateUserRequest,
+  UpdateUserProfileRequest,
+  UpdateUserRequest,
+} from '@/services/dto/user'
 import type { Page } from '@/services/types/page'
 
 interface State {
@@ -25,8 +30,13 @@ export const useUserStore = defineStore('user', {
   getters: {
     myHighestRole(state): string {
       const hierarchy: Record<string, number> = {
-        USER: 1, STUDENT: 2, TEACHER: 3,
-        COORDINATOR: 4, ASISTENT: 5, DIRECTOR: 6, ADMIN: 7,
+        USER: 1,
+        STUDENT: 2,
+        TEACHER: 3,
+        COORDINATOR: 4,
+        ASISTENT: 5,
+        DIRECTOR: 6,
+        ADMIN: 7,
       }
       const auth = useAuthStore()
       const user = state.currentUser || auth.user
@@ -38,13 +48,18 @@ export const useUserStore = defineStore('user', {
 
     myPriority(state): number {
       const hierarchy: Record<string, number> = {
-        USER: 1, STUDENT: 2, TEACHER: 3,
-        COORDINATOR: 4, ASISTENT: 5, DIRECTOR: 6, ADMIN: 7,
+        USER: 1,
+        STUDENT: 2,
+        TEACHER: 3,
+        COORDINATOR: 4,
+        ASISTENT: 5,
+        DIRECTOR: 6,
+        ADMIN: 7,
       }
       const auth = useAuthStore()
       const user = state.currentUser || auth.user
       if (!user) return 0
-      return Math.max(...user.roles.map(r => hierarchy[r] ?? 0))
+      return Math.max(...user.roles.map((r) => hierarchy[r] ?? 0))
     },
   },
 
@@ -92,7 +107,17 @@ export const useUserStore = defineStore('user', {
     // ===============================
     // Admin actions
     // ===============================
-    async fetchUsers(page = 0, size = 20, filters?: { username?: string; email?: string; role?: string; status?: string; teacherType?: string }) {
+    async fetchUsers(
+      page = 0,
+      size = 20,
+      filters?: {
+        username?: string
+        email?: string
+        role?: string
+        status?: string
+        teacherType?: string
+      },
+    ) {
       this.loading = true
       try {
         const paged = await userService.admin.getAll(page, size, filters)
@@ -130,7 +155,7 @@ export const useUserStore = defineStore('user', {
       this.loading = true
       try {
         const updated = await userService.admin.update(id, data)
-        const index = this.users.findIndex(u => u.id === id)
+        const index = this.users.findIndex((u) => u.id === id)
         if (index !== -1) this.users[index] = updated
         this.error = null
         return updated
@@ -160,7 +185,7 @@ export const useUserStore = defineStore('user', {
       this.loading = true
       try {
         await userService.admin.delete(id)
-        this.users = this.users.filter(u => u.id !== id)
+        this.users = this.users.filter((u) => u.id !== id)
         this.error = null
       } catch (err: any) {
         this.error = err.message || 'Failed to delete user'
@@ -171,4 +196,3 @@ export const useUserStore = defineStore('user', {
     },
   },
 })
-

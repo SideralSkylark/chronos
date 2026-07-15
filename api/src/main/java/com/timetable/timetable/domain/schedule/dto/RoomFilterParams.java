@@ -7,9 +7,9 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class RoomFilterParams {
-    private String name;
-    private Integer capacityMin;
-    private Integer capacityMax;
-    private Long courseId;
-    private TimePeriod period;
+  private String name;
+  private Integer capacityMin;
+  private Integer capacityMax;
+  private Long courseId;
+  private TimePeriod period;
 }

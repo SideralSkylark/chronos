@@ -8,9 +8,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class FragmentationRiskCohortDTO {
-    private long cohortId;
-    private String cohortName;
-    private int headcount;
-    private int maxCompatibleCapacity;
-    private double utilizationPercent;
+  private long cohortId;
+  private String cohortName;
+  private int headcount;
+  private int maxCompatibleCapacity;
+  private double utilizationPercent;
 }

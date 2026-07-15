@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+set -e
+
+# ═══════════════════════════════
+#  JAVA
+# ═══════════════════════════════
+JAVA_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.java$' || true)
+
+if [ -n "$JAVA_FILES" ]; then
+    if ! command -v google-java-format &>/dev/null; then
+        echo "❌ google-java-format not found"
+        exit 1
+    fi
+
+    FILE_COUNT=$(echo "$JAVA_FILES" | wc -l | tr -d ' ')
+    echo "☕ Formatting $FILE_COUNT Java file(s)..."
+
+    CHANGED=""
+    FAILED=""
+
+    for f in $JAVA_FILES; do
+        BEFORE=$(md5sum "$f")
+        if ! google-java-format --replace "$f" 2>/tmp/gjf_err; then
+            FAILED="$FAILED\n   ✗ $f\n$(sed 's/^/     /' /tmp/gjf_err)"
+        else
+            AFTER=$(md5sum "$f")
+            [ "$BEFORE" != "$AFTER" ] && CHANGED="$CHANGED\n   ~ $f"
+        fi
+    done
+
+    if [ -n "$FAILED" ]; then
+        echo "❌ Syntax error(s) — fix before committing:"
+        echo -e "$FAILED"
+        exit 1
+    fi
+
+    git add $JAVA_FILES
+    [ -n "$CHANGED" ] && echo "✅ Reformatted and staged:" && echo -e "$CHANGED" || echo "✅ All Java files already formatted"
+fi
+
+# ═══════════════════════════════
+#  VUE / TS
+# ═══════════════════════════════
+FRONTEND_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(vue|ts)$' || true)
+
+if [ -n "$FRONTEND_FILES" ]; then
+    if ! command -v npx &>/dev/null; then
+        echo "❌ npx not found"
+        exit 1
+    fi
+
+    FILE_COUNT=$(echo "$FRONTEND_FILES" | wc -l | tr -d ' ')
+    echo "🟢 Formatting $FILE_COUNT frontend file(s)..."
+
+    CHANGED=""
+    FAILED=""
+
+    for f in $FRONTEND_FILES; do
+        BEFORE=$(md5sum "$f")
+        if ! npx prettier --write "$f" 2>/tmp/prettier_err; then
+            FAILED="$FAILED\n   ✗ $f\n$(sed 's/^/     /' /tmp/prettier_err)"
+        else
+            AFTER=$(md5sum "$f")
+            [ "$BEFORE" != "$AFTER" ] && CHANGED="$CHANGED\n   ~ $f"
+        fi
+    done
+
+    if [ -n "$FAILED" ]; then
+        echo "❌ Format error(s) — fix before committing:"
+        echo -e "$FAILED"
+        exit 1
+    fi
+
+    git add $FRONTEND_FILES
+    [ -n "$CHANGED" ] && echo "✅ Reformatted and staged:" && echo -e "$CHANGED" || echo "✅ All frontend files already formatted"
+fi

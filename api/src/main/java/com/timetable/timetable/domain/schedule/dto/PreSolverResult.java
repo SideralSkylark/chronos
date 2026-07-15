@@ -6,13 +6,12 @@ public record PreSolverResult(
     int estimatedCohortsCreated,
     int cohortSubjectsCreated,
     int phantomTeachersCreated,
-    List<String> warnings
-) {
-    public boolean hasWarnings() {
-        return !warnings.isEmpty();
-    }
-    
-    boolean hasPhantomTeachers() {
-        return phantomTeachersCreated > 0;
-    }
+    List<String> warnings) {
+  public boolean hasWarnings() {
+    return !warnings.isEmpty();
+  }
+
+  boolean hasPhantomTeachers() {
+    return phantomTeachersCreated > 0;
+  }
 }

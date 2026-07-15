@@ -1,326 +1,501 @@
 package com.timetable.timetable.scheduler_engine.solver;
 
+import ai.timefold.solver.core.api.score.buildin.hardsoft.HardSoftScore;
+import ai.timefold.solver.core.api.solver.SolutionManager;
 import com.timetable.timetable.domain.schedule.entity.Room;
 import com.timetable.timetable.domain.schedule.entity.ScheduledClass;
 import com.timetable.timetable.domain.schedule.entity.Timeslot;
+import com.timetable.timetable.domain.schedule.repository.RoomRepository;
 import com.timetable.timetable.domain.schedule.repository.ScheduledClassRepository;
 import com.timetable.timetable.domain.schedule.repository.TimeslotRepository;
-import com.timetable.timetable.domain.schedule.repository.RoomRepository;
 import com.timetable.timetable.scheduler_engine.domain.LessonAssignment;
 import com.timetable.timetable.scheduler_engine.domain.TimetableSolution;
 import com.timetable.timetable.scheduler_engine.domain.info.RoomInfo;
 import com.timetable.timetable.scheduler_engine.domain.info.TimeslotInfo;
 import com.timetable.timetable.scheduler_engine.mapper.TimetableSolutionMapper;
-import ai.timefold.solver.core.api.score.buildin.hardsoft.HardSoftScore;
-import ai.timefold.solver.core.api.solver.SolutionManager;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class PermutationService {
 
-    private final ScheduledClassRepository scheduledClassRepository;
-    private final TimeslotRepository timeslotRepository;
-    private final RoomRepository roomRepository;
-    private final TimetableSolutionMapper solutionMapper;
-    private final SolutionManager<TimetableSolution, HardSoftScore> solutionManager;
+  private final ScheduledClassRepository scheduledClassRepository;
+  private final TimeslotRepository timeslotRepository;
+  private final RoomRepository roomRepository;
+  private final TimetableSolutionMapper solutionMapper;
+  private final SolutionManager<TimetableSolution, HardSoftScore> solutionManager;
 
-    @Transactional(readOnly = true)
-    public List<ValidSlotResponse> findValidSlots(
-            Long scheduledClassId, int academicYear, int semester) {
+  // ========================================
+  // FIND VALID SLOTS
+  // ========================================
 
-        List<ScheduledClass> allClasses = scheduledClassRepository
-                .findAllWithDetailsByPeriod(academicYear, semester);
+  @Transactional(readOnly = true)
+  public List<ValidSlotResponse> findValidSlots(
+      Long scheduledClassId, int academicYear, int semester) {
 
-        if (allClasses.isEmpty()) {
-            throw new IllegalStateException(
-                    "No persisted timetable for %d.%d".formatted(academicYear, semester));
+    List<ScheduledClass> allClasses =
+        scheduledClassRepository.findAllWithDetailsByPeriod(academicYear, semester);
+
+    if (allClasses.isEmpty()) {
+      throw new IllegalStateException(
+          "No persisted timetable for %d.%d".formatted(academicYear, semester));
+    }
+
+    ScheduledClass target =
+        allClasses.stream()
+            .filter(sc -> sc.getId().equals(scheduledClassId))
+            .findFirst()
+            .orElseThrow(
+                () ->
+                    new IllegalArgumentException("ScheduledClass not found: " + scheduledClassId));
+
+    Long targetCohortId = target.getCohort().getId();
+
+    TimetableSolution solution =
+        solutionMapper.fromScheduledClasses(
+            allClasses,
+            timeslotRepository.findAll(),
+            roomRepository.findAll(),
+            academicYear,
+            semester);
+
+    // ── Diagnostic ────────────────────────────────────────────────────────
+    solutionManager.update(solution);
+    HardSoftScore initialScore = solution.getScore();
+    log.info("[DIAG] Initial score of rebuilt solution: {}", initialScore);
+    if (initialScore != null && initialScore.hardScore() != 0) {
+      log.warn(
+          "[DIAG] Rebuilt solution already has hard violations ({})! "
+              + "Object identity problem in fromScheduledClasses — planning variables "
+              + "are not the same instances as those in the value range.",
+          initialScore);
+    }
+
+    // ── Occupants map (only lessons from other cohorts) ────────────────────
+    Map<Long, List<LessonAssignment>> occupantsByTimeslotId =
+        solution.getLessonAssignments().stream()
+            .filter(la -> !la.getId().equals(scheduledClassId))
+            .filter(la -> la.getTimeslot() != null)
+            .filter(la -> !la.getCohortSubject().getCohort().getId().equals(targetCohortId))
+            .collect(Collectors.groupingBy(la -> la.getTimeslot().getId()));
+
+    LessonAssignment targetLesson =
+        solution.getLessonAssignments().stream()
+            .filter(la -> la.getId().equals(scheduledClassId))
+            .findFirst()
+            .orElseThrow();
+
+    // ── Optional pair detection ────────────────────────────────────────────
+    // Find the pair that shares both the same optionalGroupId AND the same
+    // blockNumber — this ensures bloco1 pairs with bloco1, bloco2 with bloco2.
+    final LessonAssignment optionalPair;
+    if (targetLesson.getOptionalGroupId() != null) {
+      optionalPair =
+          solution.getLessonAssignments().stream()
+              .filter(la -> !la.getId().equals(scheduledClassId))
+              .filter(la -> targetLesson.getOptionalGroupId().equals(la.getOptionalGroupId()))
+              .filter(la -> la.getBlockNumber() == targetLesson.getBlockNumber())
+              .findFirst()
+              .orElse(null);
+    } else {
+      optionalPair = null;
+    }
+
+    int cohortYear = target.getCohort().getYear();
+    TimeslotInfo originalTimeslot = targetLesson.getTimeslot();
+    RoomInfo originalRoom = targetLesson.getRoom();
+
+    final TimeslotInfo pairOriginalTimeslot =
+        optionalPair != null ? optionalPair.getTimeslot() : null;
+
+    List<TimeslotInfo> candidates =
+        solution.getAvailableTimeslots().stream()
+            .filter(ts -> isCorrectPeriod(ts, cohortYear))
+            .filter(ts -> !ts.getId().equals(originalTimeslot.getId()))
+            .toList();
+
+    log.info(
+        "Evaluating {} candidate slots for ScheduledClass {}", candidates.size(), scheduledClassId);
+
+    List<ValidSlotResponse> valid = new ArrayList<>();
+
+    for (TimeslotInfo candidate : candidates) {
+      List<LessonAssignment> occupants =
+          occupantsByTimeslotId.getOrDefault(candidate.getId(), List.of());
+
+      LessonAssignment occupant = occupants.size() == 1 ? occupants.get(0) : null;
+
+      for (RoomInfo candidateRoom : solution.getAvailableRooms()) {
+
+        if (!candidateRoom.hasSufficientCapacity(targetLesson.getStudentCount())) continue;
+        if (!candidateRoom.isAvailableForCourse(targetLesson.getCourseId(), candidate.getPeriod()))
+          continue;
+
+        // ── Apply tentative move ───────────────────────────────────────────
+        targetLesson.setTimeslot(candidate);
+        targetLesson.setRoom(candidateRoom);
+        if (optionalPair != null) optionalPair.setTimeslot(candidate);
+        if (occupant != null) occupant.setTimeslot(originalTimeslot);
+
+        try {
+          solutionManager.update(solution);
+          HardSoftScore score = solution.getScore();
+
+          if (score != null && score.hardScore() == 0) {
+            if (occupant != null) {
+              ScheduledClass occupantSc =
+                  allClasses.stream()
+                      .filter(sc -> sc.getId().equals(occupant.getId()))
+                      .findFirst()
+                      .orElse(null);
+
+              valid.add(
+                  ValidSlotResponse.swap(
+                      candidate.getId(),
+                      candidate.getDayOfWeek().toString(),
+                      candidate.getStartTime().toString(),
+                      candidate.getEndTime().toString(),
+                      occupant.getId(),
+                      occupantSc != null ? occupantSc.getSubject().getName() : "?",
+                      occupantSc != null ? occupantSc.getCohort().getDisplayName() : "?",
+                      candidateRoom.getName(),
+                      candidateRoom.getId()));
+            } else {
+              valid.add(
+                  ValidSlotResponse.empty(
+                      candidate.getId(),
+                      candidate.getDayOfWeek().toString(),
+                      candidate.getStartTime().toString(),
+                      candidate.getEndTime().toString(),
+                      candidateRoom.getName(),
+                      candidateRoom.getId()));
+            }
+            break; // First valid room is enough for this slot
+          }
+        } finally {
+          // ── Restore state ──────────────────────────────────────────────
+          targetLesson.setTimeslot(originalTimeslot);
+          targetLesson.setRoom(originalRoom);
+          if (optionalPair != null) optionalPair.setTimeslot(pairOriginalTimeslot);
+          if (occupant != null) occupant.setTimeslot(candidate);
         }
+      }
+    }
 
-        ScheduledClass target = allClasses.stream()
-                .filter(sc -> sc.getId().equals(scheduledClassId))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "ScheduledClass not found: " + scheduledClassId));
+    log.info(
+        "ScheduledClass {} → {}/{} valid permutations",
+        scheduledClassId,
+        valid.size(),
+        candidates.size());
+    return valid;
+  }
 
-        Long targetCohortId = target.getCohort().getId();
+  // ========================================
+  // APPLY SWAP
+  // ========================================
 
-        TimetableSolution solution = solutionMapper.fromScheduledClasses(
-                allClasses,
-                timeslotRepository.findAll(),
-                roomRepository.findAll(),
-                academicYear, semester);
+  @Transactional
+  public void applySwap(
+      Long scheduledClassId, Long targetTimeslotId, Long targetRoomId, Long swapWithId) {
 
-        // ── DIAGNOSTIC: log the initial score of the rebuilt solution ──────────
-        // If this is not 0hard/0soft, the solution mapper is not rebuilding correctly
+    ScheduledClass scX =
+        scheduledClassRepository
+            .findById(scheduledClassId)
+            .orElseThrow(
+                () ->
+                    new IllegalArgumentException("ScheduledClass not found: " + scheduledClassId));
+
+    Timeslot newTimeslot =
+        timeslotRepository
+            .findById(targetTimeslotId)
+            .orElseThrow(
+                () -> new IllegalArgumentException("Timeslot not found: " + targetTimeslotId));
+
+    Room newRoom =
+        roomRepository
+            .findById(targetRoomId)
+            .orElseThrow(() -> new IllegalArgumentException("Room not found: " + targetRoomId));
+
+    // If target is optional, move the pair that shares the same original timeslot.
+    // Filtering by timeslot ensures bloco1 moves with bloco1, bloco2 with bloco2.
+    if (scX.getSubject().getOptionalGroup() != null) {
+      Long groupId = scX.getSubject().getOptionalGroup().getId();
+      Timeslot originalTimeslot = scX.getTimeslot(); // capture before mutation
+
+      scheduledClassRepository
+          .findAllWithDetailsByPeriod(
+              scX.getTimetable().getAcademicYear(), scX.getTimetable().getSemester())
+          .stream()
+          .filter(sc -> !sc.getId().equals(scheduledClassId))
+          .filter(
+              sc ->
+                  sc.getSubject().getOptionalGroup() != null
+                      && sc.getSubject().getOptionalGroup().getId().equals(groupId))
+          .filter(sc -> sc.getTimeslot().getId().equals(originalTimeslot.getId()))
+          .findFirst()
+          .ifPresent(
+              pair -> {
+                pair.setTimeslot(newTimeslot);
+                scheduledClassRepository.save(pair);
+                log.info(
+                    "Optional pair ScheduledClass {} also moved to timeslot {}",
+                    pair.getId(),
+                    targetTimeslotId);
+              });
+    }
+
+    if (swapWithId != null) {
+      ScheduledClass scY =
+          scheduledClassRepository
+              .findById(swapWithId)
+              .orElseThrow(
+                  () -> new IllegalArgumentException("ScheduledClass not found: " + swapWithId));
+
+      Timeslot xOriginal = scX.getTimeslot();
+      scX.setTimeslot(newTimeslot);
+      scX.setRoom(newRoom);
+      scY.setTimeslot(xOriginal);
+
+      log.info("Full swap: ScheduledClass {} ↔ ScheduledClass {}", scheduledClassId, swapWithId);
+    } else {
+      scX.setTimeslot(newTimeslot);
+      scX.setRoom(newRoom);
+      log.info(
+          "Move: ScheduledClass {} → Timeslot {} Room {}",
+          scheduledClassId,
+          targetTimeslotId,
+          targetRoomId);
+    }
+  }
+
+  // ========================================
+  // FIND COHORT SWAP CANDIDATES
+  // ========================================
+
+  @Transactional(readOnly = true)
+  public List<CohortSwapCandidate> findCohortSwapCandidates(
+      Long scheduledClassId, int academicYear, int semester) {
+
+    List<ScheduledClass> allClasses =
+        scheduledClassRepository.findAllWithDetailsByPeriod(academicYear, semester);
+
+    ScheduledClass target =
+        allClasses.stream()
+            .filter(sc -> sc.getId().equals(scheduledClassId))
+            .findFirst()
+            .orElseThrow(
+                () ->
+                    new IllegalArgumentException("ScheduledClass not found: " + scheduledClassId));
+
+    Long targetCohortId = target.getCohort().getId();
+    Long targetSubjectId = target.getSubject().getId();
+
+    TimetableSolution solution =
+        solutionMapper.fromScheduledClasses(
+            allClasses,
+            timeslotRepository.findAll(),
+            roomRepository.findAll(),
+            academicYear,
+            semester);
+
+    LessonAssignment targetLesson =
+        solution.getLessonAssignments().stream()
+            .filter(la -> la.getId().equals(scheduledClassId))
+            .findFirst()
+            .orElseThrow();
+
+    // ── Optional pair detection ────────────────────────────────────────────
+    final LessonAssignment optionalPair;
+    if (targetLesson.getOptionalGroupId() != null) {
+      optionalPair =
+          solution.getLessonAssignments().stream()
+              .filter(la -> !la.getId().equals(scheduledClassId))
+              .filter(la -> targetLesson.getOptionalGroupId().equals(la.getOptionalGroupId()))
+              .filter(la -> la.getBlockNumber() == targetLesson.getBlockNumber())
+              .findFirst()
+              .orElse(null);
+    } else {
+      optionalPair = null;
+    }
+
+    Long excludedOptionalGroupId = targetLesson.getOptionalGroupId();
+
+    // Other lessons from the same cohort, different subject
+    List<LessonAssignment> sameCohortOthers =
+        solution.getLessonAssignments().stream()
+            .filter(la -> !la.getId().equals(scheduledClassId))
+            .filter(la -> la.getCohortSubject().getCohort().getId().equals(targetCohortId))
+            .filter(la -> !la.getCohortSubject().getSubject().getId().equals(targetSubjectId))
+            .filter(
+                la ->
+                    excludedOptionalGroupId == null
+                        || !excludedOptionalGroupId.equals(la.getOptionalGroupId()))
+            .toList();
+
+    TimeslotInfo originalTimeslotA = targetLesson.getTimeslot();
+    final TimeslotInfo pairOriginalTimeslot =
+        optionalPair != null ? optionalPair.getTimeslot() : null;
+
+    List<CohortSwapCandidate> valid = new ArrayList<>();
+
+    for (LessonAssignment candidate : sameCohortOthers) {
+      TimeslotInfo originalTimeslotB = candidate.getTimeslot();
+      RoomInfo originalRoomB = candidate.getRoom();
+
+      // Swap timeslots; rooms stay with their respective lessons
+      targetLesson.setTimeslot(originalTimeslotB);
+      candidate.setTimeslot(originalTimeslotA);
+      if (optionalPair != null) optionalPair.setTimeslot(originalTimeslotB);
+
+      try {
         solutionManager.update(solution);
-        HardSoftScore initialScore = solution.getScore();
-        log.info("[DIAG] Initial score of rebuilt solution: {}", initialScore);
-        if (initialScore != null && initialScore.hardScore() != 0) {
-            log.warn("[DIAG] Rebuilt solution already has hard violations ({})! " +
-                    "Object identity problem in fromScheduledClasses — planning variables " +
-                    "are not the same instances as those in the value range.", initialScore);
+        HardSoftScore score = solution.getScore();
+
+        if (score != null && score.hardScore() == 0) {
+          ScheduledClass candidateSc =
+              allClasses.stream()
+                  .filter(sc -> sc.getId().equals(candidate.getId()))
+                  .findFirst()
+                  .orElseThrow();
+
+          valid.add(
+              new CohortSwapCandidate(
+                  candidate.getId(),
+                  candidateSc.getSubject().getName(),
+                  originalTimeslotB.getDayOfWeek().toString(),
+                  originalTimeslotB.getStartTime().toString(),
+                  originalRoomB.getName()));
         }
-
-        // ── Key fix ────────────────────────────────────────────────────────────
-        // Only consider a timeslot "occupied" if another lesson from a DIFFERENT
-        // cohort is there. Lessons from the same cohort as the target don't count
-        // as occupants — the slot is effectively empty for the target's cohort.
-        //
-        // Without this, a slot that already has a 1st-year lesson would appear as
-        // a swap candidate when moving a 3rd-year lesson (they share MORNING period),
-        // even though the 3rd-year cohort has no lesson there.
-        // ──────────────────────────────────────────────────────────────────────
-        Map<Long, List<LessonAssignment>> occupantsByTimeslotId = solution.getLessonAssignments().stream()
-                .filter(la -> !la.getId().equals(scheduledClassId))
-                .filter(la -> la.getTimeslot() != null)
-                .filter(la -> !la.getCohortSubject().getCohort().getId().equals(targetCohortId))
-                .collect(Collectors.groupingBy(la -> la.getTimeslot().getId()));
-
-        LessonAssignment targetLesson = solution.getLessonAssignments().stream()
-                .filter(la -> la.getId().equals(scheduledClassId))
-                .findFirst()
-                .orElseThrow();
-
-        int cohortYear = target.getCohort().getYear();
-        TimeslotInfo originalTimeslot = targetLesson.getTimeslot();
-
-        List<TimeslotInfo> candidates = solution.getAvailableTimeslots().stream()
-                .filter(ts -> isCorrectPeriod(ts, cohortYear))
-                .filter(ts -> !ts.getId().equals(originalTimeslot.getId()))
-                .toList();
-
-        log.info("Evaluating {} candidate slots for ScheduledClass {}", candidates.size(), scheduledClassId);
-
-        List<ValidSlotResponse> valid = new ArrayList<>();
-
-        RoomInfo originalRoom = targetLesson.getRoom();
-
-        for (TimeslotInfo candidate : candidates) {
-            List<LessonAssignment> occupants = occupantsByTimeslotId
-                    .getOrDefault(candidate.getId(), List.of());
-
-            LessonAssignment occupant = occupants.size() == 1 ? occupants.get(0) : null;
-
-            // Testar cada sala disponível
-            for (RoomInfo candidateRoom : solution.getAvailableRooms()) {
-
-                // Verificações rápidas antes de chamar o ScoreManager (performance)
-                if (!candidateRoom.hasSufficientCapacity(targetLesson.getStudentCount()))
-                    continue;
-                if (!candidateRoom.isAvailableForCourse(targetLesson.getCourseId(), candidate.getPeriod()))
-                    continue;
-
-                targetLesson.setTimeslot(candidate);
-                targetLesson.setRoom(candidateRoom);
-                if (occupant != null)
-                    occupant.setTimeslot(originalTimeslot);
-
-                try {
-                    solutionManager.update(solution);
-                    HardSoftScore score = solution.getScore();
-
-                    if (score != null && score.hardScore() == 0) {
-                        if (occupant != null) {
-                            ScheduledClass occupantSc = allClasses.stream()
-                                    .filter(sc -> sc.getId().equals(occupant.getId()))
-                                    .findFirst().orElse(null);
-
-                            valid.add(ValidSlotResponse.swap(
-                                    candidate.getId(),
-                                    candidate.getDayOfWeek().toString(),
-                                    candidate.getStartTime().toString(),
-                                    candidate.getEndTime().toString(),
-                                    occupant.getId(),
-                                    occupantSc != null ? occupantSc.getSubject().getName() : "?",
-                                    occupantSc != null ? occupantSc.getCohort().getDisplayName() : "?",
-                                    candidateRoom.getName(),
-                                    candidateRoom.getId()));
-                        } else {
-                            valid.add(ValidSlotResponse.empty(
-                                    candidate.getId(),
-                                    candidate.getDayOfWeek().toString(),
-                                    candidate.getStartTime().toString(),
-                                    candidate.getEndTime().toString(),
-                                    candidateRoom.getName(),
-                                    candidateRoom.getId()));
-                        }
-                        break; // Primeira sala válida chega — não precisas de mais para o mesmo slot
-                    }
-                } finally {
-                    targetLesson.setTimeslot(originalTimeslot);
-                    targetLesson.setRoom(originalRoom);
-                    if (occupant != null)
-                        occupant.setTimeslot(candidate);
-                }
-            }
-        }
-
-        log.info("ScheduledClass {} → {}/{} valid permutations", scheduledClassId, valid.size(), candidates.size());
-        return valid;
+      } finally {
+        targetLesson.setTimeslot(originalTimeslotA);
+        candidate.setTimeslot(originalTimeslotB);
+        if (optionalPair != null) optionalPair.setTimeslot(pairOriginalTimeslot);
+      }
     }
 
-    @Transactional
-    public void applySwap(Long scheduledClassId, Long targetTimeslotId, Long targetRoomId, Long swapWithId) {
-        ScheduledClass scX = scheduledClassRepository.findById(scheduledClassId)
-                .orElseThrow(() -> new IllegalArgumentException("ScheduledClass not found: " + scheduledClassId));
+    log.info(
+        "ScheduledClass {} → {}/{} valid cohort swaps",
+        scheduledClassId,
+        valid.size(),
+        sameCohortOthers.size());
+    return valid;
+  }
 
-        Timeslot newTimeslot = timeslotRepository.findById(targetTimeslotId)
-                .orElseThrow(() -> new IllegalArgumentException("Timeslot not found: " + targetTimeslotId));
+  // ========================================
+  // APPLY COHORT SWAP
+  // ========================================
 
-        Room newRoom = roomRepository.findById(targetRoomId)
-                .orElseThrow(() -> new IllegalArgumentException("Room not found: " + targetRoomId));
+  @Transactional
+  public void applyCohortSwap(Long scheduledClassIdA, Long scheduledClassIdB) {
+    ScheduledClass scA =
+        scheduledClassRepository
+            .findById(scheduledClassIdA)
+            .orElseThrow(() -> new IllegalArgumentException("Not found: " + scheduledClassIdA));
+    ScheduledClass scB =
+        scheduledClassRepository
+            .findById(scheduledClassIdB)
+            .orElseThrow(() -> new IllegalArgumentException("Not found: " + scheduledClassIdB));
 
-        if (swapWithId != null) {
-            ScheduledClass scY = scheduledClassRepository.findById(swapWithId)
-                    .orElseThrow(() -> new IllegalArgumentException("ScheduledClass not found: " + swapWithId));
+    Timeslot timeslotA = scA.getTimeslot();
+    Timeslot timeslotB = scB.getTimeslot();
 
-            Timeslot xOriginal = scX.getTimeslot();
-            scX.setTimeslot(newTimeslot);
-            scX.setRoom(newRoom); // ← sala também muda
-            scY.setTimeslot(xOriginal);
-            // scY mantém a sua sala original
+    scA.setTimeslot(timeslotB);
+    scB.setTimeslot(timeslotA);
 
-            log.info("Full swap: ScheduledClass {} ↔ ScheduledClass {}", scheduledClassId, swapWithId);
-        } else {
-            scX.setTimeslot(newTimeslot);
-            scX.setRoom(newRoom); // ← sala também muda
-            log.info("Move: ScheduledClass {} → Timeslot {} Room {}", scheduledClassId, targetTimeslotId, targetRoomId);
-        }
+    // If scA is optional, move the pair that shares timeslotA to timeslotB.
+    // Filtering by original timeslot ensures bloco1 moves with bloco1, bloco2 with
+    // bloco2.
+    if (scA.getSubject().getOptionalGroup() != null) {
+      Long groupId = scA.getSubject().getOptionalGroup().getId();
+
+      scheduledClassRepository
+          .findAllWithDetailsByPeriod(
+              scA.getTimetable().getAcademicYear(), scA.getTimetable().getSemester())
+          .stream()
+          .filter(sc -> !sc.getId().equals(scheduledClassIdA))
+          .filter(
+              sc ->
+                  sc.getSubject().getOptionalGroup() != null
+                      && sc.getSubject().getOptionalGroup().getId().equals(groupId))
+          .filter(sc -> sc.getTimeslot().getId().equals(timeslotA.getId()))
+          .findFirst()
+          .ifPresent(
+              pair -> {
+                pair.setTimeslot(timeslotB);
+                scheduledClassRepository.save(pair);
+                log.info(
+                    "Optional pair ScheduledClass {} also moved to timeslot {} (cohort swap)",
+                    pair.getId(),
+                    timeslotB.getId());
+              });
     }
 
-    private boolean isCorrectPeriod(TimeslotInfo ts, int cohortYear) {
-        boolean isOddYear = cohortYear % 2 != 0;
-        return switch (ts.getPeriod()) {
-            case MORNING -> isOddYear;
-            case AFTERNOON -> !isOddYear;
-            case EVENING -> false;
-        };
+    log.info(
+        "Cohort swap: ScheduledClass {} ↔ ScheduledClass {}", scheduledClassIdA, scheduledClassIdB);
+  }
+
+  // ========================================
+  // HELPERS
+  // ========================================
+
+  private boolean isCorrectPeriod(TimeslotInfo ts, int cohortYear) {
+    boolean isOddYear = cohortYear % 2 != 0;
+    return switch (ts.getPeriod()) {
+      case MORNING -> isOddYear;
+      case AFTERNOON -> !isOddYear;
+      case EVENING -> false;
+    };
+  }
+
+  // ========================================
+  // RECORDS
+  // ========================================
+
+  public record CohortSwapCandidate(
+      Long scheduledClassId,
+      String subjectName,
+      String dayOfWeek,
+      String startTime,
+      String roomName) {}
+
+  public record ValidSlotResponse(
+      long timeslotId,
+      String dayOfWeek,
+      String startTime,
+      String endTime,
+      boolean isSwap,
+      Long swapWithId,
+      String swapWithSubject,
+      String swapWithCohort,
+      String roomName,
+      Long roomId) {
+
+    static ValidSlotResponse empty(
+        long timeslotId, String day, String start, String end, String roomName, Long roomId) {
+      return new ValidSlotResponse(
+          timeslotId, day, start, end, false, null, null, null, roomName, roomId);
     }
 
-    public record CohortSwapCandidate(
-            Long scheduledClassId,
-            String subjectName,
-            String dayOfWeek,
-            String startTime,
-            String roomName) {
+    static ValidSlotResponse swap(
+        long timeslotId,
+        String day,
+        String start,
+        String end,
+        Long swapWithId,
+        String subject,
+        String cohort,
+        String roomName,
+        Long roomId) {
+      return new ValidSlotResponse(
+          timeslotId, day, start, end, true, swapWithId, subject, cohort, roomName, roomId);
     }
-
-    @Transactional(readOnly = true)
-    public List<CohortSwapCandidate> findCohortSwapCandidates(
-            Long scheduledClassId, int academicYear, int semester) {
-
-        List<ScheduledClass> allClasses = scheduledClassRepository
-                .findAllWithDetailsByPeriod(academicYear, semester);
-
-        ScheduledClass target = allClasses.stream()
-                .filter(sc -> sc.getId().equals(scheduledClassId))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("ScheduledClass not found: " + scheduledClassId));
-
-        Long targetCohortId = target.getCohort().getId();
-        Long targetSubjectId = target.getSubject().getId();
-
-        TimetableSolution solution = solutionMapper.fromScheduledClasses(
-                allClasses, timeslotRepository.findAll(), roomRepository.findAll(),
-                academicYear, semester);
-
-        LessonAssignment targetLesson = solution.getLessonAssignments().stream()
-                .filter(la -> la.getId().equals(scheduledClassId))
-                .findFirst().orElseThrow();
-
-        // Outras aulas da mesma cohort, disciplina diferente
-        List<LessonAssignment> sameCohortOthers = solution.getLessonAssignments().stream()
-                .filter(la -> !la.getId().equals(scheduledClassId))
-                .filter(la -> la.getCohortSubject().getCohort().getId().equals(targetCohortId))
-                .filter(la -> !la.getCohortSubject().getSubject().getId().equals(targetSubjectId))
-                .toList();
-
-        TimeslotInfo originalTimeslotA = targetLesson.getTimeslot();
-        RoomInfo originalRoomA = targetLesson.getRoom();
-
-        List<CohortSwapCandidate> valid = new ArrayList<>();
-
-        for (LessonAssignment candidate : sameCohortOthers) {
-            TimeslotInfo originalTimeslotB = candidate.getTimeslot();
-            RoomInfo originalRoomB = candidate.getRoom();
-
-            // Trocar timeslots (salas ficam iguais — cada aula leva a sua sala)
-            targetLesson.setTimeslot(originalTimeslotB);
-            candidate.setTimeslot(originalTimeslotA);
-
-            try {
-                solutionManager.update(solution);
-                HardSoftScore score = solution.getScore();
-
-                if (score != null && score.hardScore() == 0) {
-                    ScheduledClass candidateSc = allClasses.stream()
-                            .filter(sc -> sc.getId().equals(candidate.getId()))
-                            .findFirst().orElseThrow();
-
-                    valid.add(new CohortSwapCandidate(
-                            candidate.getId(),
-                            candidateSc.getSubject().getName(),
-                            originalTimeslotB.getDayOfWeek().toString(),
-                            originalTimeslotB.getStartTime().toString(),
-                            originalRoomB.getName()));
-                }
-            } finally {
-                targetLesson.setTimeslot(originalTimeslotA);
-                candidate.setTimeslot(originalTimeslotB);
-            }
-        }
-
-        log.info("ScheduledClass {} → {}/{} valid cohort swaps",
-                scheduledClassId, valid.size(), sameCohortOthers.size());
-        return valid;
-    }
-
-    @Transactional
-    public void applyCohortSwap(Long scheduledClassIdA, Long scheduledClassIdB) {
-        ScheduledClass scA = scheduledClassRepository.findById(scheduledClassIdA)
-                .orElseThrow(() -> new IllegalArgumentException("Not found: " + scheduledClassIdA));
-        ScheduledClass scB = scheduledClassRepository.findById(scheduledClassIdB)
-                .orElseThrow(() -> new IllegalArgumentException("Not found: " + scheduledClassIdB));
-
-        Timeslot timeslotA = scA.getTimeslot();
-        scA.setTimeslot(scB.getTimeslot());
-        scB.setTimeslot(timeslotA);
-        // Salas não mudam — cada aula mantém a sua sala original
-
-        log.info("Cohort swap: ScheduledClass {} ↔ ScheduledClass {}", scheduledClassIdA, scheduledClassIdB);
-    }
-
-    public record ValidSlotResponse(
-            long timeslotId,
-            String dayOfWeek,
-            String startTime,
-            String endTime,
-            boolean isSwap,
-            Long swapWithId,
-            String swapWithSubject,
-            String swapWithCohort,
-            String roomName, // ← NOVO: sala onde a aula ficará
-            Long roomId) { // ← NOVO: para persistir a mudança de sala
-
-        static ValidSlotResponse empty(long timeslotId, String day, String start, String end,
-                String roomName, Long roomId) {
-            return new ValidSlotResponse(timeslotId, day, start, end, false, null, null, null, roomName, roomId);
-        }
-
-        static ValidSlotResponse swap(long timeslotId, String day, String start, String end,
-                Long swapWithId, String subject, String cohort, String roomName, Long roomId) {
-            return new ValidSlotResponse(timeslotId, day, start, end, true, swapWithId, subject, cohort, roomName,
-                    roomId);
-        }
-    }
+  }
 }

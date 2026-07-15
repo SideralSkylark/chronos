@@ -1,17 +1,5 @@
 package com.timetable.timetable.domain.user.service;
 
-import java.time.LocalDateTime;
-import java.security.SecureRandom;
-import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.timetable.timetable.auth.exception.UserAlreadyExistsException;
 import com.timetable.timetable.domain.user.dto.*;
 import com.timetable.timetable.domain.user.entity.*;
@@ -21,15 +9,24 @@ import com.timetable.timetable.domain.user.repository.UserRepository;
 import com.timetable.timetable.domain.user.repository.UserRoleRepository;
 import com.timetable.timetable.domain.user.specification.UserSpecifications;
 import com.timetable.timetable.security.SecurityUtil;
-
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Service for managing user-related operations.
  *
- * <p>Handles user creation, profile updates, account status management,
- * and retrieval with filtering and pagination.</p>
+ * <p>Handles user creation, profile updates, account status management, and retrieval with
+ * filtering and pagination.
  *
  * @author Sideral Skylark
  */
@@ -39,407 +36,416 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional(readOnly = true)
 public class UserService {
 
-    private final UserRepository userRepository;
-    private final UserRoleRepository roleRepository;
-    private final UserMapper userMapper;
-    private final PasswordEncoder passwordEncoder;
+  private final UserRepository userRepository;
+  private final UserRoleRepository roleRepository;
+  private final UserMapper userMapper;
+  private final PasswordEncoder passwordEncoder;
 
-    /**
-     * Creates a new user in the system.
-     *
-     * @param request the user creation data
-     * @return the created ApplicationUser
-     * @throws IllegalArgumentException if teacher type is missing for teachers
-     * @throws UserAlreadyExistsException if username or email is already taken
-     */
-    @Transactional
-    public ApplicationUser createUser(CreateUser request) {
-        log.debug("Creating user");
-        boolean isTeacher = request.roles().stream().anyMatch(r -> r.equalsIgnoreCase("TEACHER"));
+  /**
+   * Creates a new user in the system.
+   *
+   * @param request the user creation data
+   * @return the created ApplicationUser
+   * @throws IllegalArgumentException if teacher type is missing for teachers
+   * @throws UserAlreadyExistsException if username or email is already taken
+   */
+  @Transactional
+  public ApplicationUser createUser(CreateUser request) {
+    log.debug("Creating user");
+    boolean isTeacher = request.roles().stream().anyMatch(r -> r.equalsIgnoreCase("TEACHER"));
 
-        if (isTeacher && request.teacherType() == null) {
-            throw new IllegalArgumentException("Teacher type is required for teachers");
-        }
-
-        validateUniqueUser(request);
-        Set<UserRoleEntity> roles = resolveRoles(request.roles());
-
-        ApplicationUser user = ApplicationUser.builder()
-                .username(request.username())
-                .email(request.email())
-                .password(passwordEncoder.encode(request.password()))
-                .status(AccountStatus.ACTIVE)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .roles(roles)
-                .teacherType(request.teacherType())
-                .build();
-
-        userRepository.save(user);
-        log.info("Created new user '{}' with roles {}", user.getUsername(), roles);
-        return user;
+    if (isTeacher && request.teacherType() == null) {
+      throw new IllegalArgumentException("Teacher type is required for teachers");
     }
 
-    /**
-     * Creates a new user and returns a DTO response.
-     *
-     * @param request the user creation data
-     * @return the UserResponse DTO
-     */
-    @Transactional
-    public UserResponse createUserResponse(CreateUser request) {
-        return userMapper.toDTO(createUser(request));
-    }
+    validateUniqueUser(request);
+    Set<UserRoleEntity> roles = resolveRoles(request.roles());
 
-    // ============================================================
-    // READ USERS
-    // ============================================================
+    ApplicationUser user =
+        ApplicationUser.builder()
+            .username(request.username())
+            .email(request.email())
+            .password(passwordEncoder.encode(request.password()))
+            .status(AccountStatus.ACTIVE)
+            .createdAt(LocalDateTime.now())
+            .updatedAt(LocalDateTime.now())
+            .roles(roles)
+            .teacherType(request.teacherType())
+            .build();
 
-    /**
-     * Gets the profile of the currently authenticated user.
-     *
-     * @return the UserResponse DTO
-     * @throws UserNotFoundException if authenticated user is not found
-     */
-    public UserResponse getAuthenticatedUserProfile() {
-        ApplicationUser user = getByUsernameOrThrow(SecurityUtil.getAuthenticatedUsername());
-        return userMapper.toDTO(user);
-    }
+    userRepository.save(user);
+    log.info("Created new user '{}' with roles {}", user.getUsername(), roles);
+    return user;
+  }
 
-    /**
-     * Gets the currently authenticated user entity.
-     *
-     * @return the ApplicationUser entity
-     */
-    public ApplicationUser getAuthenticatedUser() {
-        return getByUsernameOrThrow(SecurityUtil.getAuthenticatedUsername());
-    }
+  /**
+   * Creates a new user and returns a DTO response.
+   *
+   * @param request the user creation data
+   * @return the UserResponse DTO
+   */
+  @Transactional
+  public UserResponse createUserResponse(CreateUser request) {
+    return userMapper.toDTO(createUser(request));
+  }
 
-    /**
-     * Retrieves all users matching the given filters.
-     *
-     * @param pageable pagination details
-     * @param filter filter parameters
-     * @return a page of UserResponse DTOs
-     */
-    public Page<UserResponse> getAllUsers(Pageable pageable, UserFilterParams filter) {
-        log.info("Filter received: {}", filter);
-        return userRepository.findAll(UserSpecifications.withFilters(filter), pageable).map(userMapper::toDTO);
-    }
+  // ============================================================
+  // READ USERS
+  // ============================================================
 
-    /**
-     * Retrieves users by role with optional filters.
-     *
-     * @param role the required role
-     * @param pageable pagination details
-     * @param filter filter parameters
-     * @return a page of UserResponse DTOs
-     */
-    public Page<UserResponse> getUsersByRole(UserRole role, Pageable pageable, UserFilterParams filter) {
-        return userRepository.findAll(
-                UserSpecifications.withFilters(filter)
-                        .and(UserSpecifications.hasRole(role)),
-                pageable)
-                .map(userMapper::toDTO);
-    }
+  /**
+   * Gets the profile of the currently authenticated user.
+   *
+   * @return the UserResponse DTO
+   * @throws UserNotFoundException if authenticated user is not found
+   */
+  public UserResponse getAuthenticatedUserProfile() {
+    ApplicationUser user = getByUsernameOrThrow(SecurityUtil.getAuthenticatedUsername());
+    return userMapper.toDTO(user);
+  }
 
-    /**
-     * Finds a user by ID or throws an exception.
-     *
-     * @param id the user ID
-     * @return the ApplicationUser entity
-     * @throws UserNotFoundException if user not found
-     */
-    public ApplicationUser findOrThrow(Long id) {
-        return getByIdOrThrow(id);
-    }
+  /**
+   * Gets the currently authenticated user entity.
+   *
+   * @return the ApplicationUser entity
+   */
+  public ApplicationUser getAuthenticatedUser() {
+    return getByUsernameOrThrow(SecurityUtil.getAuthenticatedUsername());
+  }
 
-    /**
-     * Gets a user DTO by ID.
-     *
-     * @param id the user ID
-     * @return the UserResponse DTO
-     */
-    public UserResponse getUserById(Long id) {
-        return userMapper.toDTO(getByIdOrThrow(id));
-    }
+  /**
+   * Retrieves all users matching the given filters.
+   *
+   * @param pageable pagination details
+   * @param filter filter parameters
+   * @return a page of UserResponse DTOs
+   */
+  public Page<UserResponse> getAllUsers(Pageable pageable, UserFilterParams filter) {
+    log.info("Filter received: {}", filter);
+    return userRepository
+        .findAll(UserSpecifications.withFilters(filter), pageable)
+        .map(userMapper::toDTO);
+  }
 
-    /**
-     * Gets a user by role and ID.
-     *
-     * @param role the required role
-     * @param id the user ID
-     * @return the UserResponse DTO
-     * @throws UserNotFoundException if user with specified role and ID not found
-     */
-    public UserResponse getUserByRoleAndId(UserRole role, Long id) {
-        ApplicationUser user = userRepository.findByIdAndRole(id, role)
-                .orElseThrow(() -> new UserNotFoundException(
+  /**
+   * Retrieves users by role with optional filters.
+   *
+   * @param role the required role
+   * @param pageable pagination details
+   * @param filter filter parameters
+   * @return a page of UserResponse DTOs
+   */
+  public Page<UserResponse> getUsersByRole(
+      UserRole role, Pageable pageable, UserFilterParams filter) {
+    return userRepository
+        .findAll(
+            UserSpecifications.withFilters(filter).and(UserSpecifications.hasRole(role)), pageable)
+        .map(userMapper::toDTO);
+  }
+
+  /**
+   * Finds a user by ID or throws an exception.
+   *
+   * @param id the user ID
+   * @return the ApplicationUser entity
+   * @throws UserNotFoundException if user not found
+   */
+  public ApplicationUser findOrThrow(Long id) {
+    return getByIdOrThrow(id);
+  }
+
+  /**
+   * Gets a user DTO by ID.
+   *
+   * @param id the user ID
+   * @return the UserResponse DTO
+   */
+  public UserResponse getUserById(Long id) {
+    return userMapper.toDTO(getByIdOrThrow(id));
+  }
+
+  /**
+   * Gets a user by role and ID.
+   *
+   * @param role the required role
+   * @param id the user ID
+   * @return the UserResponse DTO
+   * @throws UserNotFoundException if user with specified role and ID not found
+   */
+  public UserResponse getUserByRoleAndId(UserRole role, Long id) {
+    ApplicationUser user =
+        userRepository
+            .findByIdAndRole(id, role)
+            .orElseThrow(
+                () ->
+                    new UserNotFoundException(
                         "No user with id %d and role %s".formatted(id, role)));
 
-        return userMapper.toDTO(user);
+    return userMapper.toDTO(user);
+  }
+
+  /**
+   * Gets a user entity by username.
+   *
+   * @param username the username
+   * @return the ApplicationUser entity
+   */
+  public ApplicationUser getUserByUsername(String username) {
+    return getByUsernameOrThrow(username);
+  }
+
+  /**
+   * Finds a user by username.
+   *
+   * @param username the username
+   * @return an Optional of ApplicationUser
+   */
+  public Optional<ApplicationUser> findByUsername(String username) {
+    return userRepository.findByUsername(username);
+  }
+
+  /**
+   * Gets a user entity by email.
+   *
+   * @param email the email
+   * @return the ApplicationUser entity
+   */
+  public ApplicationUser getUserByEmail(String email) {
+    return getByEmailOrThrow(email);
+  }
+
+  // ============================================================
+  // UPDATE USERS
+  // ============================================================
+  /**
+   * Updates the profile of the authenticated user.
+   *
+   * @param dto the update data
+   * @return the updated UserResponse DTO
+   */
+  @Transactional
+  public UserResponse updateAuthenticatedUserProfile(UpdateUserProfileDTO dto) {
+    log.debug("Updating user profile");
+    ApplicationUser user = getByUsernameOrThrow(SecurityUtil.getAuthenticatedUsername());
+    updateBasicFields(user, dto.username(), dto.email());
+    log.info("User '{}' updated their profile", user.getUsername());
+    return userMapper.toDTO(userRepository.save(user));
+  }
+
+  /**
+   * Updates a user by ID (Admin operation).
+   *
+   * @param id the user ID
+   * @param payload the update data
+   * @return the updated UserResponse DTO
+   * @throws IllegalArgumentException if attempting to remove the last admin
+   */
+  @Transactional
+  public UserResponse updateUserById(Long id, AdminUpdateUserDTO payload) {
+    log.debug("Updating user {}", id);
+    ApplicationUser user = getByIdOrThrow(id);
+
+    validateUniqueUpdate(id, payload.username(), payload.email());
+
+    Set<UserRoleEntity> newRoles = resolveRoles(payload.roles());
+    validateAdminRemoval(user, newRoles);
+
+    updateBasicFields(user, payload.username(), payload.email());
+    user.setRoles(newRoles);
+    user.setTeacherType(payload.teacherType());
+
+    userRepository.save(user);
+    log.info("Admin updated user '{}' with roles {}", id, newRoles);
+    return userMapper.toDTO(user);
+  }
+
+  /**
+   * Resets a user's password to a random one.
+   *
+   * @param id the user ID
+   * @return ResetPasswordResponse containing the new raw temporary password
+   */
+  @Transactional
+  public ResetPasswordResponse resetPassword(Long id) {
+    log.debug("Resetting password for user {}", id);
+    ApplicationUser user = getByIdOrThrow(id);
+    String newPassword = generateRandomPassword(12);
+    user.setPassword(passwordEncoder.encode(newPassword));
+    user.setUpdatedAt(LocalDateTime.now());
+    userRepository.save(user);
+    log.info("Password reset for user id={}", id);
+    return new ResetPasswordResponse(newPassword);
+  }
+
+  private String generateRandomPassword(int length) {
+    String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    SecureRandom random = new SecureRandom();
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < length; i++) {
+      sb.append(chars.charAt(random.nextInt(chars.length())));
     }
+    return sb.toString();
+  }
 
-    /**
-     * Gets a user entity by username.
-     *
-     * @param username the username
-     * @return the ApplicationUser entity
-     */
-    public ApplicationUser getUserByUsername(String username) {
-        return getByUsernameOrThrow(username);
+  // ============================================================
+  // DELETE USERS
+  // ============================================================
+  /** Deletes the profile of the authenticated user. */
+  @Transactional
+  public void deleteAuthenticatedUserProfile() {
+    deleteByUsername(SecurityUtil.getAuthenticatedUsername());
+  }
+
+  /**
+   * Deletes a user by username.
+   *
+   * @param username the username
+   */
+  @Transactional
+  public void deleteByUsername(String username) {
+    ApplicationUser user = getByUsernameOrThrow(username);
+
+    userRepository.delete(user);
+  }
+
+  /**
+   * Deletes a user by ID.
+   *
+   * @param id the user ID
+   */
+  @Transactional
+  public void deleteById(Long id) {
+    ApplicationUser user = getByIdOrThrow(id);
+
+    userRepository.delete(user);
+  }
+
+  // ============================================================
+  // ACCOUNT STATUS
+  // ============================================================
+  /**
+   * Enables a user account.
+   *
+   * @param email the user email
+   * @return true if status changed
+   */
+  @Transactional
+  public boolean enableAccount(String email) {
+    return updateAccountStatus(email, true);
+  }
+
+  /**
+   * Disables a user account.
+   *
+   * @param email the user email
+   * @return true if status changed
+   */
+  @Transactional
+  public boolean disableAccount(String email) {
+    return updateAccountStatus(email, false);
+  }
+
+  private boolean updateAccountStatus(String email, boolean enable) {
+    ApplicationUser user = getByEmailOrThrow(email);
+
+    if (user.isEnabled() == enable) return false;
+
+    if (enable) user.activate();
+    else user.deactivate();
+
+    userRepository.save(user);
+    log.info("Account '{}' set to {}", email, enable ? "ENABLED" : "DISABLED");
+    return true;
+  }
+
+  // ============================================================
+  // HELPERS (GETTERS)
+  // ============================================================
+  private ApplicationUser getByIdOrThrow(Long id) {
+    return userRepository
+        .findById(id)
+        .orElseThrow(() -> new UserNotFoundException("User %d not found".formatted(id)));
+  }
+
+  private ApplicationUser getByUsernameOrThrow(String username) {
+    return getOrThrow(
+        username, userRepository::findByUsername, "No user found with username: " + username);
+  }
+
+  private ApplicationUser getByEmailOrThrow(String email) {
+    return getOrThrow(email, userRepository::findByEmail, "No user found with email: " + email);
+  }
+
+  private <T> ApplicationUser getOrThrow(
+      T key, Function<T, Optional<ApplicationUser>> finder, String errorMessage) {
+    return finder.apply(key).orElseThrow(() -> new UserNotFoundException(errorMessage));
+  }
+
+  private void updateBasicFields(ApplicationUser user, String username, String email) {
+    user.setUsername(username);
+    user.setEmail(email);
+    user.setUpdatedAt(LocalDateTime.now());
+  }
+
+  // ============================================================
+  // VALIDATION HELPERS
+  // ============================================================
+  private void validateUsernameAvailable(String username, Long excludeId) {
+    boolean taken =
+        (excludeId == null)
+            ? userRepository.existsByUsername(username)
+            : userRepository.existsByUsernameAndIdNot(username, excludeId);
+    if (taken) throw new UserAlreadyExistsException("Username is already taken");
+  }
+
+  private void validateEmailAvailable(String email, Long excludeId) {
+    boolean taken =
+        (excludeId == null)
+            ? userRepository.existsByEmail(email)
+            : userRepository.existsByEmailAndIdNot(email, excludeId);
+    if (taken) throw new UserAlreadyExistsException("Email is already in use");
+  }
+
+  private void validateUniqueUser(CreateUser request) {
+    validateUsernameAvailable(request.username(), null);
+    validateEmailAvailable(request.email(), null);
+  }
+
+  private void validateUniqueUpdate(Long id, String username, String email) {
+    validateUsernameAvailable(username, id);
+    validateEmailAvailable(email, id);
+  }
+
+  private void validateAdminRemoval(ApplicationUser user, Set<UserRoleEntity> newRoles) {
+    boolean removingAdmin =
+        user.hasRole(UserRole.ADMIN)
+            && newRoles.stream().noneMatch(r -> r.getRole() == UserRole.ADMIN);
+
+    long adminCount = userRepository.countUsersByRole(UserRole.ADMIN);
+
+    if (removingAdmin && adminCount == 1) {
+      throw new IllegalArgumentException("Cannot remove ADMIN role from the only admin user.");
     }
+  }
 
-    /**
-     * Finds a user by username.
-     *
-     * @param username the username
-     * @return an Optional of ApplicationUser
-     */
-    public Optional<ApplicationUser> findByUsername(String username) {
-        return userRepository.findByUsername(username);
-    }
+  // ============================================================
+  // ROLES HELPERS
+  // ============================================================
+  private Set<UserRoleEntity> resolveRoles(List<String> roleNames) {
+    return roleNames.stream()
+        .map(
+            roleName -> {
+              UserRole roleEnum;
+              try {
+                roleEnum = UserRole.valueOf(roleName.toUpperCase());
+              } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid role: " + roleName);
+              }
 
-    /**
-     * Gets a user entity by email.
-     *
-     * @param email the email
-     * @return the ApplicationUser entity
-     */
-    public ApplicationUser getUserByEmail(String email) {
-        return getByEmailOrThrow(email);
-    }
-
-    // ============================================================
-    // UPDATE USERS
-    // ============================================================
-    /**
-     * Updates the profile of the authenticated user.
-     *
-     * @param dto the update data
-     * @return the updated UserResponse DTO
-     */
-    @Transactional
-    public UserResponse updateAuthenticatedUserProfile(UpdateUserProfileDTO dto) {
-        log.debug("Updating user profile");
-        ApplicationUser user = getByUsernameOrThrow(SecurityUtil.getAuthenticatedUsername());
-        updateBasicFields(user, dto.username(), dto.email());
-        log.info("User '{}' updated their profile", user.getUsername());
-        return userMapper.toDTO(userRepository.save(user));
-    }
-
-    /**
-     * Updates a user by ID (Admin operation).
-     *
-     * @param id the user ID
-     * @param payload the update data
-     * @return the updated UserResponse DTO
-     * @throws IllegalArgumentException if attempting to remove the last admin
-     */
-    @Transactional
-    public UserResponse updateUserById(Long id, AdminUpdateUserDTO payload) {
-        log.debug("Updating user {}", id);
-        ApplicationUser user = getByIdOrThrow(id);
-
-        validateUniqueUpdate(id, payload.username(), payload.email());
-
-        Set<UserRoleEntity> newRoles = resolveRoles(payload.roles());
-        validateAdminRemoval(user, newRoles);
-
-        updateBasicFields(user, payload.username(), payload.email());
-        user.setRoles(newRoles);
-        user.setTeacherType(payload.teacherType());
-
-        userRepository.save(user);
-        log.info("Admin updated user '{}' with roles {}", id, newRoles);
-        return userMapper.toDTO(user);
-    }
-
-    /**
-     * Resets a user's password to a random one.
-     *
-     * @param id the user ID
-     * @return ResetPasswordResponse containing the new raw temporary password
-     */
-    @Transactional
-    public ResetPasswordResponse resetPassword(Long id) {
-        log.debug("Resetting password for user {}", id);
-        ApplicationUser user = getByIdOrThrow(id);
-        String newPassword = generateRandomPassword(12);
-        user.setPassword(passwordEncoder.encode(newPassword));
-        user.setUpdatedAt(LocalDateTime.now());
-        userRepository.save(user);
-        log.info("Password reset for user id={}", id);
-        return new ResetPasswordResponse(newPassword);
-    }
-
-    private String generateRandomPassword(int length) {
-        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        SecureRandom random = new SecureRandom();
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < length; i++) {
-            sb.append(chars.charAt(random.nextInt(chars.length())));
-        }
-        return sb.toString();
-    }
-
-    // ============================================================
-    // DELETE USERS
-    // ============================================================
-    /**
-     * Deletes the profile of the authenticated user.
-     */
-    @Transactional
-    public void deleteAuthenticatedUserProfile() {
-        deleteByUsername(SecurityUtil.getAuthenticatedUsername());
-    }
-
-    /**
-     * Deletes a user by username.
-     * @param username the username
-     */
-    @Transactional
-    public void deleteByUsername(String username) {
-        ApplicationUser user = getByUsernameOrThrow(username);
-
-        userRepository.delete(user);
-    }
-
-    /**
-     * Deletes a user by ID.
-     * @param id the user ID
-     */
-    @Transactional
-    public void deleteById(Long id) {
-        ApplicationUser user = getByIdOrThrow(id);
-
-        userRepository.delete(user);
-    }
-
-    // ============================================================
-    // ACCOUNT STATUS
-    // ============================================================
-    /**
-     * Enables a user account.
-     * @param email the user email
-     * @return true if status changed
-     */
-    @Transactional
-    public boolean enableAccount(String email) {
-        return updateAccountStatus(email, true);
-    }
-
-    /**
-     * Disables a user account.
-     * @param email the user email
-     * @return true if status changed
-     */
-    @Transactional
-    public boolean disableAccount(String email) {
-        return updateAccountStatus(email, false);
-    }
-
-    private boolean updateAccountStatus(String email, boolean enable) {
-        ApplicationUser user = getByEmailOrThrow(email);
-
-        if (user.isEnabled() == enable)
-            return false;
-
-        if (enable)
-            user.activate();
-        else
-            user.deactivate();
-
-        userRepository.save(user);
-        log.info("Account '{}' set to {}", email, enable ? "ENABLED" : "DISABLED");
-        return true;
-    }
-
-    // ============================================================
-    // HELPERS (GETTERS)
-    // ============================================================
-    private ApplicationUser getByIdOrThrow(Long id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> new UserNotFoundException("User %d not found".formatted(id)));
-    }
-
-    private ApplicationUser getByUsernameOrThrow(String username) {
-        return getOrThrow(username, userRepository::findByUsername,
-                "No user found with username: " + username);
-    }
-
-    private ApplicationUser getByEmailOrThrow(String email) {
-        return getOrThrow(email, userRepository::findByEmail,
-                "No user found with email: " + email);
-    }
-
-    private <T> ApplicationUser getOrThrow(T key, Function<T, Optional<ApplicationUser>> finder, String errorMessage) {
-        return finder.apply(key)
-                .orElseThrow(() -> new UserNotFoundException(errorMessage));
-    }
-
-    private void updateBasicFields(ApplicationUser user, String username, String email) {
-        user.setUsername(username);
-        user.setEmail(email);
-        user.setUpdatedAt(LocalDateTime.now());
-    }
-
-    // ============================================================
-    // VALIDATION HELPERS
-    // ============================================================
-    private void validateUsernameAvailable(String username, Long excludeId) {
-        boolean taken = (excludeId == null)
-                ? userRepository.existsByUsername(username)
-                : userRepository.existsByUsernameAndIdNot(username, excludeId);
-        if (taken)
-            throw new UserAlreadyExistsException("Username is already taken");
-    }
-
-    private void validateEmailAvailable(String email, Long excludeId) {
-        boolean taken = (excludeId == null)
-                ? userRepository.existsByEmail(email)
-                : userRepository.existsByEmailAndIdNot(email, excludeId);
-        if (taken)
-            throw new UserAlreadyExistsException("Email is already in use");
-    }
-
-    private void validateUniqueUser(CreateUser request) {
-        validateUsernameAvailable(request.username(), null);
-        validateEmailAvailable(request.email(), null);
-    }
-
-    private void validateUniqueUpdate(Long id, String username, String email) {
-        validateUsernameAvailable(username, id);
-        validateEmailAvailable(email, id);
-    }
-
-    private void validateAdminRemoval(ApplicationUser user, Set<UserRoleEntity> newRoles) {
-        boolean removingAdmin = user.hasRole(UserRole.ADMIN)
-                && newRoles.stream().noneMatch(r -> r.getRole() == UserRole.ADMIN);
-
-        long adminCount = userRepository.countUsersByRole(UserRole.ADMIN);
-
-        if (removingAdmin && adminCount == 1) {
-            throw new IllegalArgumentException("Cannot remove ADMIN role from the only admin user.");
-        }
-    }
-
-    // ============================================================
-    // ROLES HELPERS
-    // ============================================================
-    private Set<UserRoleEntity> resolveRoles(List<String> roleNames) {
-        return roleNames.stream()
-                .map(roleName -> {
-                    UserRole roleEnum;
-                    try {
-                        roleEnum = UserRole.valueOf(roleName.toUpperCase());
-                    } catch (IllegalArgumentException e) {
-                        throw new IllegalArgumentException("Invalid role: " + roleName);
-                    }
-
-                    return roleRepository.findByRole(roleEnum)
-                            .orElseThrow(() -> new IllegalArgumentException("Role not found: " + roleEnum));
-                })
-                .collect(Collectors.toSet());
-    }
+              return roleRepository
+                  .findByRole(roleEnum)
+                  .orElseThrow(() -> new IllegalArgumentException("Role not found: " + roleEnum));
+            })
+        .collect(Collectors.toSet());
+  }
 }

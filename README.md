@@ -2,6 +2,14 @@
 
 A comprehensive automated solution for university timetable scheduling and academic management. The system utilizes constraint satisfaction algorithms to optimize resource allocation across courses, cohorts, and faculty.
 
+## Setup
+For development, run once after cloning:
+```bash
+chmod +x scripts/pre-commit && ln -s ../../scripts/pre-commit .git/hooks/pre-commit
+```
+Make sure to install google-java-formater beforehand.
+Java files will be auto-formatted on commit.
+
 ## Technology Stack
 
 ### Backend
@@ -137,10 +145,3 @@ TODO:
 - [x] Notification tab improvments
 - [ ] frontend refactor (match backend)
 
-
-
-
----- 
-
-TRUNCATE scheduled_classes RESTART IDENTITY CASCADE;
-TRUNCATE timetables RESTART IDENTITY CASCADE;

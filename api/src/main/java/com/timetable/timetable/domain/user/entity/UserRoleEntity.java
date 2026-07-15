@@ -12,16 +12,15 @@ import lombok.NoArgsConstructor;
 @Table(name = "roles")
 public class UserRoleEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @Enumerated(EnumType.STRING)
-    @Column(unique = true, nullable = false)
-    private UserRole role;
+  @Enumerated(EnumType.STRING)
+  @Column(unique = true, nullable = false)
+  private UserRole role;
 
-    public UserRoleEntity(UserRole role) {
-        this.role = role;
-    }
+  public UserRoleEntity(UserRole role) {
+    this.role = role;
+  }
 }
-

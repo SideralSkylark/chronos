@@ -72,6 +72,7 @@ export interface SubjectInfo {
   credits: number
   targetYear: number
   targetSemester: number
+  optionalGroupId: number
 }
 
 export interface TeacherInfo {
