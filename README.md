@@ -137,3 +137,10 @@ TODO:
 - [x] Notification tab improvments
 - [ ] frontend refactor (match backend)
 
+
+
+
+---- 
+
+TRUNCATE scheduled_classes RESTART IDENTITY CASCADE;
+TRUNCATE timetables RESTART IDENTITY CASCADE;

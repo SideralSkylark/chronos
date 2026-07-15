@@ -67,8 +67,8 @@ public class TimetableLoadController {
                 "academicYear", timetable.getAcademicYear(),
                 "semester", timetable.getSemester(),
                 "status", timetable.getStatus().name(),
-                "feasible", true,
-                "score", "0hard/0soft",
+                "feasible", timetable.isFeasible(),
+                "score", timetable.getScore() != null ? timetable.getScore() : "0hard/0soft",
                 "totalLessons", lessonAssignments.size(),
                 "unassignedLessons", 0,
                 "lessonAssignments", lessonAssignments));
@@ -208,8 +208,8 @@ public class TimetableLoadController {
                 "academicYear", timetable.getAcademicYear(),
                 "semester", timetable.getSemester(),
                 "status", timetable.getStatus().name(),
-                "feasible", true,
-                "score", "0hard/0soft",
+                "feasible", timetable.getScore(),
+                "score", timetable.isFeasible(),
                 "totalLessons", classes.size(),
                 "unassignedLessons", 0,
                 "lessonAssignments", classes.stream()

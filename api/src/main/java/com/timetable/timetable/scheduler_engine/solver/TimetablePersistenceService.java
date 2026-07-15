@@ -55,6 +55,8 @@ public class TimetablePersistenceService {
         scheduledClassRepository.saveAll(classes);
 
         timetable.setStatus(TimetableStatus.DRAFT);
+        timetable.setScore(solution.getScore().toString());
+        timetable.setFeasible(solution.isFeasible());
         Timetable saved = timetableRepository.save(timetable);
 
         try {

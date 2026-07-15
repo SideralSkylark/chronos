@@ -35,10 +35,10 @@ public class TimefoldConfig {
                 .withConstraintProviderClass(TimetableConstraintProvider.class)
                 .withTerminationConfig(new TerminationConfig()
                         .withSecondsSpentLimit(300L)
-                        .withUnimprovedSecondsSpentLimit(60L))
+                        .withUnimprovedSecondsSpentLimit(120L))
 
                 .withPhases(
-                        // Phase 1: Build initial solution 
+                        // Phase 1: Build initial solution
                         // FIRST_FIT_DECREASING sorts entities by difficulty before assigning
                         // (now works because LessonAssignment has difficultyComparatorClass)
                         new ConstructionHeuristicPhaseConfig()
@@ -46,7 +46,7 @@ public class TimefoldConfig {
                                 .withTerminationConfig(new TerminationConfig()
                                         .withSecondsSpentLimit(30L)),
 
-                        // Phase 2: Improve solution 
+                        // Phase 2: Improve solution
                         // Uses hill climbing, tabu search, simulated annealing, etc.
                         new LocalSearchPhaseConfig()
                                 .withTerminationConfig(new TerminationConfig()
@@ -64,7 +64,7 @@ public class TimefoldConfig {
 
         // Configure parallel solving if needed
         SolverManagerConfig config = new SolverManagerConfig();
-        config.setParallelSolverCount("AUTO"); 
+        config.setParallelSolverCount("AUTO");
 
         return SolverManager.create(solverFactory, config);
     }

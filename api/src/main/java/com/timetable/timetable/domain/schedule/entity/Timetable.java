@@ -48,21 +48,24 @@ public class Timetable {
     /**
      * The timetables respective year,
      * ie: 2026
-    */
+     */
     @Column(nullable = false)
-    private int academicYear; 
+    private int academicYear;
 
     @Column(nullable = false)
-    private int semester; 
-    
+    private int semester;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
+    private String score;
+
+    private boolean feasible;
+
     public String getAcademicPeriod() {
         return academicYear + "." + semester;
     }
 }
-

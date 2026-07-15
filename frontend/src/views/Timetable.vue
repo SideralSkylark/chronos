@@ -111,11 +111,7 @@
     </PageHeader>
 
     <!-- Filters -->
-    <FilterBar
-      :activeFilterCount="0"
-      :collapsed="headerCollapsed"
-      :mergedHeader="true"
-    >
+    <FilterBar :activeFilterCount="0" :collapsed="headerCollapsed" :mergedHeader="true">
       <template #filters="{ collapsed }">
         <div class="flex flex-col gap-1">
           <label
@@ -916,7 +912,10 @@ async function triggerUndo() {
 
 const timetableStatus = computed(() => timetableStore.solution?.status)
 const canSubmit = computed(
-  () => (isAdmin.value || isAssistant.value) && timetableStatus.value === 'DRAFT',
+  () =>
+    (isAdmin.value || isAssistant.value) &&
+    timetableStatus.value === 'DRAFT' &&
+    timetableStore.solution?.feasible,
 )
 const canApprove = computed(
   () => (isAdmin.value || isDirector.value) && timetableStatus.value === 'PENDING_APPROVAL',
@@ -1073,7 +1072,7 @@ watch(
         timetableStore.selectedSemester!,
       )
     }
-  }
+  },
 )
 
 watch([() => timetableStore.selectedYear, () => timetableStore.selectedSemester], () => {
@@ -1090,9 +1089,11 @@ function onSemesterChange(semester: number) {
 }
 
 async function calculateValidSlots() {
-  if (!selectedLesson.value || selectedLesson.value.subject.name.includes("Simulação Empresarial"))
-  {
-    toast.error('operação rejeitada');
+  if (
+    !selectedLesson.value ||
+    selectedLesson.value.subject.name.includes('Simulação Empresarial')
+  ) {
+    toast.error('operação rejeitada')
     return
   }
   loadingSlots.value = true
@@ -1112,8 +1113,10 @@ async function calculateValidSlots() {
   }
 }
 async function calculateCohortSwaps() {
-  if (!selectedLesson.value || selectedLesson.value.subject.name.includes("Simulação Empresarial"))
-  {
+  if (
+    !selectedLesson.value ||
+    selectedLesson.value.subject.name.includes('Simulação Empresarial')
+  ) {
     toast.error('operação rejeitada')
     return
   }

@@ -122,7 +122,7 @@ public class TimetableConstraintProvider implements ConstraintProvider {
                         !isPeriodAllowedForYear(
                                 lesson.getCohort().getYear(),
                                 lesson.getTimeslot().getPeriod()))
-                .penalize(HardSoftScore.ONE_HARD)
+                .penalize(HardSoftScore.ONE_SOFT)
                 .asConstraint("year-period restriction violation");
     }
 

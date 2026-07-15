@@ -32,6 +32,7 @@ public class TimetableSolverService {
     private final PreSolverService preSolverService;
     private final TimetableGeneratorService timetableGeneratorService;
     private final TimetablePersistenceService persistenceService; // ← NEW
+    private final ai.timefold.solver.core.api.solver.SolutionManager<TimetableSolution, ai.timefold.solver.core.api.score.buildin.hardsoft.HardSoftScore> solutionManager;
 
     private final ExecutorService asyncExecutor = Executors.newCachedThreadPool();
 
@@ -72,6 +73,20 @@ public class TimetableSolverService {
             TimetableSolution solution = job.getFinalBestSolution();
             log.info("Solver done for job {}. Score: {} | Feasible: {} | Unassigned: {}",
                     jobId, solution.getScore(), solution.isFeasible(), solution.getUnassignedLessons());
+
+            // TEMPORARY — remove after presentation
+            if (!solution.isFeasible()) {
+                solutionManager.explain(solution)
+                        .getConstraintMatchTotalMap()
+                        .forEach((name, match) -> {
+                            if (match.getScore().hardScore() < 0) {
+                                log.error("HC VIOLATION: {} | occurrences={} | score={}",
+                                        name,
+                                        match.getConstraintMatchCount(),
+                                        match.getScore());
+                            }
+                        });
+            }
 
             try {
                 persistenceService.saveSolution(solution);
