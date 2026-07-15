@@ -28,7 +28,7 @@ const routes = [
         path: '',
         name: 'DashboardHome',
         component: Dashboard,
-        meta: { roles: ['ADMIN', 'DIRECTOR', 'ASISTENT', 'COORDINATOR'], label: 'Início' },
+        meta: { roles: ['ADMIN', 'DIRECTOR', 'ASISTENT', 'COORDINATOR'], label: 'Início', hasStickyHeader: true },
       },
       {
         path: 'rooms',
@@ -40,7 +40,7 @@ const routes = [
         path: 'courses',
         name: 'Courses',
         component: Courses,
-        meta: { roles: ['ADMIN', 'COORDINATOR'], label: 'Cursos' },
+        meta: { roles: ['ADMIN', 'COORDINATOR'], label: 'Cursos', hasStickyHeader: true },
       },
       { path: 'cohorts', name: 'Cohorts', component: Cohorts, meta: { roles: ['ADMIN', 'COORDINATOR', 'ASISTENT', 'DIRECTOR'], label: 'Turmas' } },
       {
@@ -53,7 +53,7 @@ const routes = [
         path: 'timetable',
         name: 'Timetable',
         component: Timetable,
-        meta: { roles: ['ADMIN', 'COORDINATOR', 'ASISTENT', 'DIRECTOR'], label: 'Horarios' },
+        meta: { roles: ['ADMIN', 'COORDINATOR', 'ASISTENT', 'DIRECTOR'], label: 'Horarios', hasStickyHeader: true },
       },
       {
         path: 'my-timetable',

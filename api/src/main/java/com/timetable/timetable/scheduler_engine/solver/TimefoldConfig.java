@@ -40,7 +40,7 @@ public class TimefoldConfig {
             // (now works because LessonAssignment has difficultyComparatorClass)
             new ConstructionHeuristicPhaseConfig()
                 .withConstructionHeuristicType(ConstructionHeuristicType.FIRST_FIT_DECREASING)
-                .withTerminationConfig(new TerminationConfig().withSecondsSpentLimit(30L)),
+                .withTerminationConfig(new TerminationConfig().withSecondsSpentLimit(60L)),
 
             // Phase 2: Improve solution
             // Uses hill climbing, tabu search, simulated annealing, etc.

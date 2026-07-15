@@ -8,7 +8,7 @@
       class="bg-white border-slate-200"
       :class="[
         mergedHeader && collapsed
-          ? 'rounded-none border-x-0 border-t-0 border-b border-l-[3px] border-l-blue-800 px-5 py-2 shadow-sm'
+          ? 'rounded-none border-x-0 border-t-0 border-b border-l-[3px] border-l-blue-800 px-5 pt-4 pb-2 shadow-sm'
           : 'rounded-[10px] border px-5 py-4 shadow-sm'
       ]"
     >

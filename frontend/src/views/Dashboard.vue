@@ -1,7 +1,8 @@
 <template>
   <div
     ref="scrollContainer"
-    class="h-full overflow-y-auto -mx-6 -mt-6 px-6 py-6"
+    class="h-full overflow-y-auto px-6 pt-6 transition-all duration-200"
+    :class="headerCollapsed ? 'pb-32' : 'pb-6'"
     @scroll="onScroll"
   >
     <PageHeader
