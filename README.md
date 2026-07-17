@@ -1,149 +1,125 @@
 # University Timetable Management System
 
-A comprehensive automated solution for university timetable scheduling and academic management. The system utilizes constraint satisfaction algorithms to optimize resource allocation across courses, cohorts, and faculty.
+An automated university scheduling platform built with Spring Boot, Vue 3 and Timefold Solver.
 
-## Setup
-For development, run once after cloning:
-```bash
-chmod +x scripts/pre-commit && ln -s ../../scripts/pre-commit .git/hooks/pre-commit
-```
-Make sure to install google-java-formater beforehand.
-Java files will be auto-formatted on commit.
+The project focuses on two core capabilities:
+
+- Generate feasible academic timetables while respecting institutional constraints.
+- Allow administrators to manually adjust scheduled lessons without introducing conflicts.
+
+---
 
 ## Technology Stack
 
 ### Backend
+
 - Java 21
-- Spring Boot 3.x
-- Timefold Solver (Constraint Satisfaction Engine)
-- Spring Security with JWT
+- Spring Boot 3
+- Timefold Solver
+- Spring Security (JWT)
 - PostgreSQL
 - Maven
 
 ### Frontend
-- Vue.js 3 (Composition API)
-- Vite
-- Pinia (State Management)
-- Tailwind CSS 4
+
+- Vue 3
 - TypeScript
-- Lucide Vue Next (Iconography)
+- Pinia
+- Tailwind CSS
+- Vite
 
-## Project Structure
+---
 
-### Backend (api/)
-The backend follows a modular Spring Boot architecture:
-- `auth/`: Authentication logic, session management, and JWT issuance.
-- `common/`: Global exception handling, response wrappers, and shared utilities.
-- `config/`: System configuration including Security, CORS, and data initializers.
-- `domain/`: JPA entities representing the core business model (Users, Courses, Rooms, Subjects).
-- `scheduler_engine/`: The core optimization engine.
-    - `domain/`: Timefold planning entities and solutions.
-    - `solver/`: Constraint definitions and score calculation logic.
-    - `preparation/`: Data transformation logic to prepare datasets for the solver.
-- `security/`: JWT filters and security context configuration.
+## Architecture
 
-### Frontend (frontend/)
-A modern SPA built with Vue.js 3:
-- `component/`: Reusable UI components (Tables, Forms, Pagination).
-- `composables/`: Shared reactive logic (e.g., toast notifications).
-- `layouts/`: Application structural templates.
-- `services/`: API integration layer and Data Transfer Objects (DTOs).
-- `stores/`: Centralized state management using Pinia.
-- `views/`: Page-level components and specific business logic.
+### Backend
 
-## Domain Model
+- `auth/` – authentication and authorization
+- `common/` – shared utilities and exception handling
+- `config/` – Spring configuration
+- `domain/` – JPA entities
+- `scheduler_engine/`
+    - `domain/`
+    - `solver/`
+    - `preparation/`
 
-- **Cohort**: A specific group of students within a course, used for room capacity management.
-- **Course**: The primary academic entity that anchors subjects and is managed by a Coordinator.
-- **Room**: Physical resource with predefined capacity.
-- **Subject**: Academic discipline with specific credit hours and faculty requirements.
-- **Lesson Assignment**: A scheduled instance of a subject assigned to a teacher, timeslot, and room.
-- **Timetable**: Aggregation of lesson assignments for a specific academic period.
+### Frontend
 
-## Scheduler Engine
+- `components/`
+- `views/`
+- `stores/`
+- `services/`
+- `layouts/`
+- `composables/`
 
-The generation process follows three distinct phases:
-1. **Data Preparation**: Validation of cohorts and greedy teacher assignment based on workload balancing.
-2. **Lesson Initialization**: Creation of lesson assignments based on subject credits.
-3. **Constraint Optimization**: The Timefold solver assigns optimal timeslots and rooms while respecting hard constraints (e.g., teacher/room conflicts) and soft constraints.
+---
 
-## Frontend Maintenance & Best Practices
+## Scheduler Pipeline
 
-To ensure long-term maintainability and scalability of the frontend, the following improvements and practices are recommended:
+Timetable generation is performed in three stages:
 
-### 1. Project Organization & Consistency
-- **Folder Naming**: Standardize on plural names for all directories in `src/` (e.g., rename `component/` to `components/` and `service/` to `services/`).
-- **Service Pattern**: Align all services to use a single pattern (either strictly classes or exported object literals) to avoid architectural drift.
-- **Barrel Exports**: Implement `index.ts` files in major folders (e.g., `components/ui`, `services/dto`) to simplify imports and provide a cleaner public API for modules.
+1. Data preparation
+2. Lesson initialization
+3. Constraint optimization using Timefold Solver
 
-### 2. Type Safety & Developer Experience
-- **Eliminate `any`**: Refactor components and services to remove `any` types. Use TypeScript generics for reusable components like `CrudTable` to ensure rows and columns are properly typed.
-- **API Validation**: Integrate a library like **Zod** to validate API responses at runtime, ensuring the frontend is resilient to backend schema changes.
-- **Shared Constants**: Move hardcoded strings (roles like `ADMIN`, `STUDENT`, `TEACHER`) to shared constants or enums to prevent "magic strings" bugs.
+The solver enforces hard constraints (teacher conflicts, room conflicts, etc.) while optimizing soft constraints such as workload balancing.
 
-### 3. UI/UX Scalability
-- **Base Component Library**: Extract repeated Tailwind patterns into a set of "Base" UI components (e.g., `BaseButton`, `BaseInput`, `BaseCard`). This centralizes styling and makes theme updates easier.
-- **Internationalization (i18n)**: Implement `vue-i18n` to remove hardcoded strings from templates. This simplifies maintenance and enables multi-language support (e.g., PT/EN).
-- **Centralized Error Handling**: Improve the `api.ts` interceptor to automatically trigger toast notifications for common error codes, reducing boilerplate in views and stores.
-
-### 4. Testing & Quality Assurance
-- **Component Testing**: Increase coverage for core UI components (like `CrudTable` and `CrudForm`) using Vitest and Vue Test Utils.
-- **Store Logic**: Add unit tests for Pinia stores to verify complex state transitions (e.g., auth flow, scheduling logic).
-
-## Workload Calculation Analysis
-
-The system calculates teacher workload in different contexts, with some variations in methodology:
-
-### 1. Dashboard Statistics (`DashboardStatsService`)
-- **Metric**: Uses "Weekly Hours" via `CohortSubject::getWeeklyHours()`.
-- **Logic**: Sums the total contact hours assigned to a teacher.
-- **Comparison**: Compares total hours against the teacher's limit derived from contract type (via `AcademicPolicy`).
-- **Status**: **Correct**. Consistent with other services.
-
-### 2. Timetable Generation (`TeacherAssignmentService`)
-- **Metric**: Uses "Weekly Hours" via `CohortSubject::getWeeklyHours()`.
-- **Logic**: Correctly calculates total contact hours per week.
-- **Comparison**: Compares total hours against the teacher's specific limit (full-time, part-time, or phantom fallback).
-- **Status**: **Correct**. Used for greedy assignment and phantom teacher fallback.
-
-### 3. Phantom Teacher Replacement (`TimetableService`)
-- **Metric**: Uses "Weekly Hours" via `CohortSubject::getWeeklyHours()`.
-- **Logic**: Aggregates hours for all active cohort subjects in the period.
-- **Comparison**: Evaluates if a replacement teacher would exceed their hourly limit before suggesting them as a candidate.
-- **Status**: **Correct**. Ensures manual reassignments respect academic policies.
-
-### 4. Subject Assignment (`CohortSubjectService`)
-- **Metric**: Uses "Weekly Hours" via `CohortSubject::getWeeklyHours()`.
-- **Logic**: Real-time validation during CRUD operations.
-- **Status**: **Correct**. Prevents illegal assignments via the API.
+---
 
 ## Testing
 
-Unit tests are provided for core services. To execute tests:
+The project is currently being hardened for production use.
+
+Testing focuses on proving the two core guarantees of the system.
+
+### Timetable Generation
+
+- [ ] Solver integration tests
+- [ ] Constraint regression tests
+- [ ] Optional group regression tests
+
+### Manual Adjustments
+
+- [ ] Teacher swap tests
+- [ ] Cohort swap tests
+- [ ] Invalid operation tests
+
+Run backend tests with
 
 ```bash
 cd api
-mvn test -Dtest="*ServiceTest"
+mvn test
 ```
 
-TODO:
-- [x] analitics by academicPeriodDto on dashboard
-- [x] sticky page headers and filters for dashboard course and timetable page.
-- [x] Fix workload calculation on dashboard
-- [x] granular workloads (hh && mm)
-- [x] Swap phantom -> teacher should allow going over contract limits
-- [x] Fix dashboard insight not loading on page entering
-- [x] if a teacher is overloaded i should be able to swap him for another one (use same component and indicators as phantom ones)
-- [x] Fix timetable generation (should not stop when i leave the page)
-- [ ] smooth sticky component animations to they dont block scrolling
-- [x] phantom swap with real teacher
-- [ ] refactor backend (proper exception handling, logging, clean code, spring conventions, optimization no N+1s)
-- [x] Dashboard with better info (more usefull ie: teacher workloads room ocupation and so on)
-- [x] Cohort management (improve confirmation it should scale with the room capacity, so i have to be mindfull of how big cohorts can get withouth breaking the system)
-- [ ] pre-solver awarness (compute cohorts and rooms to derive the likelyhood of generating a valid solution. Informative only on the "ui" not restrictive "solver")
-- [ ] Phantom cleanUp(on swap with real teacher)
-- [x] Notification tab improvments
-- [ ] frontend refactor (match backend)
-- [ ] resource not found message multiple times when generating a timetable(tecnically fetching it, if there are no rooms avaliable it dosen't 
-generate a timetable but it issues the job id but that job id is invalid since the operation returns with the error no rooms found)
-- [ ] uppon course creating with buissness simulation tag (it's not assigning the 'a equipa' teacher)
+---
+
+## Roadmap
+
+### Current milestone: Production readiness
+
+The current focus is ensuring the existing functionality is reliable before introducing new features.
+
+### Reliability
+
+- [ ] Increase unit test coverage
+- [ ] Add solver integration tests
+- [ ] Add regression tests for known bugs
+- [ ] Improve exception handling
+- [ ] Improve logging
+
+### Backend
+
+- [ ] Backend cleanup
+- [ ] Remove N+1 queries
+- [ ] Phantom teacher cleanup
+
+### Frontend
+
+- [ ] Frontend architecture refactor
+- [ ] Improve sticky component animations
+- [ ] Better timetable generation error reporting
+
+### Future
+
+- [ ] Pre-solver feasibility analysis
+- [ ] Automatic Business Simulation teacher assignment
