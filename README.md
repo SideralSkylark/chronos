@@ -144,4 +144,6 @@ TODO:
 - [ ] Phantom cleanUp(on swap with real teacher)
 - [x] Notification tab improvments
 - [ ] frontend refactor (match backend)
-
+- [ ] resource not found message multiple times when generating a timetable(tecnically fetching it, if there are no rooms avaliable it dosen't 
+generate a timetable but it issues the job id but that job id is invalid since the operation returns with the error no rooms found)
+- [ ] uppon course creating with buissness simulation tag (it's not assigning the 'a equipa' teacher)

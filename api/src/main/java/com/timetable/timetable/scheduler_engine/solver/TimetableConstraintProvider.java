@@ -8,7 +8,8 @@ import java.time.DayOfWeek;
 import java.time.LocalTime;
 
 /**
- * Defines the constraints for the timetabling problem. Hard constraints must be satisfied for a
+ * Defines the constraints for the timetabling problem. Hard constraints must be
+ * satisfied for a
  * feasible solution. Soft constraints are preferences that should be optimized.
  */
 public class TimetableConstraintProvider implements ConstraintProvider {
@@ -19,19 +20,19 @@ public class TimetableConstraintProvider implements ConstraintProvider {
   @Override
   public Constraint[] defineConstraints(ConstraintFactory factory) {
     return new Constraint[] {
-      // HARD CONSTRAINTS (must be satisfied)
-      teacherConflict(factory),
-      roomConflict(factory),
-      cohortConflict(factory),
-      roomCapacity(factory),
-      roomCourseRestriction(factory),
-      YearPeriodRestriction(factory),
-      sameSubjectSameDay(factory),
-      massBlockedTimeslot(factory),
-      optionalGroupSameTimeslot(factory),
-      // SOFT CONSTRAINTS (preferences to optimize)
-      // minimizeTeacherGaps(factory),
-      // distributeSubjectEvenly(factory)
+        // HARD CONSTRAINTS (must be satisfied)
+        teacherConflict(factory),
+        roomConflict(factory),
+        cohortConflict(factory),
+        roomCapacity(factory),
+        roomCourseRestriction(factory),
+        YearPeriodRestriction(factory),
+        sameSubjectSameDay(factory),
+        massBlockedTimeslot(factory),
+        optionalGroupSameTimeslot(factory),
+        // SOFT CONSTRAINTS (preferences to optimize)
+        // minimizeTeacherGaps(factory),
+        // distributeSubjectEvenly(factory)
     };
   }
 
@@ -47,10 +48,9 @@ public class TimetableConstraintProvider implements ConstraintProvider {
             Joiners.equal(LessonAssignment::getTeacher),
             Joiners.equal(LessonAssignment::getTimeslot))
         .filter(
-            (l1, l2) ->
-                l1.getTimeslot() != null
-                    && l1.getTeacher() != null
-                    && !l1.isSimulationTeam()) // ← "A Equipa" pode estar em paralelo
+            (l1, l2) -> l1.getTimeslot() != null
+                && l1.getTeacher() != null
+                && !l1.isSimulationTeam()) // ← "A Equipa" pode estar em paralelo
         .penalize(HardSoftScore.ONE_HARD)
         .asConstraint("Teacher conflict");
   }
@@ -75,10 +75,9 @@ public class TimetableConstraintProvider implements ConstraintProvider {
             Joiners.equal(LessonAssignment::getCohort),
             Joiners.equal(LessonAssignment::getTimeslot))
         .filter(
-            (lesson1, lesson2) ->
-                lesson1.getTimeslot() != null
-                    && lesson1.getCohort() != null
-                    && !areOptionalPair(lesson1, lesson2))
+            (lesson1, lesson2) -> lesson1.getTimeslot() != null
+                && lesson1.getCohort() != null
+                && !areOptionalPair(lesson1, lesson2))
         .penalize(HardSoftScore.ONE_HARD)
         .asConstraint("Cohort conflict");
   }
@@ -88,26 +87,27 @@ public class TimetableConstraintProvider implements ConstraintProvider {
     return factory
         .forEach(LessonAssignment.class)
         .filter(
-            lesson ->
-                lesson.getRoom() != null
-                    && lesson.getCohort() != null
-                    && !lesson.getRoom().hasSufficientCapacity(lesson.getStudentCount()))
+            lesson -> lesson.getRoom() != null
+                && lesson.getCohort() != null
+                && !lesson.getRoom().hasSufficientCapacity(lesson.getStudentCount()))
         .penalize(HardSoftScore.ONE_HARD)
         .asConstraint("Insufficient room capacity");
   }
 
-  /** HC5: If a room is restricted to a specific course, only that course can use it. */
+  /**
+   * HC5: If a room is restricted to a specific course, only that course can use
+   * it.
+   */
   private Constraint roomCourseRestriction(ConstraintFactory factory) {
     return factory
         .forEach(LessonAssignment.class)
         .filter(
-            lesson ->
-                lesson.getRoom() != null
-                    && lesson.getCourseId() != null
-                    && !lesson
-                        .getRoom()
-                        .isAvailableForCourse(
-                            lesson.getCourseId(), lesson.getTimeslot().getPeriod()))
+            lesson -> lesson.getRoom() != null
+                && lesson.getCourseId() != null
+                && !lesson
+                    .getRoom()
+                    .isAvailableForCourse(
+                        lesson.getCourseId(), lesson.getTimeslot().getPeriod()))
         .penalize(HardSoftScore.ONE_HARD)
         .asConstraint("Room course restriction violated");
   }
@@ -117,17 +117,17 @@ public class TimetableConstraintProvider implements ConstraintProvider {
     return factory
         .forEach(LessonAssignment.class)
         .filter(
-            lesson ->
-                lesson.getTimeslot() != null
-                    && lesson.getCohort() != null
-                    && !isPeriodAllowedForYear(
-                        lesson.getCohort().getYear(), lesson.getTimeslot().getPeriod()))
+            lesson -> lesson.getTimeslot() != null
+                && lesson.getCohort() != null
+                && !isPeriodAllowedForYear(
+                    lesson.getCohort().getYear(), lesson.getTimeslot().getPeriod()))
         .penalize(HardSoftScore.ONE_HARD)
         .asConstraint("year-period restriction violation");
   }
 
   /**
-   * HC7: Prevent two consecutive lessons of the same subject for the same cohort on the same day.
+   * HC7: Prevent two consecutive lessons of the same subject for the same cohort
+   * on the same day.
    */
   private Constraint sameSubjectSameDay(ConstraintFactory factory) {
     return factory
@@ -136,29 +136,30 @@ public class TimetableConstraintProvider implements ConstraintProvider {
             Joiners.equal(LessonAssignment::getCohort),
             Joiners.equal(LessonAssignment::getSubject))
         .filter(
-            (l1, l2) ->
-                l1.getTimeslot() != null
-                    && l2.getTimeslot() != null
-                    && !l1.isFixedDaySession()
-                    && isSameDay(l1, l2))
+            (l1, l2) -> l1.getTimeslot() != null
+                && l2.getTimeslot() != null
+                && !l1.isFixedDaySession()
+                && isSameDay(l1, l2))
         .penalize(HardSoftScore.ONE_HARD)
         .asConstraint("Same subject consecutive lessons same day");
   }
 
   /**
-   * HC8: No lesson can be assigned on fridays in slots that overlap with "missa" (8:50-9:40).
+   * HC8: No lesson can be assigned on fridays in slots that overlap with "missa"
+   * (8:50-9:40).
    *
-   * <p>since timeblock are >= 50m any slot starting before 9:40 and ends at 8:50 is blocked
+   * <p>
+   * since timeblock are >= 50m any slot starting before 9:40 and ends at 8:50 is
+   * blocked
    */
   private Constraint massBlockedTimeslot(ConstraintFactory factory) {
     return factory
         .forEach(LessonAssignment.class)
         .filter(
-            lesson ->
-                lesson.getTimeslot() != null
-                    && lesson.getTimeslot().getDayOfWeek() == DayOfWeek.FRIDAY
-                    && overlapsWithMass(
-                        lesson.getTimeslot().getStartTime(), lesson.getTimeslot().getEndTime()))
+            lesson -> lesson.getTimeslot() != null
+                && lesson.getTimeslot().getDayOfWeek() == DayOfWeek.FRIDAY
+                && overlapsWithMass(
+                    lesson.getTimeslot().getStartTime(), lesson.getTimeslot().getEndTime()))
         .penalize(HardSoftScore.ONE_HARD)
         .asConstraint("Mass timeslot blocked on Friday");
   }
@@ -172,11 +173,10 @@ public class TimetableConstraintProvider implements ConstraintProvider {
             Joiners.equal(LessonAssignment::getOptionalGroupId),
             Joiners.equal(LessonAssignment::getBlockNumber)) // ← adiciona isto
         .filter(
-            (l1, l2) ->
-                l1.getOptionalGroupId() != null
-                    && l1.getTimeslot() != null
-                    && l2.getTimeslot() != null
-                    && !l1.getTimeslot().equals(l2.getTimeslot()))
+            (l1, l2) -> l1.getOptionalGroupId() != null
+                && l1.getTimeslot() != null
+                && l2.getTimeslot() != null
+                && !l1.getTimeslot().equals(l2.getTimeslot()))
         .penalize(HardSoftScore.ONE_HARD)
         .asConstraint("Optional group must share timeslot");
   }
@@ -186,7 +186,8 @@ public class TimetableConstraintProvider implements ConstraintProvider {
   // ========================================
 
   /**
-   * SC1: Minimize gaps in a teacher's schedule (same day). Teachers prefer to have consecutive
+   * SC1: Minimize gaps in a teacher's schedule (same day). Teachers prefer to
+   * have consecutive
    * lessons without breaks.
    */
   /*
