@@ -84,11 +84,11 @@ Testing focuses on proving the two core guarantees of the system.
 - [ ] Cohort swap tests
 - [ ] Invalid operation tests
 
-Run backend tests with
+Run service tests with
 
 ```bash
 cd api
-mvn test
+./mvnw test -Dtest="*ServiceTest"
 ```
 
 ---
