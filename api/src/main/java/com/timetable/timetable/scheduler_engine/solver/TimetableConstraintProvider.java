@@ -50,7 +50,8 @@ public class TimetableConstraintProvider implements ConstraintProvider {
         .filter(
             (l1, l2) -> l1.getTimeslot() != null
                 && l1.getTeacher() != null
-                && !l1.isSimulationTeam()) // ← "A Equipa" pode estar em paralelo
+                && !l1.isSimulationTeam()
+                && !l2.isSimulationTeam()) // ← "A Equipa" pode estar em paralelo
         .penalize(HardSoftScore.ONE_HARD)
         .asConstraint("Teacher conflict");
   }

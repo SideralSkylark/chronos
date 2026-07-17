@@ -5,11 +5,11 @@ import ai.timefold.solver.core.api.domain.entity.PlanningPin;
 import ai.timefold.solver.core.api.domain.lookup.PlanningId;
 import ai.timefold.solver.core.api.domain.variable.PlanningVariable;
 import com.timetable.timetable.scheduler_engine.domain.info.*;
-import io.micrometer.common.lang.Nullable;
 import lombok.*;
 
 /**
- * Represents a single lesson that needs to be scheduled. The solver will assign a timeslot and room
+ * Represents a single lesson that needs to be scheduled. The solver will assign
+ * a timeslot and room
  * to each lesson assignment.
  */
 @PlanningEntity(comparatorClass = LessonAssignmentDifficultyComparator.class)
@@ -23,21 +23,22 @@ public class LessonAssignment {
   // ===== PLANNING ID =====
   // Unique identifier for this lesson assignment
 
-  @PlanningId private Long id;
-
-  @Nullable private Long optionalGroupId;
+  @PlanningId
+  private Long id;
 
   // ===== PROBLEM FACTS =====
   // Fixed information about this lesson (doesn't change during solving)
 
   /**
-   * The cohort-subject combination this lesson belongs to. Contains information about the cohort,
+   * The cohort-subject combination this lesson belongs to. Contains information
+   * about the cohort,
    * subject, and assigned teacher.
    */
   private CohortSubjectInfo cohortSubject;
 
   /**
-   * Which block number this is (e.g., block 1 of 5 for this cohort-subject). Used for tracking and
+   * Which block number this is (e.g., block 1 of 5 for this cohort-subject). Used
+   * for tracking and
    * reporting.
    */
   private int blockNumber;
@@ -45,15 +46,22 @@ public class LessonAssignment {
   // ===== PLANNING VARIABLES =====
   // These will be assigned by the solver
 
-  /** The timeslot when this lesson will occur. Initially null, assigned by the solver. */
+  /**
+   * The timeslot when this lesson will occur. Initially null, assigned by the
+   * solver.
+   */
   @PlanningVariable(valueRangeProviderRefs = "timeslotRange")
   private TimeslotInfo timeslot;
 
-  /** The room where this lesson will take place. Initially null, assigned by the solver. */
+  /**
+   * The room where this lesson will take place. Initially null, assigned by the
+   * solver.
+   */
   @PlanningVariable(valueRangeProviderRefs = "roomRange")
   private RoomInfo room;
 
-  @PlanningPin private boolean pinned;
+  @PlanningPin
+  private boolean pinned;
 
   // ===== CONVENIENCE METHODS =====
   // Quick access to nested information
@@ -61,6 +69,16 @@ public class LessonAssignment {
   /** Gets the teacher assigned to this lesson */
   public TeacherInfo getTeacher() {
     return cohortSubject != null ? cohortSubject.getTeacher() : null;
+  }
+
+  public String getOptionalGroupId() {
+    SubjectInfo subject = getSubject();
+    if (subject == null || subject.getOptionalGroupId() == null) {
+      return null;
+    }
+    CohortInfo cohort = getCohort();
+    String cohortId = (cohort == null || cohort.getId() == null) ? "?" : cohort.getId().toString();
+    return subject.getOptionalGroupId() + "-" + cohortId;
   }
 
   /** Gets the cohort (student group) for this lesson */
@@ -87,7 +105,8 @@ public class LessonAssignment {
 
   /** Returns a human-readable description of this lesson */
   public String getDisplayName() {
-    if (cohortSubject == null) return "Unknown Lesson";
+    if (cohortSubject == null)
+      return "Unknown Lesson";
     return cohortSubject.getDisplayName() + " [Block " + blockNumber + "]";
   }
 

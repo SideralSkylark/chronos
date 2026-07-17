@@ -1,9 +1,11 @@
 package com.timetable.timetable.scheduler_engine.domain.info;
 
+import jakarta.annotation.Nullable;
 import lombok.*;
 
 /**
- * Represents an academic subject/course in the scheduling problem. This is a lightweight, immutable
+ * Represents an academic subject/course in the scheduling problem. This is a
+ * lightweight, immutable
  * representation for the solver.
  */
 @Getter
@@ -30,10 +32,16 @@ public class SubjectInfo {
 
   private boolean fixedDaySession;
 
+  /** If it's an optional subject it needs to be grouped with other options **/
+  @Nullable
+  private Long optionalGroupId;
+
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (!(o instanceof SubjectInfo)) return false;
+    if (this == o)
+      return true;
+    if (!(o instanceof SubjectInfo))
+      return false;
     SubjectInfo that = (SubjectInfo) o;
     return id != null && id.equals(that.id);
   }

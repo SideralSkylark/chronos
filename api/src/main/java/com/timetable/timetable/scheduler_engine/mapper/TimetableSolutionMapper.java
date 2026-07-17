@@ -18,7 +18,9 @@ import org.springframework.stereotype.Component;
 /**
  * Maps between JPA persistence entities and solver domain objects.
  *
- * <p>Conversion flow: - JPA entities → Solver domain (toPlanningProblem) - Solver domain → JPA
+ * <p>
+ * Conversion flow: - JPA entities → Solver domain (toPlanningProblem) - Solver
+ * domain → JPA
  * entities (toScheduledClasses)
  */
 @Component
@@ -32,15 +34,18 @@ public class TimetableSolutionMapper {
   /**
    * Converts JPA entities into a TimetableSolution ready for the solver.
    *
-   * <p>This method: 1. Converts all timeslots and rooms into Info objects (problem facts) 2. For
-   * each CohortSubject, generates N empty LessonAssignments (where N = blocks needed per week) 3.
+   * <p>
+   * This method: 1. Converts all timeslots and rooms into Info objects (problem
+   * facts) 2. For
+   * each CohortSubject, generates N empty LessonAssignments (where N = blocks
+   * needed per week) 3.
    * Returns a TimetableSolution with unassigned planning variables
    *
    * @param cohortSubjects Active cohort-subject combinations for this semester
-   * @param timeslots Available time slots for scheduling
-   * @param rooms Available rooms
-   * @param academicYear The academic year (e.g., 2026)
-   * @param semester The semester (1 or 2)
+   * @param timeslots      Available time slots for scheduling
+   * @param rooms          Available rooms
+   * @param academicYear   The academic year (e.g., 2026)
+   * @param semester       The semester (1 or 2)
    * @return TimetableSolution ready to be solved
    */
   public TimetableSolution toPlanningProblem(
@@ -57,16 +62,14 @@ public class TimetableSolutionMapper {
         rooms.size());
 
     // Pre-calculate workloads to mark overloaded teachers
-    Map<Long, Integer> hoursPerTeacher =
-        cohortSubjects.stream()
-            .collect(
-                Collectors.groupingBy(
-                    cs -> cs.getAssignedTeacher().getId(),
-                    Collectors.summingInt(CohortSubject::getWeeklyHours)));
+    Map<Long, Integer> hoursPerTeacher = cohortSubjects.stream()
+        .collect(
+            Collectors.groupingBy(
+                cs -> cs.getAssignedTeacher().getId(),
+                Collectors.summingInt(CohortSubject::getWeeklyHours)));
 
     // Convert problem facts (resources)
-    List<TimeslotInfo> timeslotInfos =
-        timeslots.stream().map(this::toTimeslotInfo).collect(Collectors.toList());
+    List<TimeslotInfo> timeslotInfos = timeslots.stream().map(this::toTimeslotInfo).collect(Collectors.toList());
 
     List<RoomInfo> roomInfos = rooms.stream().map(this::toRoomInfo).collect(Collectors.toList());
 
@@ -77,10 +80,6 @@ public class TimetableSolutionMapper {
     for (CohortSubject cs : cohortSubjects) {
       int blocksNeeded = cs.getLessonBlocksPerWeek();
       CohortSubjectInfo csInfo = toCohortSubjectInfo(cs, hoursPerTeacher);
-      Long optionalGroupId =
-          cs.getSubject().getOptionalGroup() != null
-              ? cs.getSubject().getOptionalGroup().getId()
-              : null;
 
       log.debug(
           "CohortSubject #{}: {} needs {} blocks/week",
@@ -90,15 +89,13 @@ public class TimetableSolutionMapper {
 
       // Create one LessonAssignment for each block needed
       for (int blockNumber = 1; blockNumber <= blocksNeeded; blockNumber++) {
-        LessonAssignment lesson =
-            LessonAssignment.builder()
-                .id(lessonIdCounter++)
-                .cohortSubject(csInfo)
-                .blockNumber(blockNumber)
-                .timeslot(null) // To be assigned by solver
-                .room(null) // To be assigned by solver
-                .optionalGroupId(optionalGroupId)
-                .build();
+        LessonAssignment lesson = LessonAssignment.builder()
+            .id(lessonIdCounter++)
+            .cohortSubject(csInfo)
+            .blockNumber(blockNumber)
+            .timeslot(null) // To be assigned by solver
+            .room(null) // To be assigned by solver
+            .build();
 
         lessonAssignments.add(lesson);
       }
@@ -122,10 +119,13 @@ public class TimetableSolutionMapper {
   /**
    * Converts a solved TimetableSolution back into JPA ScheduledClass entities.
    *
-   * <p>This method: 1. Takes each LessonAssignment with assigned timeslot and room 2. Looks up the
-   * corresponding JPA entities by ID 3. Creates ScheduledClass entities linking everything together
+   * <p>
+   * This method: 1. Takes each LessonAssignment with assigned timeslot and room
+   * 2. Looks up the
+   * corresponding JPA entities by ID 3. Creates ScheduledClass entities linking
+   * everything together
    *
-   * @param solution The solved timetable
+   * @param solution  The solved timetable
    * @param timetable The Timetable entity to associate with
    * @return List of ScheduledClass entities ready to be persisted
    */
@@ -158,13 +158,12 @@ public class TimetableSolutionMapper {
       // timeslotRepo.getReferenceById(lesson.getTimeslot().getId())
       // roomRepo.getReferenceById(lesson.getRoom().getId())
 
-      ScheduledClass scheduledClass =
-          ScheduledClass.builder()
-              .timetable(timetable)
-              // .cohortSubject(cohortSubjectRepo.getReferenceById(...))
-              // .timeslot(timeslotRepo.getReferenceById(...))
-              // .room(roomRepo.getReferenceById(...))
-              .build();
+      ScheduledClass scheduledClass = ScheduledClass.builder()
+          .timetable(timetable)
+          // .cohortSubject(cohortSubjectRepo.getReferenceById(...))
+          // .timeslot(timeslotRepo.getReferenceById(...))
+          // .room(roomRepo.getReferenceById(...))
+          .build();
 
       // Store IDs as metadata for now (you'll replace this)
       // scheduledClass.setCohortSubject(...);
@@ -182,17 +181,23 @@ public class TimetableSolutionMapper {
   /**
    * Reconstructs a TimetableSolution from persisted ScheduledClass entities.
    *
-   * <p>Unlike toPlanningProblem() which creates empty (unassigned) LessonAssignments, this method
-   * produces LessonAssignments that already have timeslot and room set — representing the current
+   * <p>
+   * Unlike toPlanningProblem() which creates empty (unassigned)
+   * LessonAssignments, this method
+   * produces LessonAssignments that already have timeslot and room set —
+   * representing the current
    * state of the timetable as saved in the database.
    *
-   * <p>Used exclusively by PermutationService for constraint validation via ScoreManager.
+   * <p>
+   * Used exclusively by PermutationService for constraint validation via
+   * ScoreManager.
    *
-   * @param scheduledClasses fully-fetched ScheduledClass rows (with all associations loaded)
-   * @param timeslots all available timeslots (for the value range)
-   * @param rooms all available rooms (for the value range)
-   * @param academicYear metadata
-   * @param semester metadata
+   * @param scheduledClasses fully-fetched ScheduledClass rows (with all
+   *                         associations loaded)
+   * @param timeslots        all available timeslots (for the value range)
+   * @param rooms            all available rooms (for the value range)
+   * @param academicYear     metadata
+   * @param semester         metadata
    */
   public TimetableSolution fromScheduledClasses(
       List<ScheduledClass> scheduledClasses,
@@ -204,27 +209,24 @@ public class TimetableSolutionMapper {
     log.info(
         "Rebuilding TimetableSolution from {} persisted ScheduledClasses", scheduledClasses.size());
 
-    List<TimeslotInfo> timeslotInfos =
-        timeslots.stream().map(this::toTimeslotInfo).collect(Collectors.toList());
+    List<TimeslotInfo> timeslotInfos = timeslots.stream().map(this::toTimeslotInfo).collect(Collectors.toList());
     List<RoomInfo> roomInfos = rooms.stream().map(this::toRoomInfo).collect(Collectors.toList());
 
-    Map<Long, Integer> hoursPerTeacher =
-        scheduledClasses.stream()
-            .map(ScheduledClass::getCohortSubject)
-            .distinct()
-            .collect(
-                Collectors.groupingBy(
-                    cs -> cs.getAssignedTeacher().getId(),
-                    Collectors.summingInt(CohortSubject::getWeeklyHours)));
+    Map<Long, Integer> hoursPerTeacher = scheduledClasses.stream()
+        .map(ScheduledClass::getCohortSubject)
+        .distinct()
+        .collect(
+            Collectors.groupingBy(
+                cs -> cs.getAssignedTeacher().getId(),
+                Collectors.summingInt(CohortSubject::getWeeklyHours)));
 
-    Map<Long, TimeslotInfo> timeslotById =
-        timeslotInfos.stream().collect(Collectors.toMap(TimeslotInfo::getId, Function.identity()));
-    Map<Long, RoomInfo> roomById =
-        roomInfos.stream().collect(Collectors.toMap(RoomInfo::getId, Function.identity()));
+    Map<Long, TimeslotInfo> timeslotById = timeslotInfos.stream()
+        .collect(Collectors.toMap(TimeslotInfo::getId, Function.identity()));
+    Map<Long, RoomInfo> roomById = roomInfos.stream().collect(Collectors.toMap(RoomInfo::getId, Function.identity()));
 
     // ── Ordenar por id para blockNumber determinístico ─────────────────────
-    List<ScheduledClass> sorted =
-        scheduledClasses.stream().sorted(Comparator.comparingLong(ScheduledClass::getId)).toList();
+    List<ScheduledClass> sorted = scheduledClasses.stream().sorted(Comparator.comparingLong(ScheduledClass::getId))
+        .toList();
 
     // Contador de blocos por cohortSubjectId
     Map<Long, Integer> blockCounterByCohortSubject = new HashMap<>();
@@ -246,19 +248,14 @@ public class TimetableSolutionMapper {
       Long csId = sc.getCohortSubject().getId();
       int blockNumber = blockCounterByCohortSubject.merge(csId, 1, Integer::sum);
 
-      LessonAssignment lesson =
-          LessonAssignment.builder()
-              .id(sc.getId())
-              .cohortSubject(csInfo)
-              .blockNumber(blockNumber)
-              .timeslot(timeslot)
-              .room(room)
-              .pinned(sc.isPinned())
-              .optionalGroupId(
-                  sc.getSubject().getOptionalGroup() != null
-                      ? sc.getSubject().getOptionalGroup().getId()
-                      : null)
-              .build();
+      LessonAssignment lesson = LessonAssignment.builder()
+          .id(sc.getId())
+          .cohortSubject(csInfo)
+          .blockNumber(blockNumber)
+          .timeslot(timeslot)
+          .room(room)
+          .pinned(sc.isPinned())
+          .build();
 
       log.info(
           "[DIAG] lesson id={} subject={} optionalGroupId={} blockNumber={}",
@@ -319,6 +316,7 @@ public class TimetableSolutionMapper {
         .targetYear(subject.getTargetYear())
         .targetSemester(subject.getTargetSemester())
         .fixedDaySession(subject.isFixedDaySession()) // ← NOVO
+        .optionalGroupId((subject.getOptionalGroup() != null) ? subject.getOptionalGroup().getId() : null)
         .build();
   }
 
