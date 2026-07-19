@@ -68,22 +68,6 @@ The solver enforces hard constraints (teacher conflicts, room conflicts, etc.) w
 
 ## Testing
 
-The project is currently being hardened for production use.
-
-Testing focuses on proving the two core guarantees of the system.
-
-### Timetable Generation
-
-- [ ] Solver integration tests
-- [ ] Constraint regression tests
-- [ ] Optional group regression tests
-
-### Manual Adjustments
-
-- [ ] Teacher swap tests
-- [ ] Cohort swap tests
-- [ ] Invalid operation tests
-
 Run service tests with
 
 ```bash
