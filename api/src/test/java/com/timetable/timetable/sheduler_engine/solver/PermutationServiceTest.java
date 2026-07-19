@@ -50,4 +50,5 @@ class PremutationServiceTest {
     assertEquals(timeslot1, class2.getTimeslot());
     assertEquals(timeslot2, class1.getTimeslot());
   }
+
 }

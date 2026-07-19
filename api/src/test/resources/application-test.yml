@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+
+jwt:
+  secret: si25obsdf10w52sadfl3i4padslba0q888qkksfapw4hasq234lkajsdfmxbvawe
+  expiration-ms: 86400000
+
+auth:
+  refresh-token-validity-days: 7
+  cookie:
+    secure: false
+
+security:
+  public-urls:
+    - /api/v1/auth/**
+
+app:
+  admin:
+    password: testpassword
+
+timefold:
+  solver:
+    solver-config-xml: classpath:solverConfig.xml
