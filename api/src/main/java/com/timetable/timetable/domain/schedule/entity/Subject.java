@@ -61,6 +61,7 @@ public class Subject {
       inverseJoinColumns = @JoinColumn(name = "teacher_id"))
   private Set<ApplicationUser> eligibleTeachers;
 
+  //TODO: maybe builder.default and instantiate null
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "optional_group_id", nullable = true)
   private OptionalGroup optionalGroup;

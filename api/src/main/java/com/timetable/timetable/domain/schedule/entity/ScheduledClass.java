@@ -49,6 +49,7 @@ public class ScheduledClass {
   @Builder.Default
   private boolean pinned = false;
 
+  // TODO: this dosent look good
   public Subject getSubject() {
     return cohortSubject.getSubject();
   }

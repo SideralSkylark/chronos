@@ -388,9 +388,6 @@ public class PermutationService {
     scA.setTimeslot(timeslotB);
     scB.setTimeslot(timeslotA);
 
-    // If scA is optional, move the pair that shares timeslotA to timeslotB.
-    // Filtering by original timeslot ensures bloco1 moves with bloco1, bloco2 with
-    // bloco2.
     if (scA.getSubject().getOptionalGroup() != null) {
       Long groupId = scA.getSubject().getOptionalGroup().getId();
 
