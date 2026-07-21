@@ -63,7 +63,7 @@ class PremutationServiceTest {
     assertEquals(timeslot2, class1.getTimeslot());
   }
 
-  // check if when swaping A for B, if a is part of a group
+  // when swaping A for B, if A is part of a group
   // then move the pair together
   @Test
   void shouldMoveOptionalPair_whenApplyingCohortSwap() {
@@ -128,4 +128,65 @@ class PremutationServiceTest {
     assertEquals(scA.getTimeslot(), scAPair.getTimeslot());
     verify(scheduledClassRepository).save(scAPair);
   }
+
+  @Test
+  void shouldMoveOptionalPair_whenOnlyBBelognsToAGroup() {
+    Timetable timetable = new Timetable();
+    timetable.setAcademicYear(2026);
+    timetable.setSemester(1);
+
+    Timeslot timeslotA = new Timeslot();
+    timeslotA.setId(1L);
+    Timeslot timeslotB = new Timeslot();
+    timeslotB.setId(2L);
+
+    ScheduledClass scA = new ScheduledClass();
+    scA.setId(1L);
+    scA.setTimeslot(timeslotA);
+    scA.setTimetable(timetable);
+    ScheduledClass scB = new ScheduledClass();
+    scB.setId(2L);
+    scB.setTimeslot(timeslotB);
+    scB.setTimetable(timetable);
+
+    OptionalGroup optionalGroup = new OptionalGroup();
+    optionalGroup.setId(1L);
+
+    Subject subjectA = new Subject();
+    subjectA.setOptionalGroup(null);
+    CohortSubject cohortSubjectA = new CohortSubject();
+    cohortSubjectA.setSubject(subjectA);
+    scA.setCohortSubject(cohortSubjectA);
+
+    Subject subjectB = new Subject();
+    subjectB.setOptionalGroup(optionalGroup);
+    CohortSubject cohortSubjectB = new CohortSubject();
+    cohortSubjectB.setSubject(subjectB);
+    scB.setCohortSubject(cohortSubjectB);
+
+    ScheduledClass scBPair = new ScheduledClass();
+    scBPair.setId(3L);
+    Subject subjectC = new Subject();
+    subjectC.setOptionalGroup(optionalGroup);
+    CohortSubject cohortSubjectC = new CohortSubject();
+    cohortSubjectC.setSubject(subjectC);
+    scBPair.setCohortSubject(cohortSubjectC);
+    scBPair.setTimetable(timetable);
+    scBPair.setTimeslot(timeslotB);
+
+    when(scheduledClassRepository.findById(1L))
+        .thenReturn(Optional.of(scA));
+    when(scheduledClassRepository.findById(2L))
+        .thenReturn(Optional.of(scB));
+    when(scheduledClassRepository.findAllWithDetailsByPeriod(2026, 1))
+        .thenReturn(List.of(scA, scB, scBPair));
+
+    permutationService.applyCohortSwap(scA.getId(), scB.getId());
+
+    assertEquals(timeslotB, scA.getTimeslot());
+    assertEquals(timeslotA, scB.getTimeslot());
+    assertEquals(timeslotA, scBPair.getTimeslot());
+    verify(scheduledClassRepository).save(scBPair);
+  }
+
 }
