@@ -214,32 +214,7 @@ public class PermutationService {
         .findById(targetRoomId)
         .orElseThrow(() -> new IllegalArgumentException("Room not found: " + targetRoomId));
 
-    // If target is optional, move the pair that shares the same original timeslot.
-    // Filtering by timeslot ensures bloco1 moves with bloco1, bloco2 with bloco2.
-    if (scX.getSubject().getOptionalGroup() != null) {
-      Long groupId = scX.getSubject().getOptionalGroup().getId();
-      Timeslot originalTimeslot = scX.getTimeslot(); // capture before mutation
-
-      scheduledClassRepository
-          .findAllWithDetailsByPeriod(
-              scX.getTimetable().getAcademicYear(), scX.getTimetable().getSemester())
-          .stream()
-          .filter(sc -> !sc.getId().equals(scheduledClassId))
-          .filter(
-              sc -> sc.getSubject().getOptionalGroup() != null
-                  && sc.getSubject().getOptionalGroup().getId().equals(groupId))
-          .filter(sc -> sc.getTimeslot().getId().equals(originalTimeslot.getId()))
-          .findFirst()
-          .ifPresent(
-              pair -> {
-                pair.setTimeslot(newTimeslot);
-                scheduledClassRepository.save(pair);
-                log.info(
-                    "Optional pair ScheduledClass {} also moved to timeslot {}",
-                    pair.getId(),
-                    targetTimeslotId);
-              });
-    }
+    Timeslot xOriginal = scX.getTimeslot(); // capture before mutation
 
     if (swapWithId != null) {
       ScheduledClass scY = scheduledClassRepository
@@ -247,15 +222,22 @@ public class PermutationService {
           .orElseThrow(
               () -> new IllegalArgumentException("ScheduledClass not found: " + swapWithId));
 
-      Timeslot xOriginal = scX.getTimeslot();
+      Timeslot yOriginal = scY.getTimeslot(); // capture before mutation
+
       scX.setTimeslot(newTimeslot);
       scX.setRoom(newRoom);
       scY.setTimeslot(xOriginal);
+
+      moveOptionalPairIfPresent(scX, scheduledClassId, swapWithId, xOriginal, newTimeslot);
+      moveOptionalPairIfPresent(scY, swapWithId, scheduledClassId, yOriginal, xOriginal);
 
       log.info("Full swap: ScheduledClass {} ↔ ScheduledClass {}", scheduledClassId, swapWithId);
     } else {
       scX.setTimeslot(newTimeslot);
       scX.setRoom(newRoom);
+
+      moveOptionalPairIfPresent(scX, scheduledClassId, null, xOriginal, newTimeslot);
+
       log.info(
           "Move: ScheduledClass {} → Timeslot {} Room {}",
           scheduledClassId,
