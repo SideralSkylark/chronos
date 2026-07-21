@@ -2,6 +2,7 @@ package com.timetable.timetable.scheduler_engine.solver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -9,11 +10,14 @@ import java.util.Optional;
 
 import com.timetable.timetable.domain.schedule.entity.CohortSubject;
 import com.timetable.timetable.domain.schedule.entity.OptionalGroup;
+import com.timetable.timetable.domain.schedule.entity.Room;
 import com.timetable.timetable.domain.schedule.entity.ScheduledClass;
 import com.timetable.timetable.domain.schedule.entity.Subject;
 import com.timetable.timetable.domain.schedule.entity.Timeslot;
 import com.timetable.timetable.domain.schedule.entity.Timetable;
+import com.timetable.timetable.domain.schedule.repository.RoomRepository;
 import com.timetable.timetable.domain.schedule.repository.ScheduledClassRepository;
+import com.timetable.timetable.domain.schedule.repository.TimeslotRepository;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,9 +31,373 @@ class PremutationServiceTest {
   @Mock
   private ScheduledClassRepository scheduledClassRepository;
 
+  @Mock
+  private TimeslotRepository timeslotRepository;
+
+  @Mock
+  private RoomRepository roomRepository;
+
   @InjectMocks
   private PermutationService permutationService;
 
+  @Test
+  void shouldMoveScheduledClass_whenNoSwapAndNoOptionalGroup() {
+    Timeslot originalTimeslot = new Timeslot();
+    originalTimeslot.setId(1L);
+    Timeslot newTimeslot = new Timeslot();
+    newTimeslot.setId(2L);
+    Room newRoom = new Room();
+    newRoom.setId(10L);
+
+    Subject subject = new Subject();
+    subject.setOptionalGroup(null);
+    CohortSubject cohortSubject = new CohortSubject();
+    cohortSubject.setSubject(subject);
+
+    ScheduledClass scX = new ScheduledClass();
+    scX.setId(1L);
+    scX.setCohortSubject(cohortSubject);
+    scX.setTimeslot(originalTimeslot);
+
+    when(scheduledClassRepository.findById(1L)).thenReturn(Optional.of(scX));
+    when(timeslotRepository.findById(2L)).thenReturn(Optional.of(newTimeslot));
+    when(roomRepository.findById(10L)).thenReturn(Optional.of(newRoom));
+
+    permutationService.applySwap(1L, 2L, 10L, null);
+
+    assertEquals(newTimeslot, scX.getTimeslot());
+    assertEquals(newRoom, scX.getRoom());
+  }
+
+  /**
+   * Move only (no swapWithId). X belongs to a group; its pair shares X's
+   * original timeslot and should follow X to the new timeslot.
+   */
+  @Test
+  void shouldMoveOptionalPair_whenMovingWithoutSwap() {
+    Timetable timetable = new Timetable();
+    timetable.setAcademicYear(2026);
+    timetable.setSemester(1);
+
+    Timeslot originalTimeslot = new Timeslot();
+    originalTimeslot.setId(1L);
+    Timeslot newTimeslot = new Timeslot();
+    newTimeslot.setId(2L);
+    Room newRoom = new Room();
+    newRoom.setId(10L);
+
+    OptionalGroup group = new OptionalGroup();
+    group.setId(1L);
+
+    Subject subjectX = new Subject();
+    subjectX.setOptionalGroup(group);
+    CohortSubject cohortSubjectX = new CohortSubject();
+    cohortSubjectX.setSubject(subjectX);
+
+    ScheduledClass scX = new ScheduledClass();
+    scX.setId(1L);
+    scX.setTimetable(timetable);
+    scX.setCohortSubject(cohortSubjectX);
+    scX.setTimeslot(originalTimeslot);
+
+    Subject subjectPair = new Subject();
+    subjectPair.setOptionalGroup(group);
+    CohortSubject cohortSubjectPair = new CohortSubject();
+    cohortSubjectPair.setSubject(subjectPair);
+
+    ScheduledClass pairX = new ScheduledClass();
+    pairX.setId(2L);
+    pairX.setTimetable(timetable);
+    pairX.setCohortSubject(cohortSubjectPair);
+    pairX.setTimeslot(originalTimeslot); // same block as scX
+
+    when(scheduledClassRepository.findById(1L)).thenReturn(Optional.of(scX));
+    when(timeslotRepository.findById(2L)).thenReturn(Optional.of(newTimeslot));
+    when(roomRepository.findById(10L)).thenReturn(Optional.of(newRoom));
+    when(scheduledClassRepository.findAllWithDetailsByPeriod(2026, 1))
+        .thenReturn(List.of(scX, pairX));
+
+    permutationService.applySwap(1L, 2L, 10L, null);
+
+    assertEquals(newTimeslot, scX.getTimeslot());
+    assertEquals(newTimeslot, pairX.getTimeslot());
+    verify(scheduledClassRepository).save(pairX);
+  }
+
+  /**
+   * X's pair belongs to the same group but a DIFFERENT original block
+   * (different timeslot) — it must NOT move.
+   */
+  @Test
+  void shouldNotMoveOtherBlock_whenSameGroupButDifferentOriginalTimeslot() {
+    Timetable timetable = new Timetable();
+    timetable.setAcademicYear(2026);
+    timetable.setSemester(1);
+
+    Timeslot originalTimeslot = new Timeslot();
+    originalTimeslot.setId(1L);
+    Timeslot newTimeslot = new Timeslot();
+    newTimeslot.setId(2L);
+    Timeslot unrelatedTimeslot = new Timeslot();
+    unrelatedTimeslot.setId(3L);
+    Room newRoom = new Room();
+    newRoom.setId(10L);
+
+    OptionalGroup group = new OptionalGroup();
+    group.setId(1L);
+
+    Subject subjectX = new Subject();
+    subjectX.setOptionalGroup(group);
+    CohortSubject cohortSubjectX = new CohortSubject();
+    cohortSubjectX.setSubject(subjectX);
+
+    ScheduledClass scX = new ScheduledClass();
+    scX.setId(1L);
+    scX.setTimetable(timetable);
+    scX.setCohortSubject(cohortSubjectX);
+    scX.setTimeslot(originalTimeslot);
+
+    Subject subjectOtherBlock = new Subject();
+    subjectOtherBlock.setOptionalGroup(group); // same group
+    CohortSubject cohortSubjectOtherBlock = new CohortSubject();
+    cohortSubjectOtherBlock.setSubject(subjectOtherBlock);
+
+    ScheduledClass otherBlock = new ScheduledClass();
+    otherBlock.setId(2L);
+    otherBlock.setTimetable(timetable);
+    otherBlock.setCohortSubject(cohortSubjectOtherBlock);
+    otherBlock.setTimeslot(unrelatedTimeslot); // different block, not scX's original slot
+
+    when(scheduledClassRepository.findById(1L)).thenReturn(Optional.of(scX));
+    when(timeslotRepository.findById(2L)).thenReturn(Optional.of(newTimeslot));
+    when(roomRepository.findById(10L)).thenReturn(Optional.of(newRoom));
+    when(scheduledClassRepository.findAllWithDetailsByPeriod(2026, 1))
+        .thenReturn(List.of(scX, otherBlock));
+
+    permutationService.applySwap(1L, 2L, 10L, null);
+
+    assertEquals(unrelatedTimeslot, otherBlock.getTimeslot()); // untouched
+    verify(scheduledClassRepository, never()).save(otherBlock);
+  }
+
+  /**
+   * Full swap. X belongs to a group, Y is plain. X's pair should follow X
+   * to X's destination (newTimeslot).
+   */
+  @Test
+  void shouldMoveOptionalPair_whenFullSwapAndXBelongsToGroup() {
+    Timetable timetable = new Timetable();
+    timetable.setAcademicYear(2026);
+    timetable.setSemester(1);
+
+    Timeslot xOriginal = new Timeslot();
+    xOriginal.setId(1L);
+    Timeslot xNew = new Timeslot();
+    xNew.setId(2L);
+    Timeslot yOriginal = new Timeslot();
+    yOriginal.setId(3L);
+    Room newRoom = new Room();
+    newRoom.setId(10L);
+
+    OptionalGroup group = new OptionalGroup();
+    group.setId(1L);
+
+    Subject subjectX = new Subject();
+    subjectX.setOptionalGroup(group);
+    CohortSubject cohortSubjectX = new CohortSubject();
+    cohortSubjectX.setSubject(subjectX);
+    ScheduledClass scX = new ScheduledClass();
+    scX.setId(1L);
+    scX.setTimetable(timetable);
+    scX.setCohortSubject(cohortSubjectX);
+    scX.setTimeslot(xOriginal);
+
+    Subject subjectY = new Subject();
+    subjectY.setOptionalGroup(null);
+    CohortSubject cohortSubjectY = new CohortSubject();
+    cohortSubjectY.setSubject(subjectY);
+    ScheduledClass scY = new ScheduledClass();
+    scY.setId(2L);
+    scY.setTimetable(timetable);
+    scY.setCohortSubject(cohortSubjectY);
+    scY.setTimeslot(yOriginal);
+
+    Subject subjectPairX = new Subject();
+    subjectPairX.setOptionalGroup(group);
+    CohortSubject cohortSubjectPairX = new CohortSubject();
+    cohortSubjectPairX.setSubject(subjectPairX);
+    ScheduledClass pairX = new ScheduledClass();
+    pairX.setId(3L);
+    pairX.setTimetable(timetable);
+    pairX.setCohortSubject(cohortSubjectPairX);
+    pairX.setTimeslot(xOriginal); // shares X's original block
+
+    when(scheduledClassRepository.findById(1L)).thenReturn(Optional.of(scX));
+    when(scheduledClassRepository.findById(2L)).thenReturn(Optional.of(scY));
+    when(timeslotRepository.findById(2L)).thenReturn(Optional.of(xNew));
+    when(roomRepository.findById(10L)).thenReturn(Optional.of(newRoom));
+    when(scheduledClassRepository.findAllWithDetailsByPeriod(2026, 1))
+        .thenReturn(List.of(scX, scY, pairX));
+
+    permutationService.applySwap(1L, 2L, 10L, 2L);
+
+    assertEquals(xNew, scX.getTimeslot());
+    assertEquals(xOriginal, scY.getTimeslot());
+    assertEquals(xNew, pairX.getTimeslot());
+    verify(scheduledClassRepository).save(pairX);
+  }
+
+  /**
+   * Full swap. Only Y belongs to a group. Y's pair should follow Y to Y's
+   * destination (xOriginal — the slot Y ends up in).
+   */
+  @Test
+  void shouldMoveOptionalPair_whenFullSwapAndOnlyYBelongsToGroup() {
+    Timetable timetable = new Timetable();
+    timetable.setAcademicYear(2026);
+    timetable.setSemester(1);
+
+    Timeslot xOriginal = new Timeslot();
+    xOriginal.setId(1L);
+    Timeslot xNew = new Timeslot();
+    xNew.setId(2L);
+    Timeslot yOriginal = new Timeslot();
+    yOriginal.setId(3L);
+    Room newRoom = new Room();
+    newRoom.setId(10L);
+
+    OptionalGroup group = new OptionalGroup();
+    group.setId(1L);
+
+    Subject subjectX = new Subject();
+    subjectX.setOptionalGroup(null);
+    CohortSubject cohortSubjectX = new CohortSubject();
+    cohortSubjectX.setSubject(subjectX);
+    ScheduledClass scX = new ScheduledClass();
+    scX.setId(1L);
+    scX.setTimetable(timetable);
+    scX.setCohortSubject(cohortSubjectX);
+    scX.setTimeslot(xOriginal);
+
+    Subject subjectY = new Subject();
+    subjectY.setOptionalGroup(group);
+    CohortSubject cohortSubjectY = new CohortSubject();
+    cohortSubjectY.setSubject(subjectY);
+    ScheduledClass scY = new ScheduledClass();
+    scY.setId(2L);
+    scY.setTimetable(timetable);
+    scY.setCohortSubject(cohortSubjectY);
+    scY.setTimeslot(yOriginal);
+
+    Subject subjectPairY = new Subject();
+    subjectPairY.setOptionalGroup(group);
+    CohortSubject cohortSubjectPairY = new CohortSubject();
+    cohortSubjectPairY.setSubject(subjectPairY);
+    ScheduledClass pairY = new ScheduledClass();
+    pairY.setId(3L);
+    pairY.setTimetable(timetable);
+    pairY.setCohortSubject(cohortSubjectPairY);
+    pairY.setTimeslot(yOriginal); // shares Y's original block
+
+    when(scheduledClassRepository.findById(1L)).thenReturn(Optional.of(scX));
+    when(scheduledClassRepository.findById(2L)).thenReturn(Optional.of(scY));
+    when(timeslotRepository.findById(2L)).thenReturn(Optional.of(xNew));
+    when(roomRepository.findById(10L)).thenReturn(Optional.of(newRoom));
+    when(scheduledClassRepository.findAllWithDetailsByPeriod(2026, 1))
+        .thenReturn(List.of(scX, scY, pairY));
+
+    permutationService.applySwap(1L, 2L, 10L, 2L);
+
+    assertEquals(xNew, scX.getTimeslot());
+    assertEquals(xOriginal, scY.getTimeslot());
+    assertEquals(xOriginal, pairY.getTimeslot()); // pair should follow Y to Y's new slot
+    verify(scheduledClassRepository).save(pairY);
+  }
+
+  /**
+   * Full swap. Both X and Y belong to (different) groups — both pairs
+   * should move.
+   */
+  @Test
+  void shouldMoveBothOptionalPairs_whenFullSwapAndBothBelongToGroups() {
+    Timetable timetable = new Timetable();
+    timetable.setAcademicYear(2026);
+    timetable.setSemester(1);
+
+    Timeslot xOriginal = new Timeslot();
+    xOriginal.setId(1L);
+    Timeslot xNew = new Timeslot();
+    xNew.setId(2L);
+    Timeslot yOriginal = new Timeslot();
+    yOriginal.setId(3L);
+    Room newRoom = new Room();
+    newRoom.setId(10L);
+
+    OptionalGroup groupX = new OptionalGroup();
+    groupX.setId(1L);
+    OptionalGroup groupY = new OptionalGroup();
+    groupY.setId(2L);
+
+    Subject subjectX = new Subject();
+    subjectX.setOptionalGroup(groupX);
+    CohortSubject cohortSubjectX = new CohortSubject();
+    cohortSubjectX.setSubject(subjectX);
+    ScheduledClass scX = new ScheduledClass();
+    scX.setId(1L);
+    scX.setTimetable(timetable);
+    scX.setCohortSubject(cohortSubjectX);
+    scX.setTimeslot(xOriginal);
+
+    Subject subjectY = new Subject();
+    subjectY.setOptionalGroup(groupY);
+    CohortSubject cohortSubjectY = new CohortSubject();
+    cohortSubjectY.setSubject(subjectY);
+    ScheduledClass scY = new ScheduledClass();
+    scY.setId(2L);
+    scY.setTimetable(timetable);
+    scY.setCohortSubject(cohortSubjectY);
+    scY.setTimeslot(yOriginal);
+
+    Subject subjectPairX = new Subject();
+    subjectPairX.setOptionalGroup(groupX);
+    CohortSubject cohortSubjectPairX = new CohortSubject();
+    cohortSubjectPairX.setSubject(subjectPairX);
+    ScheduledClass pairX = new ScheduledClass();
+    pairX.setId(3L);
+    pairX.setTimetable(timetable);
+    pairX.setCohortSubject(cohortSubjectPairX);
+    pairX.setTimeslot(xOriginal);
+
+    Subject subjectPairY = new Subject();
+    subjectPairY.setOptionalGroup(groupY);
+    CohortSubject cohortSubjectPairY = new CohortSubject();
+    cohortSubjectPairY.setSubject(subjectPairY);
+    ScheduledClass pairY = new ScheduledClass();
+    pairY.setId(4L);
+    pairY.setTimetable(timetable);
+    pairY.setCohortSubject(cohortSubjectPairY);
+    pairY.setTimeslot(yOriginal);
+
+    when(scheduledClassRepository.findById(1L)).thenReturn(Optional.of(scX));
+    when(scheduledClassRepository.findById(2L)).thenReturn(Optional.of(scY));
+    when(timeslotRepository.findById(2L)).thenReturn(Optional.of(xNew));
+    when(roomRepository.findById(10L)).thenReturn(Optional.of(newRoom));
+    when(scheduledClassRepository.findAllWithDetailsByPeriod(2026, 1))
+        .thenReturn(List.of(scX, scY, pairX, pairY));
+
+    permutationService.applySwap(1L, 2L, 10L, 2L);
+
+    assertEquals(xNew, scX.getTimeslot());
+    assertEquals(xOriginal, scY.getTimeslot());
+    assertEquals(xNew, pairX.getTimeslot());
+    assertEquals(xOriginal, pairY.getTimeslot());
+    verify(scheduledClassRepository).save(pairX);
+    verify(scheduledClassRepository).save(pairY);
+  }
+
+  /**
+   * Swap {@code ScheduledClass} A for B inside a cohort
+   */
   @Test
   void shouldSwapTimeslotsBetweenScheduledClasses() {
     Timeslot timeslot1 = new Timeslot();
