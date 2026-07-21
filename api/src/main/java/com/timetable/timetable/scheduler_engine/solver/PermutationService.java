@@ -388,29 +388,8 @@ public class PermutationService {
     scA.setTimeslot(timeslotB);
     scB.setTimeslot(timeslotA);
 
-    if (scA.getSubject().getOptionalGroup() != null) {
-      Long groupId = scA.getSubject().getOptionalGroup().getId();
-
-      scheduledClassRepository
-          .findAllWithDetailsByPeriod(
-              scA.getTimetable().getAcademicYear(), scA.getTimetable().getSemester())
-          .stream()
-          .filter(sc -> !sc.getId().equals(scheduledClassIdA))
-          .filter(
-              sc -> sc.getSubject().getOptionalGroup() != null
-                  && sc.getSubject().getOptionalGroup().getId().equals(groupId))
-          .filter(sc -> sc.getTimeslot().getId().equals(timeslotA.getId()))
-          .findFirst()
-          .ifPresent(
-              pair -> {
-                pair.setTimeslot(timeslotB);
-                scheduledClassRepository.save(pair);
-                log.info(
-                    "Optional pair ScheduledClass {} also moved to timeslot {} (cohort swap)",
-                    pair.getId(),
-                    timeslotB.getId());
-              });
-    }
+    moveOptionalPairIfPresent(scA, scheduledClassIdA, scheduledClassIdB, timeslotA, timeslotB);
+    moveOptionalPairIfPresent(scB, scheduledClassIdB, scheduledClassIdA, timeslotB, timeslotA);
 
     log.info(
         "Cohort swap: ScheduledClass {} ↔ ScheduledClass {}", scheduledClassIdA, scheduledClassIdB);
@@ -427,6 +406,56 @@ public class PermutationService {
       case AFTERNOON -> !isOddYear;
       case EVENING -> false;
     };
+  }
+
+  /**
+   * If the {@code ScheduledClass} belongs to an optional group, finds its sibling
+   * in the same optional group that was originally assigned to
+   * {@code originalTimeslot} and moves it to {@code newTimeslot}. The swap
+   * participants are excluded from the search to prevent them from matching each
+   * other.
+   *
+   * @param sc                 the scheduled class whose optional-group sibling
+   *                           should be moved
+   * @param scId               the ID of {@code sc}
+   * @param otherParticipantId the ID of the other class participating in the
+   *                           swap, excluded from the sibling lookup
+   * @param originalTimeslot   the sibling's expected original timeslot
+   * @param newTimeslot        the timeslot to assign to the sibling if found
+   */
+  private void moveOptionalPairIfPresent(
+      ScheduledClass sc,
+      Long scId,
+      Long otherParticipantId,
+      Timeslot originalTimeslot,
+      Timeslot newTimeslot) {
+
+    if (sc.getSubject().getOptionalGroup() == null) {
+      return;
+    }
+
+    Long groupId = sc.getSubject().getOptionalGroup().getId();
+
+    scheduledClassRepository
+        .findAllWithDetailsByPeriod(
+            sc.getTimetable().getAcademicYear(), sc.getTimetable().getSemester())
+        .stream()
+        .filter(candidate -> !candidate.getId().equals(scId))
+        .filter(candidate -> !candidate.getId().equals(otherParticipantId))
+        .filter(
+            candidate -> candidate.getSubject().getOptionalGroup() != null
+                && candidate.getSubject().getOptionalGroup().getId().equals(groupId))
+        .filter(candidate -> candidate.getTimeslot().getId().equals(originalTimeslot.getId()))
+        .findFirst()
+        .ifPresent(
+            pair -> {
+              pair.setTimeslot(newTimeslot);
+              scheduledClassRepository.save(pair);
+              log.info(
+                  "Optional pair ScheduledClass {} also moved to timeslot {} (cohort swap)",
+                  pair.getId(),
+                  newTimeslot.getId());
+            });
   }
 
   // ========================================
