@@ -29,8 +29,8 @@ public class PermutationController {
     permutationService.applySwap(
         request.scheduledClassId(),
         request.targetTimeslotId(),
-        request.targetRoomId(), // ← novo
-        request.swapWithId());
+        request.targetRoomId(),
+        request.swapWithId() != null ? List.of(request.swapWithId()) : null);
     return ResponseEntity.noContent().build();
   }
 

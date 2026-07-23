@@ -239,7 +239,7 @@ class PremutationServiceTest {
     when(scheduledClassRepository.findAllWithDetailsByPeriod(2026, 1))
         .thenReturn(List.of(scX, scY, pairX));
 
-    permutationService.applySwap(1L, 2L, 10L, 2L);
+    permutationService.applySwap(1L, 2L, 10L, List.of(2L));
 
     assertEquals(xNew, scX.getTimeslot());
     assertEquals(xOriginal, scY.getTimeslot());
@@ -306,7 +306,7 @@ class PremutationServiceTest {
     when(scheduledClassRepository.findAllWithDetailsByPeriod(2026, 1))
         .thenReturn(List.of(scX, scY, pairY));
 
-    permutationService.applySwap(1L, 2L, 10L, 2L);
+    permutationService.applySwap(1L, 2L, 10L, List.of(2L));
 
     assertEquals(xNew, scX.getTimeslot());
     assertEquals(xOriginal, scY.getTimeslot());
@@ -385,7 +385,7 @@ class PremutationServiceTest {
     when(scheduledClassRepository.findAllWithDetailsByPeriod(2026, 1))
         .thenReturn(List.of(scX, scY, pairX, pairY));
 
-    permutationService.applySwap(1L, 2L, 10L, 2L);
+    permutationService.applySwap(1L, 2L, 10L, List.of(2L));
 
     assertEquals(xNew, scX.getTimeslot());
     assertEquals(xOriginal, scY.getTimeslot());

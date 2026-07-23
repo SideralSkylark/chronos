@@ -2,17 +2,21 @@ import api from './api'
 import type { ApiResponse } from './responses/apiResponse'
 import type { CandidateTeacher } from './dto/timetable'
 
+export interface OccupantInfo {
+  scheduledClassId: number
+  subjectName: string
+  cohortName: string
+}
+
 export interface ValidSlot {
   timeslotId: number
   dayOfWeek: string
   startTime: string
   endTime: string
   isSwap: boolean
-  swapWithId: number | null
-  swapWithSubject: string | null
-  swapWithCohort: string | null
-  roomName: string        // ← NOVO
-  roomId: number          // ← NOVO
+  displaced: OccupantInfo[]
+  roomName: string
+  roomId: number
 }
 
 export interface CohortSwapCandidate {
@@ -38,14 +42,14 @@ export const permutationService = {
   applySwap: async (
     scheduledClassId: number,
     targetTimeslotId: number,
-    targetRoomId: number,   // ← NOVO
-    swapWithId: number | null,
+    targetRoomId: number,
+    swapWithIds: number[],
   ): Promise<void> => {
     await api.post('/v1/permutations/apply', {
       scheduledClassId,
       targetTimeslotId,
-      targetRoomId,          // ← NOVO
-      swapWithId,
+      targetRoomId,
+      swapWithIds,
     })
   },
 

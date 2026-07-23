@@ -15,8 +15,10 @@ import com.timetable.timetable.scheduler_engine.domain.info.TimeslotInfo;
 import com.timetable.timetable.scheduler_engine.mapper.TimetableSolutionMapper;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -122,8 +124,6 @@ public class PermutationService {
     for (TimeslotInfo candidate : candidates) {
       List<LessonAssignment> occupants = occupantsByTimeslotId.getOrDefault(candidate.getId(), List.of());
 
-      LessonAssignment occupant = occupants.size() == 1 ? occupants.get(0) : null;
-
       for (RoomInfo candidateRoom : solution.getAvailableRooms()) {
 
         if (!candidateRoom.hasSufficientCapacity(targetLesson.getStudentCount()))
@@ -136,19 +136,26 @@ public class PermutationService {
         targetLesson.setRoom(candidateRoom);
         if (optionalPair != null)
           optionalPair.setTimeslot(candidate);
-        if (occupant != null)
-          occupant.setTimeslot(originalTimeslot);
+        occupants.forEach(o -> o.setTimeslot(originalTimeslot));
 
         try {
           solutionManager.update(solution);
           HardSoftScore score = solution.getScore();
 
           if (score != null && score.hardScore() == 0) {
-            if (occupant != null) {
-              ScheduledClass occupantSc = allClasses.stream()
-                  .filter(sc -> sc.getId().equals(occupant.getId()))
-                  .findFirst()
-                  .orElse(null);
+            if (!occupants.isEmpty()) {
+              List<OccupantInfo> displaced = occupants.stream()
+                  .map(o -> {
+                    ScheduledClass occupantSc = allClasses.stream()
+                        .filter(sc -> sc.getId().equals(o.getId()))
+                        .findFirst()
+                        .orElse(null);
+                    return new OccupantInfo(
+                        o.getId(),
+                        occupantSc != null ? occupantSc.getSubject().getName() : "?",
+                        occupantSc != null ? occupantSc.getCohort().getDisplayName() : "?");
+                  })
+                  .toList();
 
               valid.add(
                   ValidSlotResponse.swap(
@@ -156,9 +163,7 @@ public class PermutationService {
                       candidate.getDayOfWeek().toString(),
                       candidate.getStartTime().toString(),
                       candidate.getEndTime().toString(),
-                      occupant.getId(),
-                      occupantSc != null ? occupantSc.getSubject().getName() : "?",
-                      occupantSc != null ? occupantSc.getCohort().getDisplayName() : "?",
+                      displaced,
                       candidateRoom.getName(),
                       candidateRoom.getId()));
             } else {
@@ -179,8 +184,7 @@ public class PermutationService {
           targetLesson.setRoom(originalRoom);
           if (optionalPair != null)
             optionalPair.setTimeslot(pairOriginalTimeslot);
-          if (occupant != null)
-            occupant.setTimeslot(candidate);
+          occupants.forEach(o -> o.setTimeslot(candidate));
         }
       }
     }
@@ -199,7 +203,7 @@ public class PermutationService {
 
   @Transactional
   public void applySwap(
-      Long scheduledClassId, Long targetTimeslotId, Long targetRoomId, Long swapWithId) {
+      Long scheduledClassId, Long targetTimeslotId, Long targetRoomId, List<Long> swapWithIds) {
 
     ScheduledClass scX = scheduledClassRepository
         .findById(scheduledClassId)
@@ -216,28 +220,36 @@ public class PermutationService {
         .orElseThrow(() -> new IllegalArgumentException("Room not found: " + targetRoomId));
 
     Timeslot xOriginal = scX.getTimeslot(); // capture before mutation
+    List<Long> ids = swapWithIds == null ? List.of() : swapWithIds;
 
-    if (swapWithId != null) {
-      ScheduledClass scY = scheduledClassRepository
-          .findById(swapWithId)
-          .orElseThrow(
-              () -> new IllegalArgumentException("ScheduledClass not found: " + swapWithId));
+    if (!ids.isEmpty()) {
+      List<ScheduledClass> partners = ids.stream()
+          .map(id -> scheduledClassRepository
+              .findById(id)
+              .orElseThrow(() -> new IllegalArgumentException("ScheduledClass not found: " + id)))
+          .toList();
 
-      Timeslot yOriginal = scY.getTimeslot(); // capture before mutation
+      Map<Long, Timeslot> partnerOriginals = partners.stream()
+          .collect(Collectors.toMap(ScheduledClass::getId, ScheduledClass::getTimeslot));
 
       scX.setTimeslot(newTimeslot);
       scX.setRoom(newRoom);
-      scY.setTimeslot(xOriginal);
+      partners.forEach(p -> p.setTimeslot(xOriginal));
 
-      moveOptionalPairIfPresent(scX, scheduledClassId, swapWithId, xOriginal, newTimeslot);
-      moveOptionalPairIfPresent(scY, swapWithId, scheduledClassId, yOriginal, xOriginal);
+      Set<Long> allParticipantIds = new HashSet<>(ids);
+      allParticipantIds.add(scheduledClassId);
 
-      log.info("Full swap: ScheduledClass {} ↔ ScheduledClass {}", scheduledClassId, swapWithId);
+      moveOptionalPairIfPresent(scX, allParticipantIds, xOriginal, newTimeslot);
+      partners.forEach(
+          p -> moveOptionalPairIfPresent(
+              p, allParticipantIds, partnerOriginals.get(p.getId()), xOriginal));
+
+      log.info("Full swap: ScheduledClass {} ↔ ScheduledClass(es) {}", scheduledClassId, ids);
     } else {
       scX.setTimeslot(newTimeslot);
       scX.setRoom(newRoom);
 
-      moveOptionalPairIfPresent(scX, scheduledClassId, null, xOriginal, newTimeslot);
+      moveOptionalPairIfPresent(scX, Set.of(scheduledClassId), xOriginal, newTimeslot);
 
       log.info(
           "Move: ScheduledClass {} → Timeslot {} Room {}",
@@ -369,8 +381,8 @@ public class PermutationService {
     scA.setTimeslot(timeslotB);
     scB.setTimeslot(timeslotA);
 
-    moveOptionalPairIfPresent(scA, scheduledClassIdA, scheduledClassIdB, timeslotA, timeslotB);
-    moveOptionalPairIfPresent(scB, scheduledClassIdB, scheduledClassIdA, timeslotB, timeslotA);
+    moveOptionalPairIfPresent(scA, Set.of(scheduledClassIdA, scheduledClassIdB), timeslotA, timeslotB);
+    moveOptionalPairIfPresent(scB, Set.of(scheduledClassIdA, scheduledClassIdB), timeslotB, timeslotA);
 
     log.info(
         "Cohort swap: ScheduledClass {} ↔ ScheduledClass {}", scheduledClassIdA, scheduledClassIdB);
@@ -427,10 +439,24 @@ public class PermutationService {
    * @param originalTimeslot   the sibling's expected original timeslot
    * @param newTimeslot        the timeslot to assign to the sibling if found
    */
+  /**
+   * If the {@code ScheduledClass} belongs to an optional group, finds its sibling
+   * in the same optional group that was originally assigned to
+   * {@code originalTimeslot} and moves it to {@code newTimeslot}. All swap
+   * participants are excluded from the search to prevent them from matching
+   * each other.
+   *
+   * @param sc               the scheduled class whose optional-group sibling
+   *                         should be moved
+   * @param excludedIds      ids of all classes participating in this swap
+   *                         (including {@code sc}'s own id), excluded from
+   *                         the sibling lookup
+   * @param originalTimeslot the sibling's expected original timeslot
+   * @param newTimeslot      the timeslot to assign to the sibling if found
+   */
   private void moveOptionalPairIfPresent(
       ScheduledClass sc,
-      Long scId,
-      Long otherParticipantId,
+      Set<Long> excludedIds,
       Timeslot originalTimeslot,
       Timeslot newTimeslot) {
 
@@ -444,8 +470,7 @@ public class PermutationService {
         .findAllWithDetailsByPeriod(
             sc.getTimetable().getAcademicYear(), sc.getTimetable().getSemester())
         .stream()
-        .filter(candidate -> !candidate.getId().equals(scId))
-        .filter(candidate -> !candidate.getId().equals(otherParticipantId))
+        .filter(candidate -> !excludedIds.contains(candidate.getId()))
         .filter(
             candidate -> candidate.getSubject().getOptionalGroup() != null
                 && candidate.getSubject().getOptionalGroup().getId().equals(groupId))
@@ -456,7 +481,7 @@ public class PermutationService {
               pair.setTimeslot(newTimeslot);
               scheduledClassRepository.save(pair);
               log.info(
-                  "Optional pair ScheduledClass {} also moved to timeslot {} (cohort swap)",
+                  "Optional pair ScheduledClass {} also moved to timeslot {}",
                   pair.getId(),
                   newTimeslot.getId());
             });
@@ -474,36 +499,33 @@ public class PermutationService {
       String roomName) {
   }
 
-  public record ValidSlotResponse(
+public record OccupantInfo(Long scheduledClassId, String subjectName, String cohortName) {
+}
+
+public record ValidSlotResponse(
+    long timeslotId,
+    String dayOfWeek,
+    String startTime,
+    String endTime,
+    boolean isSwap,
+    List<OccupantInfo> displaced,
+    String roomName,
+    Long roomId) {
+
+  static ValidSlotResponse empty(
+      long timeslotId, String day, String start, String end, String roomName, Long roomId) {
+    return new ValidSlotResponse(timeslotId, day, start, end, false, List.of(), roomName, roomId);
+  }
+
+  static ValidSlotResponse swap(
       long timeslotId,
-      String dayOfWeek,
-      String startTime,
-      String endTime,
-      boolean isSwap,
-      Long swapWithId,
-      String swapWithSubject,
-      String swapWithCohort,
+      String day,
+      String start,
+      String end,
+      List<OccupantInfo> displaced,
       String roomName,
       Long roomId) {
-
-    static ValidSlotResponse empty(
-        long timeslotId, String day, String start, String end, String roomName, Long roomId) {
-      return new ValidSlotResponse(
-          timeslotId, day, start, end, false, null, null, null, roomName, roomId);
-    }
-
-    static ValidSlotResponse swap(
-        long timeslotId,
-        String day,
-        String start,
-        String end,
-        Long swapWithId,
-        String subject,
-        String cohort,
-        String roomName,
-        Long roomId) {
-      return new ValidSlotResponse(
-          timeslotId, day, start, end, true, swapWithId, subject, cohort, roomName, roomId);
-    }
+    return new ValidSlotResponse(timeslotId, day, start, end, true, displaced, roomName, roomId);
   }
+}
 }

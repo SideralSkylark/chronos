@@ -639,14 +639,27 @@
           </div>
 
           <div
-            v-if="pendingSwap.isSwap"
+            v-if="pendingSwap.isSwap && pendingSwap.displaced?.length"
             class="bg-orange-50 border border-orange-100 rounded-md p-3 text-xs"
           >
             <p class="text-[10px] font-bold text-blue-800 uppercase tracking-wide mb-1">
-              Deslocada
+              {{ pendingSwap.displaced.length === 1 ? 'Deslocada' : 'Aulas Deslocadas (' + pendingSwap.displaced.length + ')' }}
             </p>
 
-            <p class="font-semibold text-gray-800">{{ pendingSwap.swapWithSubject }}</p>
+            <div v-if="pendingSwap.displaced?.length === 1">
+              <p class="font-semibold text-gray-800">
+                {{ pendingSwap.displaced?.[0]?.subjectName }} ({{ pendingSwap.displaced?.[0]?.cohortName }})
+              </p>
+            </div>
+            <div v-else class="space-y-1">
+              <p
+                v-for="d in pendingSwap.displaced"
+                :key="d.scheduledClassId"
+                class="font-semibold text-gray-800"
+              >
+                • {{ d.subjectName }} ({{ d.cohortName }})
+              </p>
+            </div>
 
             <div class="flex items-center gap-1.5 mt-2 flex-wrap">
               <span
@@ -1142,19 +1155,20 @@ async function handleApplySwap() {
   const originalRoomId = selectedLesson.value.room?.id
   const lessonId = selectedLesson.value.id
   const isSwap = pendingSwap.value.isSwap
+  const swapWithIds = pendingSwap.value.displaced?.map(d => d.scheduledClassId) || []
 
   try {
     await permutationService.applySwap(
       lessonId,
       pendingSwap.value.timeslotId,
       pendingSwap.value.roomId,
-      pendingSwap.value.swapWithId,
+      swapWithIds,
     )
     toast.success(isSwap ? 'Aulas trocadas com sucesso!' : 'Aula movida com sucesso!')
 
     showUndo(isSwap ? 'Troca de aulas efectuada' : 'Aula movida com sucesso', async () => {
       if (originalTimeslotId !== undefined && originalRoomId !== undefined) {
-        await permutationService.applySwap(lessonId, originalTimeslotId, originalRoomId, null)
+        await permutationService.applySwap(lessonId, originalTimeslotId, originalRoomId, [])
         await timetableStore.loadForPeriod(
           timetableStore.selectedYear!,
           timetableStore.selectedSemester!,
