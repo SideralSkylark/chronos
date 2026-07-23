@@ -70,19 +70,14 @@ class FindCohortSwapCandidatesContraintTest {
 
   /**
    * Candidate belongs to an optional group; its pair is co-scheduled at
-   * candidate's original timeslot. findCohortSwapCandidates never moves
-   * the candidate's pair during evaluation, so the tentative swap leaves
-   * target sharing a timeslot with the orphaned pair — a real cohort
-   * conflict per the actual constraint provider — and the candidate is
-   * wrongly excluded from the result.
-   *
-   * Documents a currently-existing gap: this swap would actually be safe
-   * if the candidate's pair were moved along with it (as applyCohortSwap
-   * now correctly does), but findCohortSwapCandidates only accounts for
-   * the TARGET's own optional pair.
+   * candidate's original timeslot. findCohortSwapCandidates now moves the
+   * candidate's pair alongside it during tentative evaluation, so the
+   * resulting state is a legitimate co-scheduling (candidate + its pair,
+   * same group, same new timeslot) rather than a conflict — the candidate
+   * correctly appears as valid.
    */
   @Test
-  void shouldNotSurfaceCandidate_whenCandidatesOptionalPairIsIgnored_currentlyABug() {
+  void shouldSurfaceCandidate_whenCandidatesOptionalPairIsMovedAlongWithIt() {
     int academicYear = 2026;
     int semester = 1;
 
@@ -177,10 +172,6 @@ class FindCohortSwapCandidatesContraintTest {
     List<PermutationService.CohortSwapCandidate> result = permutationService.findCohortSwapCandidates(1L, academicYear,
         semester);
 
-    // Documents CURRENT (buggy) behavior: candidate id=2 is wrongly excluded
-    // because its pair (id=3) never moves during the tentative evaluation,
-    // producing a real cohort conflict against `target` at timeslotB.
-    assertTrue(result.stream().noneMatch(c -> c.scheduledClassId().equals(2L)));
+    assertTrue(result.stream().anyMatch(c -> c.scheduledClassId().equals(2L)));
   }
-
 }

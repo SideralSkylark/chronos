@@ -14,6 +14,7 @@ import com.timetable.timetable.scheduler_engine.domain.info.RoomInfo;
 import com.timetable.timetable.scheduler_engine.domain.info.TimeslotInfo;
 import com.timetable.timetable.scheduler_engine.mapper.TimetableSolutionMapper;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -277,22 +278,10 @@ public class PermutationService {
         .findFirst()
         .orElseThrow();
 
-    // ── Optional pair detection ────────────────────────────────────────────
-    final LessonAssignment optionalPair;
-    if (targetLesson.getOptionalGroupId() != null) {
-      optionalPair = solution.getLessonAssignments().stream()
-          .filter(la -> !la.getId().equals(scheduledClassId))
-          .filter(la -> targetLesson.getOptionalGroupId().equals(la.getOptionalGroupId()))
-          .filter(la -> la.getBlockNumber() == targetLesson.getBlockNumber())
-          .findFirst()
-          .orElse(null);
-    } else {
-      optionalPair = null;
-    }
+    LessonAssignment optionalPair = findOptionalPair(targetLesson, solution.getLessonAssignments(), scheduledClassId);
 
     String excludedOptionalGroupId = targetLesson.getOptionalGroupId();
 
-    // Other lessons from the same cohort, different subject
     List<LessonAssignment> sameCohortOthers = solution.getLessonAssignments().stream()
         .filter(la -> !la.getId().equals(scheduledClassId))
         .filter(la -> la.getCohortSubject().getCohort().getId().equals(targetCohortId))
@@ -311,11 +300,19 @@ public class PermutationService {
       TimeslotInfo originalTimeslotB = candidate.getTimeslot();
       RoomInfo originalRoomB = candidate.getRoom();
 
+      // Candidate's own optional-group sibling — excluded ids: scheduledClassId
+      // (target) and candidate's own id, so neither can match as its own pair.
+      LessonAssignment candidatePair = findOptionalPair(
+          candidate, solution.getLessonAssignments(), scheduledClassId, candidate.getId());
+      final TimeslotInfo candidatePairOriginalTimeslot = candidatePair != null ? candidatePair.getTimeslot() : null;
+
       // Swap timeslots; rooms stay with their respective lessons
       targetLesson.setTimeslot(originalTimeslotB);
       candidate.setTimeslot(originalTimeslotA);
       if (optionalPair != null)
         optionalPair.setTimeslot(originalTimeslotB);
+      if (candidatePair != null)
+        candidatePair.setTimeslot(originalTimeslotA);
 
       try {
         solutionManager.update(solution);
@@ -340,6 +337,8 @@ public class PermutationService {
         candidate.setTimeslot(originalTimeslotB);
         if (optionalPair != null)
           optionalPair.setTimeslot(pairOriginalTimeslot);
+        if (candidatePair != null)
+          candidatePair.setTimeslot(candidatePairOriginalTimeslot);
       }
     }
 
@@ -388,6 +387,29 @@ public class PermutationService {
       case AFTERNOON -> !isOddYear;
       case EVENING -> false;
     };
+  }
+
+  /**
+   * Finds {@code lesson}'s sibling in the same optional group and block
+   * (i.e. its co-scheduled optional pair), if any, excluding the given ids
+   * from the search. Operates purely on the in-memory solver representation
+   * — no persistence, used for tentative scoring only.
+   */
+  private LessonAssignment findOptionalPair(
+      LessonAssignment lesson, List<LessonAssignment> lessons, Long... excludedIds) {
+
+    if (lesson.getOptionalGroupId() == null) {
+      return null;
+    }
+
+    List<Long> excluded = Arrays.asList(excludedIds);
+
+    return lessons.stream()
+        .filter(la -> !excluded.contains(la.getId()))
+        .filter(la -> lesson.getOptionalGroupId().equals(la.getOptionalGroupId()))
+        .filter(la -> la.getBlockNumber() == lesson.getBlockNumber())
+        .findFirst()
+        .orElse(null);
   }
 
   /**
