@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -173,5 +175,51 @@ class FindCohortSwapCandidatesContraintTest {
         semester);
 
     assertTrue(result.stream().anyMatch(c -> c.scheduledClassId().equals(2L)));
+  }
+
+  @Test
+  void findOptionalPair_shouldNotMatch_whenSameGroupButDifferentBlock() {
+    CohortInfo cohortInfo = CohortInfo.builder().id(100L).displayName("Cohort C").build();
+    TeacherInfo teacherInfo = TeacherInfo.builder().id(1L).name("Teacher").build();
+
+    SubjectInfo subjectA = SubjectInfo.builder().id(1L).name("A").optionalGroupId(50L).build();
+    CohortSubjectInfo csA = CohortSubjectInfo.builder()
+        .id(1L).cohort(cohortInfo).subject(subjectA).teacher(teacherInfo).build();
+    LessonAssignment lessonA = LessonAssignment.builder()
+        .id(1L).cohortSubject(csA).blockNumber(1).build();
+
+    SubjectInfo subjectOtherBlock = SubjectInfo.builder().id(2L).name("B").optionalGroupId(50L).build();
+    CohortSubjectInfo csOtherBlock = CohortSubjectInfo.builder()
+        .id(2L).cohort(cohortInfo).subject(subjectOtherBlock).teacher(teacherInfo).build();
+    LessonAssignment otherBlockLesson = LessonAssignment.builder()
+        .id(2L).cohortSubject(csOtherBlock).blockNumber(2).build(); // different block
+
+    LessonAssignment result = permutationService.findOptionalPair(
+        lessonA, List.of(lessonA, otherBlockLesson), lessonA.getId());
+
+    assertNull(result);
+  }
+
+  @Test
+  void findOptionalPair_shouldMatch_whenSameGroupAndSameBlock() {
+    CohortInfo cohortInfo = CohortInfo.builder().id(100L).displayName("Cohort C").build();
+    TeacherInfo teacherInfo = TeacherInfo.builder().id(1L).name("Teacher").build();
+
+    SubjectInfo subjectA = SubjectInfo.builder().id(1L).name("A").optionalGroupId(50L).build();
+    CohortSubjectInfo csA = CohortSubjectInfo.builder()
+        .id(1L).cohort(cohortInfo).subject(subjectA).teacher(teacherInfo).build();
+    LessonAssignment lessonA = LessonAssignment.builder()
+        .id(1L).cohortSubject(csA).blockNumber(1).build();
+
+    SubjectInfo subjectPair = SubjectInfo.builder().id(2L).name("Pair").optionalGroupId(50L).build();
+    CohortSubjectInfo csPair = CohortSubjectInfo.builder()
+        .id(2L).cohort(cohortInfo).subject(subjectPair).teacher(teacherInfo).build();
+    LessonAssignment pairLesson = LessonAssignment.builder()
+        .id(2L).cohortSubject(csPair).blockNumber(1).build();
+
+    LessonAssignment result = permutationService.findOptionalPair(
+        lessonA, List.of(lessonA, pairLesson), lessonA.getId());
+
+    assertEquals(pairLesson, result);
   }
 }

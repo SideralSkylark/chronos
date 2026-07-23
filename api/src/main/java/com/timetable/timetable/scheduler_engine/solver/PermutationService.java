@@ -395,7 +395,7 @@ public class PermutationService {
    * from the search. Operates purely on the in-memory solver representation
    * — no persistence, used for tentative scoring only.
    */
-  private LessonAssignment findOptionalPair(
+  LessonAssignment findOptionalPair(
       LessonAssignment lesson, List<LessonAssignment> lessons, Long... excludedIds) {
 
     if (lesson.getOptionalGroupId() == null) {
