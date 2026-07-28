@@ -30,6 +30,14 @@ The project focuses on two core capabilities:
 
 ---
 
+## Setup
+For development, run once after cloning:
+```bash
+chmod +x scripts/pre-commit && ln -s ../../scripts/pre-commit .git/hooks/pre-commit
+```
+Make sure to install google-java-formater beforehand.
+Java files will be auto-formatted on commit.
+
 ## Architecture
 
 ### Backend
