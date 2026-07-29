@@ -1,6 +1,6 @@
 services:
   spring-api:
-    container_name: chronos-api
+    container_name: chronos-api-pub
     build:
       context: ./api
       dockerfile: Dockerfile
@@ -17,7 +17,7 @@ services:
       - api-network
 
   db:
-    container_name: chronos-db
+    container_name: chronos-db-pub
     image: postgres:15
     environment:
       POSTGRES_USER: ${DB_USERNAME}
